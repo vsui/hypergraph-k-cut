@@ -333,7 +333,7 @@ int cxy_contract_(Hypergraph &hypergraph, int k) {
       ++i;
     }
 
-    if (std::accumulate(std::begin(deltas), std::end(deltas), 0) == 0) {
+    if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
       min_so_far = std::min(min_so_far, hypergraph.num_edges());
       break;
     }
@@ -378,6 +378,7 @@ int cxy_contract(Hypergraph &hypergraph, int k) {
   // TODO this is likely to overflow when n is large (> 100000)
   long long repeat = ncr(hypergraph.num_vertices(), 2 * (k - 1));
   repeat *= std::ceil(std::log(hypergraph.num_vertices()));
+  repeat = std::max(repeat, 1ll);
   int min_so_far = std::numeric_limits<int>::max();
   for (long long i = 0; i < repeat; ++i) {
     Hypergraph copy(hypergraph);
