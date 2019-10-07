@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -278,7 +279,14 @@ int branching_contract(Hypergraph &hypergraph, int k) {
     // branching_contract_ modifies the input hypergraph so avoid copying, so
     // copy it once in the beginning to save time
     Hypergraph copy(hypergraph);
+    auto start = std::chrono::high_resolution_clock::now();
     min_so_far = std::min(min_so_far, branching_contract_(copy, k));
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::cout << "[" << i+1 << "/" << repeat << "] took "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(stop -
+                                                                       start)
+                     .count()
+              << " milliseconds\n";
   }
 
   return min_so_far;
@@ -337,7 +345,13 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  auto start = std::chrono::high_resolution_clock::now();
   int answer = branching_contract(h, k);
-
+  auto stop = std::chrono::high_resolution_clock::now();
+  std::cout << "Algorithm took "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(stop -
+                                                                     start)
+                   .count()
+            << " milliseconds\n";
   std::cout << "The answer is " << answer << std::endl;
 }
