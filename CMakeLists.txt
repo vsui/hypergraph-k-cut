@@ -4,4 +4,5 @@ set(CMAKE_CXX_STANDARD 17)
 
 project(HypergraphPartitioning)
 
-add_executable(main main.cpp)
+add_executable(main main.cpp hypergraph.cpp)
+
