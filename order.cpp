@@ -212,7 +212,7 @@ std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a) {
     vertices_without_a.emplace_back(v);
   }
 
-  BucketHeap bheap(vertices_without_a, hypergraph.edges().size() + 1);
+  BucketHeap bheap(vertices_without_a, 2 * hypergraph.edges().size() + 1);
 
   // Copy vertices and incidence lists because we need to modify them
   std::unordered_map<int, std::vector<int>> vertices(
@@ -272,7 +272,8 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
       std::max_element(
           std::cbegin(hypergraph.vertices()), std::cend(hypergraph.vertices()),
           [](const auto &a, const auto &b) { return a.first < b.first; })
-          ->first;
+          ->first +
+      1;
 
   std::vector<std::vector<int>> new_edges;
 

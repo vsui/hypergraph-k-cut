@@ -136,51 +136,59 @@ bool verify_queyranne_ordering(const Hypergraph &hypergraph, InputIt begin,
 } // namespace
 
 TEST(MaximumAdjacencyOrdering, Works) {
-  Hypergraph hypergraph = factory();
+  for (int i = 1; i <= 10; ++i) {
+    Hypergraph hypergraph = factory();
 
-  std::vector<int> ordering = maximum_adjacency_ordering(hypergraph, 1);
+    std::vector<int> ordering = maximum_adjacency_ordering(hypergraph, i);
 
-  ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
+    ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
 
-  ASSERT_TRUE(verify_maximum_adjacency_ordering(
-      hypergraph, std::begin(ordering), std::end(ordering)));
+    ASSERT_TRUE(verify_maximum_adjacency_ordering(
+        hypergraph, std::begin(ordering), std::end(ordering)));
+  }
 }
 
 TEST(TightOrdering, Works) {
-  Hypergraph hypergraph = factory();
+  for (int i = 1; i <= 10; ++i) {
+    Hypergraph hypergraph = factory();
 
-  std::vector<int> ordering = tight_ordering(hypergraph, 1);
+    std::vector<int> ordering = tight_ordering(hypergraph, 1);
 
-  ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
-  ASSERT_TRUE(verify_tight_ordering(hypergraph, std::begin(ordering),
-                                    std::end(ordering)));
+    ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
+    ASSERT_TRUE(verify_tight_ordering(hypergraph, std::begin(ordering),
+                                      std::end(ordering)));
+  }
 }
 
 TEST(QueyranneOrdering, Works) {
-  Hypergraph hypergraph = factory();
+  for (int i = 1; i <= 10; ++i) {
+    Hypergraph hypergraph = factory();
 
-  std::vector<int> ordering = queyranne_ordering(hypergraph, 1);
+    std::vector<int> ordering = queyranne_ordering(hypergraph, 1);
 
-  ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
-  ASSERT_TRUE(verify_queyranne_ordering(hypergraph, std::begin(ordering),
-                                        std::end(ordering)));
+    ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
+    ASSERT_TRUE(verify_queyranne_ordering(hypergraph, std::begin(ordering),
+                                          std::end(ordering)));
+  }
 }
 
 TEST(MaximumAdjacencyMinCut, Works) {
-  for (int i : {1,2,3,4,5,6,7,8,9,10}) {
-  auto h = factory();
-  ASSERT_EQ(vertex_ordering_mincut(h, 8, maximum_adjacency_ordering), 3);
+  for (int i = 1; i <= 10; ++i) {
+    auto h = factory();
+    ASSERT_EQ(vertex_ordering_mincut(h, i, maximum_adjacency_ordering), 3);
   }
 }
+
 TEST(TightMinCut, Works) {
-  for (int i : {1,2,3,4,5,6,7,8,9,10}) {
-  auto h = factory();
-  ASSERT_EQ(vertex_ordering_mincut(h, 8, tight_ordering), 3);
+  for (int i = 1; i <= 10; ++i) {
+    auto h = factory();
+    ASSERT_EQ(vertex_ordering_mincut(h, i, tight_ordering), 3);
   }
 }
+
 TEST(QueyranneMinCut, Works) {
-  for (int i : {1,2,3,4,5,6,7,8,9,10}) {
-  auto h = factory();
-  ASSERT_EQ(vertex_ordering_mincut(h, 8, queyranne_ordering), 3);
+  for (int i = 1; i <= 10; ++i) {
+    auto h = factory();
+    ASSERT_EQ(vertex_ordering_mincut(h, i, queyranne_ordering), 3);
   }
 }
