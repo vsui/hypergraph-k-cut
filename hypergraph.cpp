@@ -171,7 +171,7 @@ std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
   os << "VERTICES\n";
 
   for (const auto &[id, edges] : hypergraph.vertices()) {
-    std::cout << id << ": ";
+    os << id << ": ";
     for (const int e : edges) {
       os << e << " ";
     }
@@ -180,7 +180,7 @@ std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
 
   os << "EDGES\n";
   for (const auto &[id, vertices] : hypergraph.edges()) {
-    std::cout << id << ": ";
+    os << id << ": ";
     for (const int v : vertices) {
       os << v << " ";
     }
