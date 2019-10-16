@@ -71,15 +71,18 @@ int d2(const Hypergraph &hypergraph, InputIt a_begin, InputIt a_end,
 
 // Returns a hypergraph to test on
 Hypergraph factory() {
-  return Hypergraph({1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {{1, 2},
-                                                      {1, 3},
+  return Hypergraph({1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {{1, 2, 9},
+                                                      {1, 3, 9},
+                                                      {1, 2, 5, 7, 8},
+                                                      {3, 5, 8},
                                                       {2, 5, 6},
                                                       {6, 7, 9},
                                                       {2, 3, 10},
                                                       {5, 10},
                                                       {1, 4},
+                                                      {4, 8, 10},
                                                       {1, 2, 3},
-                                                      {1, 2, 3, 4},
+                                                      {1, 2, 3, 4, 6, 7},
                                                       {1, 5}});
 }
 
@@ -161,4 +164,23 @@ TEST(QueyranneOrdering, Works) {
   ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
   ASSERT_TRUE(verify_queyranne_ordering(hypergraph, std::begin(ordering),
                                         std::end(ordering)));
+}
+
+TEST(MaximumAdjacencyMinCut, Works) {
+  for (int i : {1,2,3,4,5,6,7,8,9,10}) {
+  auto h = factory();
+  ASSERT_EQ(vertex_ordering_mincut(h, 8, maximum_adjacency_ordering), 3);
+  }
+}
+TEST(TightMinCut, Works) {
+  for (int i : {1,2,3,4,5,6,7,8,9,10}) {
+  auto h = factory();
+  ASSERT_EQ(vertex_ordering_mincut(h, 8, tight_ordering), 3);
+  }
+}
+TEST(QueyranneMinCut, Works) {
+  for (int i : {1,2,3,4,5,6,7,8,9,10}) {
+  auto h = factory();
+  ASSERT_EQ(vertex_ordering_mincut(h, 8, queyranne_ordering), 3);
+  }
 }

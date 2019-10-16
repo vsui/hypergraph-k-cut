@@ -285,12 +285,12 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
       } else {
         new_edge.push_back(v);
       }
-      if (add_new) {
-        new_edge.push_back(new_v);
-      }
-      if (new_edge.size() > 1) {
-        new_edges.push_back(std::move(new_edge));
-      }
+    }
+    if (add_new) {
+      new_edge.push_back(new_v);
+    }
+    if (new_edge.size() > 1) {
+      new_edges.push_back(std::move(new_edge));
     }
   }
 
@@ -301,6 +301,7 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
     }
     new_vertices.push_back(v);
   }
+  new_vertices.push_back(new_v);
   return Hypergraph(new_vertices, new_edges);
 }
 
@@ -331,3 +332,4 @@ std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
 
   return edge_ordering;
 }
+
