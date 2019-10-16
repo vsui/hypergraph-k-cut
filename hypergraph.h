@@ -10,6 +10,9 @@ public:
 
   Hypergraph(const int num_edges, const std::vector<std::vector<int>> &edges);
 
+  Hypergraph(const std::vector<int> &vertices,
+             const std::vector<std::vector<int>> &edges);
+
   int num_vertices() const;
   int num_edges() const;
 
@@ -44,4 +47,3 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);
-

@@ -1,6 +1,7 @@
 // This file implements vertex orderings for hypergraphs. See CX section 2.1 for
 // more details.
 
+#include <algorithm>
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
@@ -71,33 +72,42 @@ private:
 void maximum_adjacency_ordering_tighten(
     const Hypergraph &hypergraph, BucketHeap &bheap,
     std::unordered_map<int, std::vector<int>> vertices,
-    std::unordered_set<int> used, std::unordered_set<int> ordered,
+    std::unordered_set<int> &used, std::unordered_set<int> &ordered,
     const int v) {
-  for (auto &[v, incident_edges] : vertices) {
-    for (const int e : incident_edges) {
-      if (used.find(e) != std::end(used)) {
-        continue;
-      }
-      for (const int u : hypergraph.edges().at(e)) {
-        if (ordered.find(u) == std::end(ordered)) {
-          bheap.increment(u);
-        }
-      }
-      used.insert(e);
+  // We are adding v to the ordering so far, and need to update the keys for the
+  // other vertices
+
+  // Check each edge e incident on v
+  for (const int e : hypergraph.vertices().at(v)) {
+    // If e has already been used, then skip it
+    if (used.find(e) != std::end(used)) {
+      continue;
     }
+    // For every vertex u in e that is not v and not already in the ordering,
+    // increment its key (it is one edge tighter now)
+    for (const int u : hypergraph.edges().at(e)) {
+      if (ordered.find(u) == std::end(ordered)) {
+        bheap.increment(u);
+      }
+    }
+    used.insert(e);
   }
 }
 
 void tight_ordering_tighten(
     const Hypergraph &hypergraph, BucketHeap &bheap,
-    std::unordered_map<int, int> num_vertices_outside_ordering,
-    std::unordered_set<int> ordered, const int v) {
+    std::unordered_map<int, int> &num_vertices_outside_ordering,
+    std::unordered_set<int> &ordered, const int v) {
+  // For every edge e incident on v
   for (const int e : hypergraph.vertices().at(v)) {
-    num_vertices_outside_ordering[e] -= 1;
-    if (num_vertices_outside_ordering[e] == 1) {
+    // Tighten this edge
+    num_vertices_outside_ordering.at(e) -= 1;
+    // If the edge only has one vertex u left that is outside the ordering,
+    // increase the key of u
+    if (num_vertices_outside_ordering.at(e) == 1) {
       for (const int u : hypergraph.edges().at(e)) {
         if (ordered.find(u) == std::end(ordered)) {
-          bheap.increment(v);
+          bheap.increment(u);
           break;
         }
       }
@@ -105,13 +115,11 @@ void tight_ordering_tighten(
   }
 }
 
-// Returns a maximum adjacency ordering of vertices, starting with vertex a.
-// Linear in the number of vertices across all hyperedges.
-//
-// Here, tightness for a vertex v is the number of edges that intersect the
-// ordering so far and v.
+#include <iostream>
+
 std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
                                             const int a) {
+  // Ordering starts with a
   std::vector<int> ordering = {a};
   std::vector<int> vertices_without_a;
   for (const auto &[v, incidence] : hypergraph.vertices()) {
@@ -131,18 +139,18 @@ std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
   std::unordered_set<int> used;
 
   // Tracks what vertices have been added to the ordering
-  std::unordered_set<int> ordered;
+  std::unordered_set<int> ordered = {a};
 
   auto tighten = [&hypergraph, &bheap, &vertices, &used,
                   &ordered](const int v) {
+    ordered.insert(v);
     maximum_adjacency_ordering_tighten(hypergraph, bheap, vertices, used,
                                        ordered, v);
-    ordered.insert(v);
   };
 
   tighten(a);
 
-  while (ordering.size() <= hypergraph.vertices().size()) {
+  while (ordering.size() < hypergraph.vertices().size()) {
     const int v = bheap.pop();
     ordering.emplace_back(v);
     tighten(v);
@@ -151,12 +159,6 @@ std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
   return ordering;
 }
 
-// Return a tight ordering of vertices, starting with vertex a. Linear in the
-// number of vertices across all hyperedges.
-//
-// Here, tightness is the number of edges connecting a vertex v to the
-// ordering so far that consist of vertices either in the ordering or v
-// itself.
 std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a) {
   std::vector<int> ordering = {a};
   std::vector<int> vertices_without_a;
@@ -184,14 +186,14 @@ std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a) {
 
   auto tighten = [&hypergraph, &bheap, &vertices,
                   &num_vertices_outside_ordering, &ordered](const int v) {
+    ordered.insert(v);
     tight_ordering_tighten(hypergraph, bheap, num_vertices_outside_ordering,
                            ordered, v);
-    ordered.insert(v);
   };
 
   tighten(a);
 
-  while (ordering.size() <= hypergraph.vertices().size()) {
+  while (ordering.size() < hypergraph.vertices().size()) {
     const int v = bheap.pop();
     ordering.emplace_back(v);
     tighten(v);
@@ -200,8 +202,6 @@ std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a) {
   return ordering;
 }
 
-// Return a Queyranne ordering of vertices, starting with vertex a. Linear in the
-// number of vertices across all hyperedges.
 std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a) {
   std::vector<int> ordering = {a};
   std::vector<int> vertices_without_a;
@@ -231,20 +231,103 @@ std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a) {
   std::unordered_set<int> used;
 
   auto tighten = [&hypergraph, &bheap, &vertices,
-                  &num_vertices_outside_ordering, &used, &ordered](const int v) {
-    maximum_adjacency_ordering_tighten(hypergraph, bheap, vertices, used, ordered, v);
+                  &num_vertices_outside_ordering, &used,
+                  &ordered](const int v) {
+    ordered.insert(v);
+    maximum_adjacency_ordering_tighten(hypergraph, bheap, vertices, used,
+                                       ordered, v);
     tight_ordering_tighten(hypergraph, bheap, num_vertices_outside_ordering,
                            ordered, v);
-    ordered.insert(v);
   };
 
   tighten(a);
 
-  while (ordering.size() <= hypergraph.vertices().size()) {
+  while (ordering.size() < hypergraph.vertices().size()) {
     const int v = bheap.pop();
     ordering.emplace_back(v);
     tighten(v);
   }
 
   return ordering;
+}
+
+// For a hypergraph with vertices V, returns the value of the cut V - {v}, {v}.
+// Takes time linear to the number of vertices across all edges.
+int one_vertex_cut(const Hypergraph &hypergraph, const int v) {
+  int cut = 0;
+  for (const auto &[e, vertices] : hypergraph.edges()) {
+    if (std::find(std::cbegin(vertices), std::cend(vertices), v) !=
+        std::cend(vertices)) {
+      cut += 1;
+    }
+  }
+  return cut;
+}
+
+// Return a new hypergraph with vertices s and t merged. Takes time linear to
+// the number of certices across all edges.
+Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
+                          const int t) {
+  const int new_v =
+      std::max(std::cbegin(hypergraph.vertices()),
+               std::cend(hypergraph.vertices()),
+               [](const auto &a, const auto &b) { return a->first < b->first; })
+          ->first;
+
+  std::vector<std::vector<int>> new_edges;
+
+  for (const auto &[e, vertices] : hypergraph.edges()) {
+    std::vector<int> new_edge;
+    bool add_new = false;
+    for (const int v : vertices) {
+      if (v == s || v == t) {
+        add_new = true;
+      } else {
+        new_edge.push_back(v);
+      }
+      if (add_new) {
+        new_edge.push_back(new_v);
+      }
+      if (new_edge.size() > 1) {
+        new_edges.push_back(std::move(new_edge));
+      }
+    }
+  }
+
+  std::vector<int> new_vertices;
+  for (const auto &[v, incident_edges] : hypergraph.vertices()) {
+    if (v == s || v == t) {
+      continue;
+    }
+    new_vertices.push_back(v);
+  }
+  return Hypergraph(new_vertices, new_edges);
+}
+
+// Returns the induced head ordering of the edges
+std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
+                                       std::vector<int> vertex_ordering) {
+  std::unordered_map<int, int> vertex_to_order;
+  for (int i = 0; i < vertex_ordering.size(); ++i) {
+    vertex_to_order[vertex_ordering[i]] = i;
+  }
+
+  std::vector<std::vector<int>> buckets(vertex_ordering.size() + 1);
+
+  for (const auto &[e, vertices] : hypergraph.edges()) {
+    const int head =
+        *std::min(std::begin(vertices), std::end(vertices),
+                  [&vertex_to_order](const auto a, const auto b) {
+                    return vertex_to_order.at(*a) < vertex_to_order.at(*b);
+                  });
+    buckets.at(head).push_back(e);
+  }
+
+  std::vector<int> edge_ordering;
+  for (const auto &bucket : buckets) {
+    edge_ordering.insert(std::end(edge_ordering), std::begin(bucket),
+                         std::end(bucket));
+  }
+
+  return edge_ordering;
 }
