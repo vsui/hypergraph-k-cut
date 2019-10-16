@@ -269,9 +269,9 @@ int one_vertex_cut(const Hypergraph &hypergraph, const int v) {
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
                           const int t) {
   const int new_v =
-      std::max(std::cbegin(hypergraph.vertices()),
-               std::cend(hypergraph.vertices()),
-               [](const auto &a, const auto &b) { return a->first < b->first; })
+      std::max_element(
+          std::cbegin(hypergraph.vertices()), std::cend(hypergraph.vertices()),
+          [](const auto &a, const auto &b) { return a.first < b.first; })
           ->first;
 
   std::vector<std::vector<int>> new_edges;
@@ -315,11 +315,11 @@ std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
   std::vector<std::vector<int>> buckets(vertex_ordering.size() + 1);
 
   for (const auto &[e, vertices] : hypergraph.edges()) {
-    const int head =
-        *std::min(std::begin(vertices), std::end(vertices),
-                  [&vertex_to_order](const auto a, const auto b) {
-                    return vertex_to_order.at(*a) < vertex_to_order.at(*b);
-                  });
+    const int head = *std::min_element(
+        std::begin(vertices), std::end(vertices),
+        [&vertex_to_order](const auto a, const auto b) {
+          return vertex_to_order.at(a) < vertex_to_order.at(b);
+        });
     buckets.at(head).push_back(e);
   }
 
