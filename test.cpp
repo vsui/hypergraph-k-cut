@@ -82,7 +82,7 @@ Hypergraph factory() {
                                                       {1, 4},
                                                       {4, 8, 10},
                                                       {1, 2, 3},
-                                                      {1, 2, 3, 4, 6, 7},
+                                                      {1, 2, 3, 4, 5, 6, 7},
                                                       {1, 5}});
 }
 
@@ -190,5 +190,15 @@ TEST(QueyranneMinCut, Works) {
   for (int i = 1; i <= 10; ++i) {
     auto h = factory();
     ASSERT_EQ(vertex_ordering_mincut(h, i, queyranne_ordering), 3);
+  }
+}
+
+TEST(KTrimmedCertificate, Works) {
+  for (int k = 1; k <= 10; ++k) {
+    auto h = factory();
+    KTrimmedCertificate certifier(h);
+    Hypergraph certificate = certifier.certificate(k);
+    ASSERT_EQ(vertex_ordering_mincut(certificate, 1, tight_ordering),
+              std::min(k, 3));
   }
 }
