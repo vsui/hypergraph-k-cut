@@ -1,11 +1,12 @@
-#include <vector>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <vector>
 
-#include "hypergraph.h"
-#include "fpz.h"
 #include "cxy.h"
+#include "fpz.h"
+#include "hypergraph.h"
+#include "order.h"
 
 /* Attempts to read a hypergraph from a file */
 bool parse_hypergraph(const std::string &filename, Hypergraph &hypergraph) {
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]) {
   usage:
     std::cerr << "Usage: " << argv[0]
               << " <input hypergraph filename> <k> <algorithm>\n"
-              << "  algorithm: FPZ or CXY\n";
+              << "  algorithm: FPZ, CXY, Q, KW or MW\n";
     return 1;
   }
 
@@ -68,7 +69,26 @@ int main(int argc, char *argv[]) {
     answer = fpz::branching_contract(h, k);
   } else if (argv[3] == std::string("CXY")) {
     answer = cxy::cxy_contract(h, k);
-  } else {
+  }  else if (argv[3] == std::string("Q")) {
+    if (k != 2) { std::cout << "Q can only compute mincuts" << std::endl; return 1; }
+    answer = vertex_ordering_mincut(h, 1, queyranne_ordering);
+  } else if (argv[3] == std::string("KW")) {
+    if (k != 2) { std::cout << "KW can only compute mincuts" << std::endl; return 1; }
+    answer = vertex_ordering_mincut(h, 1, maximum_adjacency_ordering);
+  } else if (argv[3] == std::string("MW")) {
+    if (k != 2) { std::cout << "MW can only compute mincuts" << std::endl; return 1; }
+    answer = vertex_ordering_mincut(h, 1, tight_ordering);
+  }  else if (argv[3] == std::string("sparseQ")) {
+    if (k != 2) { std::cout << "sparseQ can only compute mincuts" << std::endl; return 1; }
+    answer = vertex_ordering_mincut_certificate(h, 1, queyranne_ordering);
+  } else if (argv[3] == std::string("sparseKW")) {
+    if (k != 2) { std::cout << "sparseKW can only compute mincuts" << std::endl; return 1; }
+    answer = vertex_ordering_mincut_certificate(h, 1, maximum_adjacency_ordering);
+  } else if (argv[3] == std::string("sparseMW")) {
+    if (k != 2) { std::cout << "sparseMW can only compute mincuts" << std::endl; return 1; }
+    answer = vertex_ordering_mincut_certificate(h, 1, tight_ordering);
+  }
+  else {
     goto usage;
   }
   auto stop = std::chrono::high_resolution_clock::now();
