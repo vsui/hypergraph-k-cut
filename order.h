@@ -29,32 +29,38 @@ std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
 std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
                                        std::vector<int> vertex_ordering);
 
-/* A data structure that can be used to retrieve k-trimmed certificates of a hypergraph. That is, a trimmed subhypergraph that retains all cut values up to k. */
+/* A data structure that can be used to retrieve k-trimmed certificates of a
+ * hypergraph. That is, a trimmed subhypergraph that retains all cut values up
+ * to k. */
 class KTrimmedCertificate {
-  public:
-    /* Constructor runs in time linear to the number of vertices across all edges. */
-    KTrimmedCertificate(const Hypergraph &hypergraph);
+public:
+  /* Constructor runs in time linear to the number of vertices across all edges.
+   */
+  KTrimmedCertificate(const Hypergraph &hypergraph);
 
-    /* Returns the k-trimmed certificate in O(kn) time. */
-    Hypergraph certificate(const int k) const;
+  /* Returns the k-trimmed certificate in O(kn) time. */
+  Hypergraph certificate(const int k) const;
 
-  private:
-    // Return the head of an edge (the vertex in it that occurs first in the vertex ordering)
-    int head(const int e) const;
+private:
+  // Return the head of an edge (the vertex in it that occurs first in the
+  // vertex ordering)
+  int head(const int e) const;
 
-    // The hypergraph we are creating certificates of
-    const Hypergraph hypergraph_;
+  // The hypergraph we are creating certificates of
+  const Hypergraph hypergraph_;
 
-    // Maximum adjacency ordering of the vertices
-    std::vector<int> vertex_ordering_;
+  // Maximum adjacency ordering of the vertices
+  std::vector<int> vertex_ordering_;
 
-    // A list for each vertex that holds v's backward edges in the head ordering (see paper for more details)
-    std::unordered_map<int, std::vector<int>> backward_edges_;
+  // A list for each vertex that holds v's backward edges in the head ordering
+  // (see paper for more details)
+  std::unordered_map<int, std::vector<int>> backward_edges_;
 };
 
 int one_vertex_cut(const Hypergraph &hypergraph, const int v);
 
-Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s, const int t);
+Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
+                          const int t);
 
 /* Given a hypergraph and a function that orders the vertices, find the min cut
  * by repeatedly finding and contracting pendant pairs.
@@ -75,3 +81,22 @@ int vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
   return min_cut_of_phase;
 }
 
+#include <iostream>
+template <typename Ordering>
+int vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
+                                       Ordering f) {
+  KTrimmedCertificate gen(hypergraph);
+  int k = 1;
+  while (true) {
+    // Copy hypergraph
+    std::cout << "Trying k=" << k << std::endl;
+    Hypergraph certificate = gen.certificate(k);
+    std::cout << "Tried k=" << k << std::endl;
+    int mincut = vertex_ordering_mincut(certificate, a, f);
+    if (mincut < k) {
+      return mincut;
+    }
+    k *= 2;
+  }
+  return -1;
+}
