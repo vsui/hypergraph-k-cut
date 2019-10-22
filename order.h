@@ -1,4 +1,5 @@
 #include <vector>
+#include <iostream>
 
 #include "hypergraph.h"
 
@@ -34,7 +35,7 @@ std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
 
 /* A data structure that can be used to retrieve k-trimmed certificates of a
  * hypergraph. A k-trimmed certificate is a trimmed subhypergraph that retains
- * all cut values up to k. See the paper for more details.
+ * all cut values up to k. See the [CX'18] for more details.
  */
 class KTrimmedCertificate {
 public:
