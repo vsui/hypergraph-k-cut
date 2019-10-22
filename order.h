@@ -81,7 +81,6 @@ int vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
   return min_cut_of_phase;
 }
 
-#include <iostream>
 template <typename Ordering>
 int vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
                                        Ordering f) {
