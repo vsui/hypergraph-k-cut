@@ -117,8 +117,6 @@ void tight_ordering_tighten(
   }
 }
 
-#include <iostream>
-
 std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
                                             const int a) {
   // Ordering starts with a
