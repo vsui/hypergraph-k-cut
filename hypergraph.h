@@ -13,8 +13,8 @@ public:
   Hypergraph(const std::vector<int> &vertices,
              const std::vector<std::vector<int>> &edges);
 
-  int num_vertices() const;
-  int num_edges() const;
+  size_t num_vertices() const;
+  size_t num_edges() const;
 
   std::unordered_map<int, std::vector<int>> &vertices();
   std::unordered_map<int, std::vector<int>> &edges();
@@ -32,13 +32,13 @@ public:
   Hypergraph contract(const int edge_id) const;
 
 private:
-  mutable int next_vertex_id_;
-
   // Map of vertex IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> vertices_;
 
   // Map of edge IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> edges_;
+
+  mutable int next_vertex_id_;
 
   // Constructor that directly sets adjacency lists and next vertex ID
   Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,

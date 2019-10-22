@@ -1,6 +1,6 @@
 #include "bucket_list.h"
 
-BucketList::BucketList(std::vector<int> values, const int capacity)
+BucketList::BucketList(std::vector<int> values, const size_t capacity)
     : capacity_(capacity), buckets_(capacity), max_key_(0) {
   for (const int value : values) {
     buckets_.front().emplace_front(value);
@@ -10,8 +10,8 @@ BucketList::BucketList(std::vector<int> values, const int capacity)
 }
 
 void BucketList::increment(const int value) {
-  const int old_key = val_to_keys_.at(value);
-  const int new_key = ++val_to_keys_.at(value);
+  const auto old_key = val_to_keys_.at(value);
+  const auto new_key = ++val_to_keys_.at(value);
   assert(new_key < capacity_);
   buckets_.at(old_key).erase(val_to_its_.at(value));
   if (new_key > max_key_) {
@@ -22,7 +22,6 @@ void BucketList::increment(const int value) {
 }
 
 int BucketList::pop() {
-  assert(max_key_ > -1);
   while (buckets_.at(max_key_).empty()) {
     --max_key_;
   }

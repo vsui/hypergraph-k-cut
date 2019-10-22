@@ -1,8 +1,8 @@
 // Branching contraction algorithm from FPZ '19
 
 #include <cmath>
-#include <random>
 #include <iostream>
+#include <random>
 
 #include "hypergraph.h"
 
@@ -16,12 +16,12 @@ namespace fpz {
  *   e: number of vertices that the hyperedge is incident on
  *   k: number of partitions
  */
-double redo_probability(int n, int e, int k) {
+double redo_probability(size_t n, size_t e, size_t k) {
   double s = 0;
-  for (int i = n - e - k + 2; i <= n - e; ++i) {
+  for (size_t i = n - e - k + 2; i <= n - e; ++i) {
     s += std::log(i);
   }
-  for (int i = n - k + 2; i <= n; ++i) {
+  for (size_t i = n - k + 2; i <= n; ++i) {
     s -= std::log(i);
   }
   return 1 - std::exp(s);
@@ -32,7 +32,8 @@ double redo_probability(int n, int e, int k) {
  * accumulated : a running count of k-spanning hyperedges used to calculate the
  *               min cut
  * */
-int branching_contract_(Hypergraph &hypergraph, int k, int accumulated = 0) {
+size_t branching_contract_(Hypergraph &hypergraph, size_t k,
+                           size_t accumulated = 0) {
   // Remove k-spanning hyperedges from hypergraph
   for (auto it = std::begin(hypergraph.edges());
        it != std::end(hypergraph.edges());) {
@@ -84,24 +85,26 @@ int branching_contract_(Hypergraph &hypergraph, int k, int accumulated = 0) {
 }
 
 /* Runs branching contraction log^2(n) times and returns the minimum */
-int branching_contract(Hypergraph &hypergraph, int k) {
-  int logn = std::log(hypergraph.num_vertices());
-  int repeat = logn * logn;
+size_t branching_contract(Hypergraph &hypergraph, size_t k) {
+  size_t logn =
+      static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
+  size_t repeat = logn * logn;
 
-  int min_so_far = std::numeric_limits<int>::max();
-  for (int i = 0; i < repeat; ++i) {
+  size_t min_so_far = std::numeric_limits<size_t>::max();
+  for (size_t i = 0; i < repeat; ++i) {
     // branching_contract_ modifies the input hypergraph so avoid copying, so
     // copy it once in the beginning to save time
     Hypergraph copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
-    int answer_ = branching_contract_(copy, k);
+    size_t answer_ = branching_contract_(copy, k);
     min_so_far = std::min(min_so_far, answer_);
     auto stop = std::chrono::high_resolution_clock::now();
     std::cout << "[" << i + 1 << "/" << repeat << "] took "
               << std::chrono::duration_cast<std::chrono::milliseconds>(stop -
                                                                        start)
                      .count()
-              << " milliseconds, got " << answer_ << "\n";
+              << " milliseconds, got " << answer_ << ", min is " << min_so_far
+              << "\n";
   }
 
   return min_so_far;

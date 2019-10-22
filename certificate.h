@@ -18,7 +18,7 @@ public:
 
   /* Returns the k-trimmed certificate in O(kn) time.
    */
-  Hypergraph certificate(const int k) const;
+  Hypergraph certificate(const size_t k) const;
 
 private:
   // Return the head of an edge (the vertex in it that occurs first in the

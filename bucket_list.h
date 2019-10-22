@@ -20,7 +20,7 @@ public:
    *
    * Time complexity: O(n), where n in the number of values.
    */
-  BucketList(std::vector<int> values, const int capacity);
+  BucketList(std::vector<int> values, const size_t capacity);
 
   /* Increment the key of the value.
    *
@@ -30,22 +30,23 @@ public:
 
   /* Pop an arbitrary value with a maximum key.
    *
-   * Time complexity: Expected is O(1), worst-case is O(b), where b is the number of buckets.
+   * Time complexity: Expected is O(1), worst-case is O(b), where b is the
+   * number of buckets.
    */
   int pop();
 
 private:
-  const int capacity_;
+  const size_t capacity_;
 
   // buckets_[i] is a collection of all values with key = i
   std::vector<std::list<int>> buckets_;
 
   // A mapping of values to their keys
-  std::unordered_map<int, int> val_to_keys_;
+  std::unordered_map<int, size_t> val_to_keys_;
 
   // A mapping of values to their iterators (for fast deletion)
   std::unordered_map<int, std::list<int>::iterator> val_to_its_;
 
   // The current maximum key
-  int max_key_;
+  size_t max_key_;
 };

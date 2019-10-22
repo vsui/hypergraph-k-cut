@@ -32,7 +32,7 @@ std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a);
  */
 std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
 
-int one_vertex_cut(const Hypergraph &hypergraph, const int v);
+size_t one_vertex_cut(const Hypergraph &hypergraph, const int v);
 
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
                           const int t);
@@ -44,11 +44,11 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
  * `maximum_adjacency_ordering`.
  */
 template <typename Ordering>
-int vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
-  int min_cut_of_phase = std::numeric_limits<int>::max();
+size_t vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
+  size_t min_cut_of_phase = std::numeric_limits<size_t>::max();
   while (hypergraph.vertices().size() > 1) {
     auto ordering = f(hypergraph, a);
-    int cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
+    size_t cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
     hypergraph = merge_vertices(hypergraph, *(std::end(ordering) - 2),
                                 *(std::end(ordering) - 1));
     min_cut_of_phase = std::min(min_cut_of_phase, cut_of_phase);
@@ -64,20 +64,19 @@ int vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
  * `maximum_adjacency_ordering`.
  */
 template <typename Ordering>
-int vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
-                                       Ordering f) {
+size_t vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
+                                          Ordering f) {
   KTrimmedCertificate gen(hypergraph);
-  int k = 1;
+  size_t k = 1;
   while (true) {
     // Copy hypergraph
     std::cout << "Trying k=" << k << std::endl;
     Hypergraph certificate = gen.certificate(k);
     std::cout << "Tried k=" << k << std::endl;
-    int mincut = vertex_ordering_mincut(certificate, a, f);
+    size_t mincut = vertex_ordering_mincut(certificate, a, f);
     if (mincut < k) {
       return mincut;
     }
     k *= 2;
   }
-  return -1;
 }

@@ -24,7 +24,8 @@ Hypergraph::Hypergraph(const int num_edges,
   }
 }
 
-Hypergraph::Hypergraph(const std::vector<int> &vertices, const std::vector<std::vector<int>> &edges) {
+Hypergraph::Hypergraph(const std::vector<int> &vertices,
+                       const std::vector<std::vector<int>> &edges) {
   for (const int v : vertices) {
     vertices_[v] = {};
   }
@@ -43,8 +44,8 @@ Hypergraph::Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
                        int next_vertex_id)
     : vertices_(vertices), edges_(edges), next_vertex_id_(next_vertex_id) {}
 
-int Hypergraph::num_vertices() const { return vertices_.size(); }
-int Hypergraph::num_edges() const { return edges_.size(); }
+size_t Hypergraph::num_vertices() const { return vertices_.size(); }
+size_t Hypergraph::num_edges() const { return edges_.size(); }
 
 std::unordered_map<int, std::vector<int>> &Hypergraph::vertices() {
   return vertices_;

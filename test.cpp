@@ -194,11 +194,11 @@ TEST(QueyranneMinCut, Works) {
 }
 
 TEST(KTrimmedCertificate, Works) {
-  for (int k = 1; k <= 10; ++k) {
+  for (size_t k = 1; k <= 10; ++k) {
     auto h = factory();
     KTrimmedCertificate certifier(h);
     Hypergraph certificate = certifier.certificate(k);
     ASSERT_EQ(vertex_ordering_mincut(certificate, 1, tight_ordering),
-              std::min(k, 3));
+              std::min(k, 3ul));
   }
 }

@@ -7,15 +7,15 @@ namespace {
 // Returns the induced head ordering of the edges
 std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
                                        std::vector<int> vertex_ordering) {
-  std::unordered_map<int, int> vertex_to_order;
-  for (int i = 0; i < vertex_ordering.size(); ++i) {
+  std::unordered_map<int, size_t> vertex_to_order;
+  for (size_t i = 0; i < vertex_ordering.size(); ++i) {
     vertex_to_order[vertex_ordering[i]] = i;
   }
 
   std::vector<std::vector<int>> buckets(vertex_ordering.size() + 1);
 
   for (const auto &[e, vertices] : hypergraph.edges()) {
-    int head = std::numeric_limits<int>::max();
+    auto head = std::numeric_limits<size_t>::max();
     for (const int v : vertices) {
       if (vertex_to_order[v] < head) {
         head = vertex_to_order[v];
@@ -58,13 +58,14 @@ KTrimmedCertificate::KTrimmedCertificate(const Hypergraph &hypergraph)
   }
 }
 
-Hypergraph KTrimmedCertificate::certificate(const int k) const {
+Hypergraph KTrimmedCertificate::certificate(size_t k) const {
   std::unordered_map<int, std::vector<int>> new_edges;
 
   for (const auto &[v, edges] : hypergraph_.vertices()) {
     const auto backward_edges = backward_edges_.at(v);
     for (auto it = std::begin(backward_edges);
-         it != std::end(backward_edges) && it != std::begin(backward_edges) + k;
+         it != std::end(backward_edges) &&
+         it != std::begin(backward_edges) + static_cast<long long>(k);
          ++it) {
       const int e = *it;
       if (new_edges.find(e) == std::end(new_edges)) {

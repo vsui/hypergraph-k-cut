@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  int k = std::atoi(argv[2]);
+  size_t k = std::stoul(argv[2]);
 
   if (!parse_hypergraph(argv[1], h)) {
     std::cout << "Failed to parse hypergraph in " << argv[1] << std::endl;
@@ -64,31 +64,49 @@ int main(int argc, char *argv[]) {
   }
 
   auto start = std::chrono::high_resolution_clock::now();
-  int answer;
+  size_t answer;
   if (argv[3] == std::string("FPZ")) {
     answer = fpz::branching_contract(h, k);
   } else if (argv[3] == std::string("CXY")) {
     answer = cxy::cxy_contract(h, k);
-  }  else if (argv[3] == std::string("Q")) {
-    if (k != 2) { std::cout << "Q can only compute mincuts" << std::endl; return 1; }
+  } else if (argv[3] == std::string("Q")) {
+    if (k != 2) {
+      std::cout << "Q can only compute mincuts" << std::endl;
+      return 1;
+    }
     answer = vertex_ordering_mincut(h, 1, queyranne_ordering);
   } else if (argv[3] == std::string("KW")) {
-    if (k != 2) { std::cout << "KW can only compute mincuts" << std::endl; return 1; }
+    if (k != 2) {
+      std::cout << "KW can only compute mincuts" << std::endl;
+      return 1;
+    }
     answer = vertex_ordering_mincut(h, 1, maximum_adjacency_ordering);
   } else if (argv[3] == std::string("MW")) {
-    if (k != 2) { std::cout << "MW can only compute mincuts" << std::endl; return 1; }
+    if (k != 2) {
+      std::cout << "MW can only compute mincuts" << std::endl;
+      return 1;
+    }
     answer = vertex_ordering_mincut(h, 1, tight_ordering);
-  }  else if (argv[3] == std::string("sparseQ")) {
-    if (k != 2) { std::cout << "sparseQ can only compute mincuts" << std::endl; return 1; }
+  } else if (argv[3] == std::string("sparseQ")) {
+    if (k != 2) {
+      std::cout << "sparseQ can only compute mincuts" << std::endl;
+      return 1;
+    }
     answer = vertex_ordering_mincut_certificate(h, 1, queyranne_ordering);
   } else if (argv[3] == std::string("sparseKW")) {
-    if (k != 2) { std::cout << "sparseKW can only compute mincuts" << std::endl; return 1; }
-    answer = vertex_ordering_mincut_certificate(h, 1, maximum_adjacency_ordering);
+    if (k != 2) {
+      std::cout << "sparseKW can only compute mincuts" << std::endl;
+      return 1;
+    }
+    answer =
+        vertex_ordering_mincut_certificate(h, 1, maximum_adjacency_ordering);
   } else if (argv[3] == std::string("sparseMW")) {
-    if (k != 2) { std::cout << "sparseMW can only compute mincuts" << std::endl; return 1; }
+    if (k != 2) {
+      std::cout << "sparseMW can only compute mincuts" << std::endl;
+      return 1;
+    }
     answer = vertex_ordering_mincut_certificate(h, 1, tight_ordering);
-  }
-  else {
+  } else {
     goto usage;
   }
   auto stop = std::chrono::high_resolution_clock::now();
