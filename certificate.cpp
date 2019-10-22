@@ -33,7 +33,7 @@ std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
   return edge_ordering;
 }
 
-}
+} // namespace
 
 KTrimmedCertificate::KTrimmedCertificate(const Hypergraph &hypergraph)
     : hypergraph_(hypergraph) {

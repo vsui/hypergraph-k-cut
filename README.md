@@ -18,3 +18,4 @@ To run the algorithm, run `./main <input file> <k> <algorithm>`
 
 [CX'18] Chekuri, C. and Xu, C., 2018. Minimum Cuts and Sparsification in Hypergraphs.
 
+[M'05] Mak, W., 2005, Faster Min-Cut Computation in Unweighted Hypergraphs/Circuit Netlists

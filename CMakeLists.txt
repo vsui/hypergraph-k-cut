@@ -36,9 +36,9 @@ if (CMAKE_VERSION VERSION_LESS 2.8.11)
   include_directories("${gtest_SOURCE_DIR}/include")
 endif()
 
-add_executable(main main.cpp hypergraph.cpp certificate.cpp order.cpp)
+add_executable(main main.cpp hypergraph.cpp certificate.cpp order.cpp bucket_list.cpp)
 add_executable(gen gen.cpp hypergraph.cpp)
-add_executable(test test.cpp order.cpp hypergraph.cpp certificate.cpp)
+add_executable(test test.cpp order.cpp hypergraph.cpp certificate.cpp bucket_list.cpp)
 target_link_libraries(test gtest_main)
 target_include_directories(test PRIVATE "${CMAKE_SOURCE_DIR}/../cpp")
 
