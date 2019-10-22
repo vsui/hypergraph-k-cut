@@ -17,11 +17,14 @@ std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
  * Here, tightness is the number of edges connecting a vertex v to the
  * ordering so far that consist of vertices either in the ordering or v
  * itself.
+ *
+ * Takes time linear with the size of the hypergraph.
  */
 std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a);
 
-/* Return a Queyranne ordering of vertices, starting with vertex a. Linear in
- * the number of vertices across all hyperedges.
+/* Return a Queyranne ordering of vertices, starting with vertex a.
+ *
+ * Takes time linear with the size of the hypergraph.
  */
 std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
 
@@ -30,15 +33,19 @@ std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
                                        std::vector<int> vertex_ordering);
 
 /* A data structure that can be used to retrieve k-trimmed certificates of a
- * hypergraph. That is, a trimmed subhypergraph that retains all cut values up
- * to k. */
+ * hypergraph. A k-trimmed certificate is a trimmed subhypergraph that retains
+ * all cut values up to k. See the paper for more details.
+ */
 class KTrimmedCertificate {
 public:
-  /* Constructor runs in time linear to the number of vertices across all edges.
+  /* Constructor.
+   *
+   * Takes time linear with the size of the hypergraph.
    */
   KTrimmedCertificate(const Hypergraph &hypergraph);
 
-  /* Returns the k-trimmed certificate in O(kn) time. */
+  /* Returns the k-trimmed certificate in O(kn) time.
+   */
   Hypergraph certificate(const int k) const;
 
 private:
@@ -81,6 +88,13 @@ int vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
   return min_cut_of_phase;
 }
 
+/* Given a hypergraph and a function that orders the vertices, find the minimum
+ * cut through an exponential search on the minimum cuts of k-trimmed
+ * certificates.
+ *
+ * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
+ * `induced_head_ordering`.
+ */
 template <typename Ordering>
 int vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
                                        Ordering f) {
