@@ -1,6 +1,9 @@
-#include <vector>
-#include <iostream>
+#pragma once
 
+#include <iostream>
+#include <vector>
+
+#include "certificate.h"
 #include "hypergraph.h"
 
 /* Returns a maximum adjacency ordering of vertices, starting with vertex a.
@@ -29,42 +32,6 @@ std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a);
  */
 std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
 
-/* Returns the induced head ordering of the edges. */
-std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
-                                       std::vector<int> vertex_ordering);
-
-/* A data structure that can be used to retrieve k-trimmed certificates of a
- * hypergraph. A k-trimmed certificate is a trimmed subhypergraph that retains
- * all cut values up to k. See the [CX'18] for more details.
- */
-class KTrimmedCertificate {
-public:
-  /* Constructor.
-   *
-   * Takes time linear with the size of the hypergraph.
-   */
-  KTrimmedCertificate(const Hypergraph &hypergraph);
-
-  /* Returns the k-trimmed certificate in O(kn) time.
-   */
-  Hypergraph certificate(const int k) const;
-
-private:
-  // Return the head of an edge (the vertex in it that occurs first in the
-  // vertex ordering)
-  int head(const int e) const;
-
-  // The hypergraph we are creating certificates of
-  const Hypergraph hypergraph_;
-
-  // Maximum adjacency ordering of the vertices
-  std::vector<int> vertex_ordering_;
-
-  // A list for each vertex that holds v's backward edges in the head ordering
-  // (see paper for more details)
-  std::unordered_map<int, std::vector<int>> backward_edges_;
-};
-
 int one_vertex_cut(const Hypergraph &hypergraph, const int v);
 
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
@@ -74,7 +41,7 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
  * by repeatedly finding and contracting pendant pairs.
  *
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
- * `induced_head_ordering`.
+ * `maximum_adjacency_ordering`.
  */
 template <typename Ordering>
 int vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
@@ -94,7 +61,7 @@ int vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
  * certificates.
  *
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
- * `induced_head_ordering`.
+ * `maximum_adjacency_ordering`.
  */
 template <typename Ordering>
 int vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
