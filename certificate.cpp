@@ -59,8 +59,17 @@ KTrimmedCertificate::KTrimmedCertificate(const Hypergraph &hypergraph)
 }
 
 Hypergraph KTrimmedCertificate::certificate(size_t k) const {
-  std::unordered_map<int, std::vector<int>> new_edges;
+  // TODO Allow hypergraph map constructor without next_vertex_id
+  int next_vertex_id = std::numeric_limits<int>::min();
 
+  std::unordered_map<int, std::vector<int>> new_edges;
+  std::unordered_map<int, std::vector<int>> new_vertices;
+  for (const auto &[v, edges] : hypergraph_.vertices()) {
+    next_vertex_id = std::max(next_vertex_id, v + 1);
+    new_vertices.insert({v, {}});
+  }
+
+  // O(kn) loop
   for (const auto &[v, edges] : hypergraph_.vertices()) {
     const auto backward_edges = backward_edges_.at(v);
     for (auto it = std::begin(backward_edges);
@@ -70,22 +79,14 @@ Hypergraph KTrimmedCertificate::certificate(size_t k) const {
       const int e = *it;
       if (new_edges.find(e) == std::end(new_edges)) {
         new_edges[e] = {head(e)};
+        new_vertices.at(head(e)).push_back(e);
       }
       new_edges.at(e).push_back(v);
+      new_vertices.at(v).push_back(e);
     }
   }
 
-  std::vector<int> certificate_vertices;
-  std::vector<std::vector<int>> certificate_edges;
-
-  for (const auto &[v, edges] : hypergraph_.vertices()) {
-    certificate_vertices.push_back(v);
-  }
-  for (const auto &[e, vertices] : new_edges) {
-    certificate_edges.push_back(std::move(vertices));
-  }
-
-  return Hypergraph(certificate_vertices, certificate_edges);
+  return Hypergraph(std::move(new_vertices), std::move(new_edges), next_vertex_id);
 }
 
 int KTrimmedCertificate::head(const int e) const {

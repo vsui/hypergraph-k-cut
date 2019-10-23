@@ -34,11 +34,18 @@ std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
 
 size_t one_vertex_cut(const Hypergraph &hypergraph, const int v);
 
+/* Return a new hypergraph with vertices s and t merged.
+ *
+ * Time complexity: O(p), where p is the size of the hypergraph
+ */
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
                           const int t);
 
 /* Given a hypergraph and a function that orders the vertices, find the min cut
  * by repeatedly finding and contracting pendant pairs.
+ *
+ * Time complexity: O(np), where n is the number of vertices and p is the size
+ * of the hypergraph
  *
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
  * `maximum_adjacency_ordering`.
@@ -58,7 +65,10 @@ size_t vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
 
 /* Given a hypergraph and a function that orders the vertices, find the minimum
  * cut through an exponential search on the minimum cuts of k-trimmed
- * certificates.
+ * certificates. See [CX'09] for more details.
+ *
+ * Time complexity: O(p + cn^2), where p is the size of the hypergraph, c is the
+ * value of the minimum cut, and n is the number of vertices
  *
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
  * `maximum_adjacency_ordering`.

@@ -205,44 +205,24 @@ size_t one_vertex_cut(const Hypergraph &hypergraph, const int v) {
   return cut;
 }
 
-// Return a new hypergraph with vertices s and t merged. Takes time linear to
-// the number of certices across all edges.
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
                           const int t) {
-  const int new_v =
+  // TODO if we have a non-const contract then this copy is unnecessary. Right
+  // now we copy twice (once to avoid modifying the input hypergraph and the
+  // second time to contract)
+  Hypergraph copy(hypergraph);
+
+  const int new_e =
       std::max_element(
-          std::cbegin(hypergraph.vertices()), std::cend(hypergraph.vertices()),
+          std::begin(hypergraph.edges()), std::end(hypergraph.edges()),
           [](const auto &a, const auto &b) { return a.first < b.first; })
           ->first +
       1;
 
-  std::vector<std::vector<int>> new_edges;
+  // Add edge (s, t) and contract it
+  copy.edges().insert({new_e, {s, t}});
+  copy.vertices().at(s).push_back(new_e);
+  copy.vertices().at(t).push_back(new_e);
 
-  for (const auto &[e, vertices] : hypergraph.edges()) {
-    std::vector<int> new_edge;
-    bool add_new = false;
-    for (const int v : vertices) {
-      if (v == s || v == t) {
-        add_new = true;
-      } else {
-        new_edge.push_back(v);
-      }
-    }
-    if (add_new) {
-      new_edge.push_back(new_v);
-    }
-    if (new_edge.size() > 1) {
-      new_edges.push_back(std::move(new_edge));
-    }
-  }
-
-  std::vector<int> new_vertices;
-  for (const auto &[v, incident_edges] : hypergraph.vertices()) {
-    if (v == s || v == t) {
-      continue;
-    }
-    new_vertices.push_back(v);
-  }
-  new_vertices.push_back(new_v);
-  return Hypergraph(new_vertices, new_edges);
+  return copy.contract(new_e);
 }

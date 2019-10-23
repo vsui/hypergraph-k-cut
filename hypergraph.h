@@ -10,6 +10,11 @@ public:
 
   Hypergraph(const int num_edges, const std::vector<std::vector<int>> &edges);
 
+  // Constructor that directly sets adjacency lists and next vertex ID
+  Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
+             std::unordered_map<int, std::vector<int>> &&edges,
+             int next_vertex_id);
+
   Hypergraph(const std::vector<int> &vertices,
              const std::vector<std::vector<int>> &edges);
 
@@ -28,6 +33,8 @@ public:
 
   /* Returns a new hypergraph with the edge contracted. Assumes that there is
    * an edge in the hypergraph with the given edge ID.
+   *
+   * Time complexity: O(p), where p is the size of the hypergraph.
    */
   Hypergraph contract(const int edge_id) const;
 
@@ -39,11 +46,6 @@ private:
   std::unordered_map<int, std::vector<int>> edges_;
 
   mutable int next_vertex_id_;
-
-  // Constructor that directly sets adjacency lists and next vertex ID
-  Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
-             std::unordered_map<int, std::vector<int>> &&edges,
-             int next_vertex_id);
 };
 
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);
