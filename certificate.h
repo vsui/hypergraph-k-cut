@@ -12,17 +12,19 @@ class KTrimmedCertificate {
 public:
   /* Constructor.
    *
-   * Takes time linear with the size of the hypergraph.
+   * Time complexity: O(p) where p is the size of the hypergraph 
    */
   KTrimmedCertificate(const Hypergraph &hypergraph);
 
-  /* Returns the k-trimmed certificate in O(kn) time.
+  /* Returns the k-trimmed certificate.
+   *
+   * Time complexity: O(kn) where n is the number of vertices
    */
   Hypergraph certificate(const size_t k) const;
 
 private:
   // Return the head of an edge (the vertex in it that occurs first in the
-  // vertex ordering)
+  // vertex ordering). Takes constant time.
   int head(const int e) const;
 
   // The hypergraph we are creating certificates of
@@ -30,6 +32,9 @@ private:
 
   // Maximum adjacency ordering of the vertices
   std::vector<int> vertex_ordering_;
+
+  // Mapping of edges to their induce ordering head
+  std::unordered_map<int, size_t> edge_to_head_;
 
   // A list for each vertex that holds v's backward edges in the head ordering
   // (see paper for more details)
