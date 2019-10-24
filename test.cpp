@@ -214,7 +214,7 @@ TEST(TightOrdering, Works) {
   for (int i = 1; i <= 10; ++i) {
     Hypergraph hypergraph = factory();
 
-    std::vector<int> ordering = tight_ordering(hypergraph, 1);
+    std::vector<int> ordering = tight_ordering(hypergraph, i);
 
     ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
     ASSERT_TRUE(verify_tight_ordering(hypergraph, std::begin(ordering),
@@ -226,7 +226,7 @@ TEST(QueyranneOrdering, OrderedByD3) {
   for (int i = 1; i <= 10; ++i) {
     Hypergraph hypergraph = factory();
 
-    std::vector<int> ordering = queyranne_ordering(hypergraph, 1);
+    std::vector<int> ordering = queyranne_ordering(hypergraph, i);
 
     ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
     ASSERT_TRUE(verify_queyranne_ordering(hypergraph, std::begin(ordering),
@@ -238,7 +238,7 @@ TEST(QueyranneOrdering, OrderedByConnectivity) {
   for (int i = 1; i <= 10; ++i) {
     Hypergraph hypergraph = factory();
 
-    std::vector<int> ordering = queyranne_ordering(hypergraph, 1);
+    std::vector<int> ordering = queyranne_ordering(hypergraph, i);
 
     ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
     ASSERT_TRUE(verify_queyranne_ordering2(hypergraph, std::begin(ordering),
@@ -250,7 +250,13 @@ TEST(QueyranneOrdering, ConnectivityIsD3) {
   for (int i = 1; i <= 10; ++i) {
     Hypergraph hypergraph = factory();
 
-    std::vector<int> ordering = queyranne_ordering(hypergraph, 1);
+    std::vector<int> ordering = queyranne_ordering(hypergraph, i);
+
+    ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
+    ASSERT_TRUE(verify_connectivity_is_d3(hypergraph, std::begin(ordering),
+                                          std::end(ordering)));
+  }
+}
 
     ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
     ASSERT_TRUE(verify_connectivity_is_d3(hypergraph, std::begin(ordering),
