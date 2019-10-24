@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <vector>
 
 class Hypergraph {
 public:
@@ -37,6 +38,34 @@ public:
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
   Hypergraph contract(const int edge_id) const;
+
+  /* Contracts the vertices in the range into one vertex.
+   *
+   * Time complexity: O(p), where p is the size of the hypergraph.
+   */
+  template <typename InputIt>
+  Hypergraph contract(InputIt begin, InputIt end) const {
+
+    const int new_e = std::max_element(std::begin(edges()), std::end(edges()),
+                                       [](const auto &a, const auto &b) {
+                                         return a.first < b.first;
+                                       })
+                          ->first +
+                      1;
+
+    std::vector<int> new_edge(begin, end);
+
+    // TODO if we have a non-const contract then this copy is unnecessary. Right
+    // now we copy twice (once to avoid modifying the input hypergraph and the
+    // second time to contract)
+    Hypergraph copy(*this);
+    copy.edges().insert({new_e, new_edge});
+    for (auto it = begin; it != end; ++it) {
+      copy.vertices().at(*it).push_back(new_e);
+    }
+
+    return copy.contract(new_e);
+  }
 
 private:
   // Map of vertex IDs -> incidence lists

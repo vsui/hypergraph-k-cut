@@ -1,5 +1,5 @@
-// This file implements vertex orderings for hypergraphs. See CX section 2.1 for
-// more details.
+// This file implements vertex orderings for hypergraphs. See [CX'18]
+// section 2.1 for more details.
 
 #include "order.h"
 
@@ -82,22 +82,6 @@ size_t one_vertex_cut(const Hypergraph &hypergraph, const int v) {
 
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
                           const int t) {
-  // TODO if we have a non-const contract then this copy is unnecessary. Right
-  // now we copy twice (once to avoid modifying the input hypergraph and the
-  // second time to contract)
-  Hypergraph copy(hypergraph);
-
-  const int new_e =
-      std::max_element(
-          std::begin(hypergraph.edges()), std::end(hypergraph.edges()),
-          [](const auto &a, const auto &b) { return a.first < b.first; })
-          ->first +
-      1;
-
-  // Add edge (s, t) and contract it
-  copy.edges().insert({new_e, {s, t}});
-  copy.vertices().at(s).push_back(new_e);
-  copy.vertices().at(t).push_back(new_e);
-
-  return copy.contract(new_e);
+  const auto vs = {s, t};
+  return hypergraph.contract(std::begin(vs), std::end(vs));
 }
