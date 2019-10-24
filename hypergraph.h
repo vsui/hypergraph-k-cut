@@ -45,7 +45,8 @@ public:
    */
   template <typename InputIt>
   Hypergraph contract(InputIt begin, InputIt end) const {
-
+    assert(edges().size() > 0);
+    // add_edge and add_vertex to avoid statements like this
     const int new_e = std::max_element(std::begin(edges()), std::end(edges()),
                                        [](const auto &a, const auto &b) {
                                          return a.first < b.first;

@@ -6,6 +6,7 @@
 #include "cxy.h"
 #include "fpz.h"
 #include "hypergraph.h"
+#include "approx.h"
 #include "order.h"
 
 /* Attempts to read a hypergraph from a file */
@@ -106,6 +107,12 @@ int main(int argc, char *argv[]) {
       return 1;
     }
     answer = vertex_ordering_mincut_certificate(h, 1, tight_ordering);
+  } else if (argv[3] == std::string("CXapprox")) {
+    if (k != 2) {
+      std::cout << "CXapprox can only compute mincuts" << std::endl;
+      return 1;
+    }
+    answer = approximate_minimizer(h, 1.0);
   } else {
     goto usage;
   }
