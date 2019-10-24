@@ -14,9 +14,9 @@ namespace {
 //
 // `d` takes as input two disjoint sets of vertices and returns the total
 // capacity of the hyperedges that are incident on both sets.
-template <typename InputIt>
+template <typename InputIt, typename InputIt2>
 int d1(const Hypergraph &hypergraph, InputIt a_begin, InputIt a_end,
-       InputIt b_begin, InputIt b_end) {
+       InputIt2 b_begin, InputIt2 b_end) {
   int d = 0;
   for (const auto &[e, vertices] : hypergraph.edges()) {
     const bool e_intersects_a =
@@ -41,9 +41,9 @@ int d1(const Hypergraph &hypergraph, InputIt a_begin, InputIt a_end,
 // `d'` takes in two disjoint sets of vertices and returns the total capacity
 // of hyperedges e such that e is incident on both sets and only consists of
 // vertices that are in one of the two input sets.
-template <typename InputIt>
+template <typename InputIt, typename InputIt2>
 int d2(const Hypergraph &hypergraph, InputIt a_begin, InputIt a_end,
-       InputIt b_begin, InputIt b_end) {
+       InputIt2 b_begin, InputIt2 b_end) {
   int d = 0;
   for (const auto &[e, vertices] : hypergraph.edges()) {
     const bool e_intersects_a =
@@ -67,6 +67,42 @@ int d2(const Hypergraph &hypergraph, InputIt a_begin, InputIt a_end,
     }
   }
   return d;
+}
+
+template <typename InputIt1, typename InputIt2>
+double d3(const Hypergraph &hypergraph, InputIt1 a_begin, InputIt1 a_end,
+          InputIt2 b_begin, InputIt2 b_end) {
+  return 0.5 * (d1(hypergraph, a_begin, a_end, b_begin, b_end) +
+                d2(hypergraph, a_begin, a_end, b_begin, b_end));
+}
+
+// Hypergraph cut function
+template <typename InputIt>
+int cut(const Hypergraph &hypergraph, InputIt a_begin, InputIt a_end) {
+  std::unordered_set<int> b;
+  for (const auto &[v, edges] : hypergraph.vertices()) {
+    if (std::find(a_begin, a_end, v) == a_end) {
+      b.emplace(v);
+    }
+  }
+
+  // Can return either d1 or d2
+  return d1(hypergraph, a_begin, a_end, std::begin(b), std::end(b));
+}
+
+// Hypergraph cut connectivity function (see [CX'18])
+//
+// Connectivity function of a function f is d_f(A, B) = 1/2 * (f(A) + f(B) - f(A
+// U B)) where A and B are disjoint
+template <typename InputIt>
+double connectivity(const Hypergraph &hypergraph, InputIt a_begin,
+                    InputIt a_end, InputIt b_begin, InputIt b_end) {
+  std::unordered_set<int> a_and_b;
+  std::for_each(a_begin, a_end, [&a_and_b](const int v) { a_and_b.insert(v); });
+  std::for_each(b_begin, b_end, [&a_and_b](const int v) { a_and_b.insert(v); });
+  return 0.5 *
+         (cut(hypergraph, a_begin, a_end) + cut(hypergraph, b_begin, b_end) -
+          cut(hypergraph, std::begin(a_and_b), std::end(a_and_b)));
 }
 
 // Returns a hypergraph to test on
@@ -122,10 +158,36 @@ bool verify_queyranne_ordering(const Hypergraph &hypergraph, InputIt begin,
   // d1(V[:i], i) >= d1(V[:i], j) for all j >= i in ordering
   for (auto i = begin + 1; i != end; ++i) {
     for (auto j = i + 1; j != end; ++j) {
-      if (d1(hypergraph, begin, i, i, i + 1) +
-              d2(hypergraph, begin, i, i, i + 1) <
-          d1(hypergraph, begin, i, j, j + 1) +
-              d2(hypergraph, begin, i, j, j + 1)) {
+      if (d3(hypergraph, begin, i, i, i + 1) <
+          d3(hypergraph, begin, i, j, j + 1)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+template <typename InputIt>
+bool verify_queyranne_ordering2(const Hypergraph &hypergraph, InputIt begin,
+                                InputIt end) {
+  for (auto i = begin + 1; i != end; ++i) {
+    for (auto j = i + 1; j != end; ++j) {
+      if (connectivity(hypergraph, begin, i, i, i + 1) <
+          connectivity(hypergraph, begin, i, j, j + 1)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+template <typename InputIt>
+bool verify_connectivity_is_d3(const Hypergraph &hypergraph, InputIt begin,
+                               InputIt end) {
+  for (auto i = begin + 1; i != end; ++i) {
+    for (auto j = i + 1; j != end; ++j) {
+      if (connectivity(hypergraph, begin, i, i, i + 1) !=
+          d3(hypergraph, begin, i, i, i + 1)) {
         return false;
       }
     }
@@ -160,7 +222,7 @@ TEST(TightOrdering, Works) {
   }
 }
 
-TEST(QueyranneOrdering, Works) {
+TEST(QueyranneOrdering, OrderedByD3) {
   for (int i = 1; i <= 10; ++i) {
     Hypergraph hypergraph = factory();
 
@@ -168,6 +230,30 @@ TEST(QueyranneOrdering, Works) {
 
     ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
     ASSERT_TRUE(verify_queyranne_ordering(hypergraph, std::begin(ordering),
+                                          std::end(ordering)));
+  }
+}
+
+TEST(QueyranneOrdering, OrderedByConnectivity) {
+  for (int i = 1; i <= 10; ++i) {
+    Hypergraph hypergraph = factory();
+
+    std::vector<int> ordering = queyranne_ordering(hypergraph, 1);
+
+    ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
+    ASSERT_TRUE(verify_queyranne_ordering2(hypergraph, std::begin(ordering),
+                                           std::end(ordering)));
+  }
+}
+
+TEST(QueyranneOrdering, ConnectivityIsD3) {
+  for (int i = 1; i <= 10; ++i) {
+    Hypergraph hypergraph = factory();
+
+    std::vector<int> ordering = queyranne_ordering(hypergraph, 1);
+
+    ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
+    ASSERT_TRUE(verify_connectivity_is_d3(hypergraph, std::begin(ordering),
                                           std::end(ordering)));
   }
 }
