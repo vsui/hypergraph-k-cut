@@ -63,14 +63,7 @@ void queyranne_ordering_tighten(const Hypergraph &hypergraph,
 // For a hypergraph with vertices V, returns the value of the cut V - {v}, {v}.
 // Takes time linear to the number of vertices across all edges.
 size_t one_vertex_cut(const Hypergraph &hypergraph, const int v) {
-  size_t cut = 0;
-  for (const auto &[e, vertices] : hypergraph.edges()) {
-    if (std::find(std::cbegin(vertices), std::cend(vertices), v) !=
-        std::cend(vertices)) {
-      cut += 1;
-    }
-  }
-  return cut;
+  return hypergraph.vertices().at(v).size();
 }
 
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
