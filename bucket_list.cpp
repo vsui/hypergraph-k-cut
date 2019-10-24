@@ -21,7 +21,9 @@ void BucketList::increment(const int value) {
   val_to_its_.at(value) = std::begin(buckets_.at(new_key));
 }
 
-int BucketList::pop() {
+int BucketList::pop() { return pop_key_val().second; }
+
+std::pair<size_t, int> BucketList::pop_key_val() {
   while (buckets_.at(max_key_).empty()) {
     --max_key_;
   }
@@ -29,5 +31,5 @@ int BucketList::pop() {
   buckets_.at(max_key_).pop_front();
   val_to_keys_.erase(value);
   val_to_its_.erase(value);
-  return value;
+  return {max_key_, value};
 }

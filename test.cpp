@@ -258,9 +258,23 @@ TEST(QueyranneOrdering, ConnectivityIsD3) {
   }
 }
 
+TEST(QueyranneOrdering, TightnessMatchesConnectivity) {
+  for (int i = 1; i <= 10; ++i) {
+    Hypergraph hypergraph = factory();
+
+    const auto &[ordering, tightness] =
+        queyranne_ordering_with_tightness(hypergraph, i);
+
     ASSERT_EQ(ordering.size(), hypergraph.vertices().size());
-    ASSERT_TRUE(verify_connectivity_is_d3(hypergraph, std::begin(ordering),
-                                          std::end(ordering)));
+    ASSERT_EQ(ordering.size(), tightness.size());
+
+    auto tightness_it = std::begin(tightness);
+    for (auto i = std::begin(ordering); i != std::end(ordering); ++i) {
+      auto conn = connectivity(hypergraph, std::begin(ordering), i, i, i + 1);
+      EXPECT_EQ(conn, *tightness_it);
+      tightness_it++;
+    }
+    ASSERT_EQ(tightness_it, std::end(tightness));
   }
 }
 

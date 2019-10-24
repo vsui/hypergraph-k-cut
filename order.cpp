@@ -60,6 +60,20 @@ void queyranne_ordering_tighten(const Hypergraph &hypergraph,
   tight_ordering_tighten(hypergraph, ctx, v);
 }
 
+std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
+                                            const int a) {
+  return unweighted_ordering<maximum_adjacency_ordering_tighten>(hypergraph, a)
+      .first;
+}
+
+std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a) {
+  return unweighted_ordering<tight_ordering_tighten>(hypergraph, a).first;
+}
+
+std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a) {
+  return unweighted_ordering<queyranne_ordering_tighten>(hypergraph, a).first;
+}
+
 // For a hypergraph with vertices V, returns the value of the cut V - {v}, {v}.
 // Takes time linear to the number of vertices across all edges.
 size_t one_vertex_cut(const Hypergraph &hypergraph, const int v) {

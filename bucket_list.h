@@ -35,6 +35,13 @@ public:
    */
   int pop();
 
+  /* Pop a (key, value) pair with a maximum key.
+   *
+   * Time complexity: Expected is O(1), worst-case is O(b), where b is the
+   * number of buckets.
+   */
+  std::pair<size_t, int> pop_key_val();
+
 private:
   const size_t capacity_;
 
