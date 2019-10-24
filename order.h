@@ -1,10 +1,100 @@
 #pragma once
 
 #include <iostream>
+#include <type_traits>
+#include <unordered_set>
 #include <vector>
 
+#include "bucket_list.h"
 #include "certificate.h"
 #include "hypergraph.h"
+
+// A context for vertex ordering calculations
+struct OrderingContext {
+  // Constructor
+  OrderingContext(BucketList &&blist);
+
+  // Bucket list for tracking which vertices are most tightly connected to the
+  // ordering
+  BucketList blist;
+
+  // A mapping of edges to the number of vertices inside the edges that have not
+  // been ordered
+  std::unordered_map<int, int> edge_to_num_vertices_outside_ordering;
+
+  // Vertices that have been marked as used by the ordering
+  std::unordered_set<int> used_vertices;
+
+  // Edges that have been marked as used by the ordering
+  std::unordered_set<int> used_edges;
+};
+
+/* The method for calculating a vertex ordering for maximum adjacency and tight,
+ * and Queyranne orderings is very similar - maintain how "tight" each vertex is
+ * and repeatedly add the "tightest" vertex. The only difference is how
+ * "tightness" is defined for each ordering. The "_tighten" functions define how
+ * each ordering maintains tightness.
+ *
+ * Each of these methods runs in time linear to the number of edges incident on
+ * v.
+ */
+void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
+                                        OrderingContext &ctx, const int v);
+void tight_ordering_tighten(const Hypergraph &hypergraph, OrderingContext &ctx,
+                            const int v);
+void queyranne_ordering_tighten(const Hypergraph &hypergraph,
+                                OrderingContext &ctx, const int v);
+using tightening_t =
+    std::add_pointer_t<void(const Hypergraph &, OrderingContext &, const int)>;
+
+/* Given a method to update the "tightness" of different vertices, computes a
+ * vertex ordering.
+ *
+ * Time complexity: O(p), where p is the size of the hypergraph, assuming that
+ * TIGHTEN runs in time linear to the number of edges incident on the selected
+ * vertex.
+ */
+template <tightening_t TIGHTEN>
+std::vector<int> unweighted_ordering(const Hypergraph &hypergraph,
+                                     const int a) {
+  std::vector<int> ordering = {a};
+  std::vector<int> vertices_without_a;
+
+  for (const auto &[v, incidence] : hypergraph.vertices()) {
+    if (v == a) {
+      continue;
+    }
+    vertices_without_a.emplace_back(v);
+  }
+
+  // Initialize context
+  // TODO I would like to initialize the bucketlist directly in the ctx arg list
+  // so i don't have a name dangling around (blist) but for some reason this
+  // causes a runtime error
+  BucketList blist(vertices_without_a,
+                   2 * hypergraph.edges().size() +
+                       1 /* multiply by 2 for Queyranne ordering */);
+  OrderingContext ctx(std::move(blist));
+  for (const auto &[e, vertices] : hypergraph.edges()) {
+    ctx.edge_to_num_vertices_outside_ordering.insert({e, vertices.size()});
+  }
+
+  const auto tighten = [&hypergraph, &ctx](const int v) {
+    ctx.used_vertices.insert(v);
+    // It is the responsibility of TIGHTEN to update the context
+    TIGHTEN(hypergraph, ctx, v);
+  };
+
+  tighten(a);
+
+  while (ordering.size() < hypergraph.vertices().size()) {
+    const int v = ctx.blist.pop();
+    ordering.emplace_back(v);
+    tighten(v);
+  }
+
+  return ordering;
+}
 
 /* Returns a maximum adjacency ordering of vertices, starting with vertex a.
  * Linear in the number of vertices across all hyperedges.
@@ -12,8 +102,8 @@
  * Here, tightness for a vertex v is the number of edges that intersect the
  * ordering so far and v.
  */
-std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
-                                            const int a);
+constexpr auto maximum_adjacency_ordering =
+    unweighted_ordering<maximum_adjacency_ordering_tighten>;
 
 /* Return a tight ordering of vertices, starting with vertex a. Linear in the
  * number of vertices across all hyperedges.
@@ -24,13 +114,14 @@ std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
  *
  * Takes time linear with the size of the hypergraph.
  */
-std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a);
+constexpr auto tight_ordering = unweighted_ordering<tight_ordering_tighten>;
 
 /* Return a Queyranne ordering of vertices, starting with vertex a.
  *
  * Takes time linear with the size of the hypergraph.
  */
-std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
+constexpr auto queyranne_ordering =
+    unweighted_ordering<queyranne_ordering_tighten>;
 
 size_t one_vertex_cut(const Hypergraph &hypergraph, const int v);
 
