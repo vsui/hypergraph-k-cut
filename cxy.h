@@ -19,14 +19,21 @@ namespace cxy {
  *   k: number of partitions
  */
 double cxy_delta(size_t n, size_t e, size_t k) {
-  int s = 0;
-  for (size_t i = n - e - k + 2; i <= n - e; ++i) {
+  double s = 0;
+  if (n < e + k - 2) {
+    return 0;
+  }
+  for (size_t i = n - (e + k - 2); i <= n - e; ++i) {
     s += std::log(i);
   }
-  for (size_t i = n - k + 2; i <= n; ++i) {
+  if (n < k - 2) {
+    return 0;
+  }
+  for (size_t i = n - (k - 2); i <= n; ++i) {
     s -= std::log(i);
   }
-  return std::exp(s);
+  assert(!isnan(s));
+  return  std::exp(s);
 }
 
 size_t cxy_contract_(Hypergraph &hypergraph, unsigned long long k) {
@@ -37,10 +44,6 @@ size_t cxy_contract_(Hypergraph &hypergraph, unsigned long long k) {
   auto min_so_far = hypergraph.edges().size();
 
   while (true) {
-    if (hypergraph.num_vertices() <= 4 * k - 4) {
-      // BF k-cut-sets in G
-    }
-
     edge_ids.resize(hypergraph.edges().size());
     deltas.resize(hypergraph.edges().size());
 
@@ -96,7 +99,8 @@ unsigned long long ncr(unsigned long long n, unsigned long long k) {
 size_t cxy_contract(Hypergraph &hypergraph, size_t k) {
   // TODO this is likely to overflow when n is large (> 100000)
   auto repeat = ncr(hypergraph.num_vertices(), 2 * (k - 1));
-  repeat *= std::ceil(std::log(hypergraph.num_vertices()));
+  repeat *= static_cast<decltype(repeat)>(
+      std::ceil(std::log(hypergraph.num_vertices())));
   repeat = std::max(repeat, 1ull);
   size_t min_so_far = std::numeric_limits<size_t>::max();
   for (unsigned long long i = 0; i < repeat; ++i) {

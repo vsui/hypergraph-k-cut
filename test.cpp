@@ -2,6 +2,8 @@
 
 #include "gtest/gtest.h"
 
+#include "cxy.h"
+#include "fpz.h"
 #include "hypergraph.h"
 #include "order.h"
 
@@ -307,4 +309,13 @@ TEST(KTrimmedCertificate, Works) {
     ASSERT_EQ(vertex_ordering_mincut(certificate, 1, tight_ordering),
               std::min(k, 3ul));
   }
+}
+
+TEST(KCut, SanityCheck) {
+  Hypergraph h1 = factory();
+  Hypergraph h2 = factory();
+
+  ASSERT_EQ(cxy::cxy_contract(h1, 3), fpz::branching_contract(h2, 3));
+  ASSERT_EQ(cxy::cxy_contract(h1, 4), fpz::branching_contract(h2, 4));
+  ASSERT_EQ(cxy::cxy_contract(h1, 5), fpz::branching_contract(h2, 5));
 }
