@@ -14,25 +14,7 @@ bool parse_hypergraph(const std::string &filename, Hypergraph &hypergraph) {
   std::ifstream input;
   input.open(filename);
 
-  int num_edges, num_vertices;
-  input >> num_edges >> num_vertices;
-
-  std::vector<std::vector<int>> edges;
-
-  std::string line;
-  std::getline(input, line); // Throw away first line
-
-  while (std::getline(input, line)) {
-    std::vector<int> edge;
-    std::stringstream sstr(line);
-    int i;
-    while (sstr >> i) {
-      edge.push_back(i);
-    }
-    edges.push_back(std::move(edge));
-  }
-
-  hypergraph = Hypergraph(num_vertices, edges);
+  input >> hypergraph;
 
   return input.eof();
 }

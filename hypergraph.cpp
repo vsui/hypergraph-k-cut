@@ -1,6 +1,7 @@
 #include "hypergraph.h"
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 Hypergraph::Hypergraph() = default;
@@ -167,6 +168,29 @@ Hypergraph Hypergraph::contract(const int edge_id) const {
   return new_hypergraph;
 }
 
+std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
+  int num_edges, num_vertices;
+  is >> num_edges >> num_vertices;
+
+  std::vector<std::vector<int>> edges;
+
+  std::string line;
+  std::getline(is, line); // Throw away first line
+
+  while (std::getline(is, line)) {
+    std::vector<int> edge;
+    std::stringstream sstr(line);
+    int i;
+    while (sstr >> i) {
+      edge.push_back(i);
+    }
+    edges.push_back(std::move(edge));
+  }
+
+  hypergraph = Hypergraph(num_vertices, edges);
+  return is;
+}
+
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
   os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
   os << "VERTICES\n";
@@ -189,3 +213,4 @@ std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
   }
   return os;
 }
+
