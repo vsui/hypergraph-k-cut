@@ -18,12 +18,19 @@ namespace fpz {
  */
 double redo_probability(size_t n, size_t e, size_t k) {
   double s = 0;
-  for (size_t i = n - e - k + 2; i <= n - e; ++i) {
+  if (n < e + k - 2) {
+    return 0;
+  }
+  for (size_t i = n - (e + k - 2); i <= n - e; ++i) {
     s += std::log(i);
   }
-  for (size_t i = n - k + 2; i <= n; ++i) {
+  if (n < k - 2) {
+    return 0;
+  }
+  for (size_t i = n - (k - 2); i <= n; ++i) {
     s -= std::log(i);
   }
+  assert(!isnan(s));
   return 1 - std::exp(s);
 }
 
@@ -86,7 +93,7 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
 }
 
 /* Runs branching contraction log^2(n) times and returns the minimum */
-size_t branching_contract(WeightedHypergraph &hypergraph, size_t k) {
+size_t branching_contract(Hypergraph &hypergraph, size_t k) {
   size_t logn =
       static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
   size_t repeat = logn * logn;
@@ -95,7 +102,7 @@ size_t branching_contract(WeightedHypergraph &hypergraph, size_t k) {
   for (size_t i = 0; i < repeat; ++i) {
     // branching_contract_ modifies the input hypergraph so avoid copying, so
     // copy it once in the beginning to save time
-    WeightedHypergraph copy(hypergraph);
+    Hypergraph copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
     size_t answer_ = branching_contract_(copy, k);
     min_so_far = std::min(min_so_far, answer_);

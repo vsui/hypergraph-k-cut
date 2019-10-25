@@ -5,6 +5,8 @@
 
 class Hypergraph {
 public:
+  virtual ~Hypergraph() = default;
+
   Hypergraph &operator=(const Hypergraph &other);
   Hypergraph();
   Hypergraph(const Hypergraph &other);
@@ -68,9 +70,14 @@ public:
     return copy.contract(new_e);
   }
 
-  virtual size_t weight([[maybe_unused]] int e) const { return 1; }
+  virtual size_t weight(int e) const {
+    if (edge_weights_.find(e) == std::end(edge_weights_)) { return 1; }
+    return edge_weights_.at(e);
+  }
 
 private:
+  std::unordered_map<int, size_t> edge_weights_;
+
   // Map of vertex IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> vertices_;
 
@@ -82,19 +89,11 @@ private:
 
 #include <iostream>
 
-class WeightedHypergraph : public Hypergraph {
+class UnweightedHypergraph : public Hypergraph {
 public:
-  void set_edge_weights(const std::unordered_map<int, size_t> &edge_weights) {
-    edge_weights_ = edge_weights;
-  }
+  virtual ~UnweightedHypergraph() = default;
 
-  size_t weight(int e) const {
-    std::cout << "weight " << e << std::endl;
-    return edge_weights_.at(e);
-  }
-
-private:
-  std::unordered_map<int, size_t> edge_weights_;
+  size_t weight(int e) const { return 1; }
 };
 
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);

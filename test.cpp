@@ -312,10 +312,17 @@ TEST(KTrimmedCertificate, Works) {
 }
 
 TEST(KCut, SanityCheck) {
-  Hypergraph h1 = factory();
-  Hypergraph h2 = factory();
+  for (int k = 3; k <= 5; ++k) {
+    Hypergraph h1 = factory();
+    Hypergraph h2 = factory();
+    size_t ans1 = cxy::cxy_contract(h1, k);
+    size_t ans2 = fpz::branching_contract(h2, k);
 
-  ASSERT_EQ(cxy::cxy_contract(h1, 3), fpz::branching_contract(h2, 3));
-  ASSERT_EQ(cxy::cxy_contract(h1, 4), fpz::branching_contract(h2, 4));
-  ASSERT_EQ(cxy::cxy_contract(h1, 5), fpz::branching_contract(h2, 5));
+    ASSERT_EQ(ans1, ans2);
+  }
+
+  // Causes errors
+  //ASSERT_EQ(cxy::cxy_contract(h1, 3), fpz::branching_contract(h2, 3));
+  //ASSERT_EQ(cxy::cxy_contract(h1, 4), fpz::branching_contract(h2, 4));
+  //ASSERT_EQ(cxy::cxy_contract(h1, 5), fpz::branching_contract(h2, 5));
 }

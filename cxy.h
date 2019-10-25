@@ -106,7 +106,7 @@ unsigned long long ncr(unsigned long long n, unsigned long long k) {
 }
 
 // Algorithm for calculating hypergraph min-k-cut from CXY '18
-size_t cxy_contract(WeightedHypergraph &hypergraph, size_t k) {
+size_t cxy_contract(Hypergraph &hypergraph, size_t k) {
   // TODO this is likely to overflow when n is large (> 100000)
   auto repeat = ncr(hypergraph.num_vertices(), 2 * (k - 1));
   repeat *= static_cast<decltype(repeat)>(
@@ -114,7 +114,7 @@ size_t cxy_contract(WeightedHypergraph &hypergraph, size_t k) {
   repeat = std::max(repeat, 1ull);
   size_t min_so_far = std::numeric_limits<size_t>::max();
   for (unsigned long long i = 0; i < repeat; ++i) {
-    WeightedHypergraph copy(hypergraph);
+    Hypergraph copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
     size_t answer_ = cxy_contract_(copy, k);
     min_so_far = std::min(min_so_far, answer_);

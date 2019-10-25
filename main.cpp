@@ -38,9 +38,9 @@ bool parse_hypergraph(const std::string &filename, Hypergraph &hypergraph) {
 }
 
 int main(int argc, char *argv[]) {
-  WeightedHypergraph h;
+  Hypergraph h;
 
-  if (argc != 4) {
+  if (argc != 4 && argc != 5 /* for epsilon */) {
   usage:
     std::cerr << "Usage: " << argv[0]
               << " <input hypergraph filename> <k> <algorithm>\n"
@@ -64,12 +64,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-//  std::unordered_map<int, size_t> edge_weights;
-//  for (int e = 0; e < h.num_edges(); ++e) {
-//    edge_weights[e] = e + 1;
-//  }
-//  h.set_edge_weights(edge_weights);
-//
+  //  std::unordered_map<int, size_t> edge_weights;
+  //  for (int e = 0; e < h.num_edges(); ++e) {
+  //    edge_weights[e] = e + 1;
+  //  }
+  //  h.set_edge_weights(edge_weights);
+  //
   auto start = std::chrono::high_resolution_clock::now();
   size_t answer;
   if (argv[3] == std::string("FPZ")) {
@@ -118,7 +118,8 @@ int main(int argc, char *argv[]) {
       std::cout << "CXapprox can only compute mincuts" << std::endl;
       return 1;
     }
-    answer = approximate_minimizer(h, 1.0);
+    double epsilon = std::strtod(argv[4], nullptr);
+    answer = approximate_minimizer(h, epsilon);
   } else {
     goto usage;
   }
