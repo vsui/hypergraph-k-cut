@@ -68,6 +68,8 @@ public:
     return copy.contract(new_e);
   }
 
+  virtual size_t weight([[maybe_unused]] int e) const { return 1; }
+
 private:
   // Map of vertex IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> vertices_;
@@ -76,6 +78,23 @@ private:
   std::unordered_map<int, std::vector<int>> edges_;
 
   mutable int next_vertex_id_;
+};
+
+#include <iostream>
+
+class WeightedHypergraph : public Hypergraph {
+public:
+  void set_edge_weights(const std::unordered_map<int, size_t> &edge_weights) {
+    edge_weights_ = edge_weights;
+  }
+
+  size_t weight(int e) const {
+    std::cout << "weight " << e << std::endl;
+    return edge_weights_.at(e);
+  }
+
+private:
+  std::unordered_map<int, size_t> edge_weights_;
 };
 
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);

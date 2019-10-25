@@ -11,8 +11,6 @@
 #include "bucket_list.h"
 #include "hypergraph.h"
 
-OrderingContext::OrderingContext(BucketList &&blist) : blist(blist) {}
-
 void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
                                         OrderingContext &ctx, const int v) {
   // We are adding v to the ordering so far, and need to update the keys for the
@@ -29,7 +27,10 @@ void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
     // to maintain the runtime.
     for (const int u : hypergraph.edges().at(e)) {
       if (ctx.used_vertices.find(u) == std::end(ctx.used_vertices)) {
-        ctx.blist.increment(u);
+        auto handle = ctx.handles.at(u);
+        auto [key, val] = *handle;
+        *handle = {key + hypergraph.weight(e), val};
+        ctx.heap.increase(handle);
       }
     }
     ctx.used_edges.insert(e);
@@ -46,7 +47,10 @@ void tight_ordering_tighten(const Hypergraph &hypergraph, OrderingContext &ctx,
     if (ctx.edge_to_num_vertices_outside_ordering.at(e) == 1) {
       for (const int u : hypergraph.edges().at(e)) {
         if (ctx.used_vertices.find(u) == std::end(ctx.used_vertices)) {
-          ctx.blist.increment(u);
+          auto handle = ctx.handles.at(u);
+          auto [key, val] = *handle;
+          *handle = {key + hypergraph.weight(e), val};
+          ctx.heap.increase(handle);
           break;
         }
       }
@@ -77,7 +81,11 @@ std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a) {
 // For a hypergraph with vertices V, returns the value of the cut V - {v}, {v}.
 // Takes time linear to the number of vertices across all edges.
 size_t one_vertex_cut(const Hypergraph &hypergraph, const int v) {
-  return hypergraph.vertices().at(v).size();
+  size_t cut = 0;
+  for (const int e : hypergraph.vertices().at(v)) {
+    cut += hypergraph.weight(e);
+  }
+  return cut;
 }
 
 Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,

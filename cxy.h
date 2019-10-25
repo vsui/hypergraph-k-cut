@@ -18,7 +18,7 @@ namespace cxy {
  *   e: the size of the hyperedge
  *   k: number of partitions
  */
-double cxy_delta(size_t n, size_t e, size_t k) {
+double cxy_delta(size_t n, size_t e, size_t k, size_t w) {
   double s = 0;
   if (n < e + k - 2) {
     return 0;
@@ -33,7 +33,7 @@ double cxy_delta(size_t n, size_t e, size_t k) {
     s -= std::log(i);
   }
   assert(!isnan(s));
-  return  std::exp(s);
+  return std::exp(s) * w;
 }
 
 size_t cxy_contract_(Hypergraph &hypergraph, unsigned long long k) {
@@ -41,7 +41,11 @@ size_t cxy_contract_(Hypergraph &hypergraph, unsigned long long k) {
   std::vector<int> edge_ids;
   std::vector<double> deltas;
 
-  auto min_so_far = hypergraph.edges().size();
+  // TODO function for sum of all edge weights
+  size_t min_so_far = 0;
+  for (const auto &[e, vertices] : hypergraph.edges()) {
+    min_so_far += hypergraph.weight(e);
+  }
 
   while (true) {
     edge_ids.resize(hypergraph.edges().size());
@@ -50,12 +54,18 @@ size_t cxy_contract_(Hypergraph &hypergraph, unsigned long long k) {
     size_t i = 0;
     for (const auto &[edge_id, incidence] : hypergraph.edges()) {
       edge_ids[i] = edge_id;
-      deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k);
+      deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k,
+                            hypergraph.weight(edge_id));
       ++i;
     }
 
     if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
-      min_so_far = std::min(min_so_far, hypergraph.num_edges());
+      // TODO function for sum of all edge weights
+      size_t cut = 0;
+      for (const auto &[e, vertices] : hypergraph.edges()) {
+        cut += hypergraph.weight(e);
+      }
+      min_so_far = std::min(min_so_far, cut);
       break;
     }
 
@@ -96,7 +106,7 @@ unsigned long long ncr(unsigned long long n, unsigned long long k) {
 }
 
 // Algorithm for calculating hypergraph min-k-cut from CXY '18
-size_t cxy_contract(Hypergraph &hypergraph, size_t k) {
+size_t cxy_contract(WeightedHypergraph &hypergraph, size_t k) {
   // TODO this is likely to overflow when n is large (> 100000)
   auto repeat = ncr(hypergraph.num_vertices(), 2 * (k - 1));
   repeat *= static_cast<decltype(repeat)>(
@@ -104,7 +114,7 @@ size_t cxy_contract(Hypergraph &hypergraph, size_t k) {
   repeat = std::max(repeat, 1ull);
   size_t min_so_far = std::numeric_limits<size_t>::max();
   for (unsigned long long i = 0; i < repeat; ++i) {
-    Hypergraph copy(hypergraph);
+    WeightedHypergraph copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
     size_t answer_ = cxy_contract_(copy, k);
     min_so_far = std::min(min_so_far, answer_);

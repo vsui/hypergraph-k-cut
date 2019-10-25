@@ -3,10 +3,10 @@
 #include <sstream>
 #include <vector>
 
+#include "approx.h"
 #include "cxy.h"
 #include "fpz.h"
 #include "hypergraph.h"
-#include "approx.h"
 #include "order.h"
 
 /* Attempts to read a hypergraph from a file */
@@ -38,7 +38,7 @@ bool parse_hypergraph(const std::string &filename, Hypergraph &hypergraph) {
 }
 
 int main(int argc, char *argv[]) {
-  Hypergraph h;
+  WeightedHypergraph h;
 
   if (argc != 4) {
   usage:
@@ -64,6 +64,12 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+//  std::unordered_map<int, size_t> edge_weights;
+//  for (int e = 0; e < h.num_edges(); ++e) {
+//    edge_weights[e] = e + 1;
+//  }
+//  h.set_edge_weights(edge_weights);
+//
   auto start = std::chrono::high_resolution_clock::now();
   size_t answer;
   if (argv[3] == std::string("FPZ")) {

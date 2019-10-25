@@ -5,6 +5,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <boost/heap/fibonacci_heap.hpp>
+
 #include "bucket_list.h"
 #include "certificate.h"
 #include "hypergraph.h"
@@ -12,11 +14,15 @@
 // A context for vertex ordering calculations
 struct OrderingContext {
   // Constructor
-  OrderingContext(BucketList &&blist);
+  // OrderingContext(BucketList &&blist);
 
-  // Bucket list for tracking which vertices are most tightly connected to the
+  // Heap for tracking which vertices are most tightly connected to the
   // ordering
-  BucketList blist;
+  boost::heap::fibonacci_heap<std::pair<size_t, int>> heap;
+
+  std::unordered_map<
+      int, boost::heap::fibonacci_heap<std::pair<size_t, int>>::handle_type>
+      handles;
 
   // A mapping of edges to the number of vertices inside the edges that have not
   // been ordered
@@ -75,10 +81,14 @@ unweighted_ordering(const Hypergraph &hypergraph, const int a) {
   // TODO I would like to initialize the bucketlist directly in the ctx arg list
   // so i don't have a name dangling around (blist) but for some reason this
   // causes a runtime error
-  BucketList blist(vertices_without_a,
-                   2 * hypergraph.edges().size() +
-                       1 /* multiply by 2 for Queyranne ordering */);
-  OrderingContext ctx(std::move(blist));
+  // BucketList blist(vertices_without_a,
+  //                 2 * hypergraph.edges().size() +
+  //                     1 /* multiply by 2 for Queyranne ordering */);
+  OrderingContext ctx;
+  for (const int v : vertices_without_a) {
+    auto handle = ctx.heap.push({0, v});
+    ctx.handles[v] = handle;
+  }
   for (const auto &[e, vertices] : hypergraph.edges()) {
     ctx.edge_to_num_vertices_outside_ordering.insert({e, vertices.size()});
   }
@@ -92,7 +102,8 @@ unweighted_ordering(const Hypergraph &hypergraph, const int a) {
   tighten(a);
 
   while (ordering.size() < hypergraph.vertices().size()) {
-    const auto [k, v] = ctx.blist.pop_key_val();
+    const auto [k, v] = ctx.heap.top();
+    ctx.heap.pop();
     ordering.emplace_back(v);
     // We need k / 2 instead of just k because this is just used for Queyranne
     // for now

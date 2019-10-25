@@ -38,7 +38,7 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
   for (auto it = std::begin(hypergraph.edges());
        it != std::end(hypergraph.edges());) {
     if (it->second.size() >= hypergraph.num_vertices() - k + 2) {
-      ++accumulated;
+      accumulated += hypergraph.weight(it->first);
       // Remove k-spanning hyperedge from incidence lists
       for (const int v : it->second) {
         auto &vertex_incidence_list = hypergraph.vertices().at(v);
@@ -67,6 +67,7 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
 
   // Select a hyperedge with probability proportional to its weight
   // Note: dealing with unweighted hyperedges
+  // TODO support weight hyperedges
   std::pair<int, std::vector<int>> sampled[1];
   std::sample(std::begin(hypergraph.edges()), std::end(hypergraph.edges()),
               std::begin(sampled), 1, gen);
@@ -85,7 +86,7 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
 }
 
 /* Runs branching contraction log^2(n) times and returns the minimum */
-size_t branching_contract(Hypergraph &hypergraph, size_t k) {
+size_t branching_contract(WeightedHypergraph &hypergraph, size_t k) {
   size_t logn =
       static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
   size_t repeat = logn * logn;
@@ -94,7 +95,7 @@ size_t branching_contract(Hypergraph &hypergraph, size_t k) {
   for (size_t i = 0; i < repeat; ++i) {
     // branching_contract_ modifies the input hypergraph so avoid copying, so
     // copy it once in the beginning to save time
-    Hypergraph copy(hypergraph);
+    WeightedHypergraph copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
     size_t answer_ = branching_contract_(copy, k);
     min_so_far = std::min(min_so_far, answer_);
