@@ -31,4 +31,4 @@ if (CMAKE_VERSION VERSION_LESS 2.8.11)
 endif()
 
 add_executable(hypergraph_test test.cpp)
-target_link_libraries(hypergraph_test PUBLIC gtest_main hypergraph)
+target_link_libraries(hypergraph_test PUBLIC gtest_main gmock_main hypergraph)

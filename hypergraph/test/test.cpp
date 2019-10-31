@@ -1,11 +1,14 @@
 #include <tuple>
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "hypergraph/cxy.hpp"
 #include "hypergraph/fpz.hpp"
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/order.hpp"
+
+using namespace testing;
 
 namespace {
 
@@ -338,4 +341,29 @@ TEST(KCut, FPZ) {
     Hypergraph h = factory();
     size_t ans = fpz::branching_contract(h, 4);
     ASSERT_EQ(ans, 6);
+}
+
+TEST(Hypergraph, Contract) {
+    Hypergraph h = {
+            {0,1,2,3,4,5,6,7,8,9,10},
+            {
+                    {9, 2, 1}, // 0
+                    {9, 3, 1},
+                    {8, 5, 2, 1, 0},
+                    {8, 5, 3},
+                    {5, 2, 0},
+                    {9, 0}, // 5
+                    {10, 3, 2},
+                    {10, 5},
+                    {4, 1},
+                    {10, 8, 4},
+                    {3, 2, 1}, // 10
+                    {5, 4, 3, 2, 1, 0},
+                    {5, 1},
+                    {8, 4},
+            }
+    };
+    Hypergraph contracted = h.contract(13); // {5, 1}
+
+    EXPECT_TRUE(contracted.is_valid());
 }
