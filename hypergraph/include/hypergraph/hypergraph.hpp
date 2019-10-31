@@ -95,7 +95,7 @@ class UnweightedHypergraph : public Hypergraph {
 public:
   virtual ~UnweightedHypergraph() = default;
 
-  size_t weight(int e) const { return 1; }
+  size_t weight([[maybe_unused]] int e) const { return 1; }
 };
 
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
