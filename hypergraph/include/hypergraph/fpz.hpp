@@ -4,7 +4,7 @@
 #include <iostream>
 #include <random>
 
-#include "hypergraph/hypergraph.h"
+#include "hypergraph/hypergraph.hpp"
 
 namespace fpz {
 

@@ -1,4 +1,4 @@
-#include "hypergraph/hypergraph.h"
+#include "hypergraph/hypergraph.hpp"
 
 #include <iostream>
 #include <sstream>

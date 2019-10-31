@@ -1,15 +1,15 @@
 // This file implements vertex orderings for hypergraphs. See [CX'18]
 // section 2.1 for more details.
 
-#include "hypergraph/order.h"
+#include "hypergraph/order.hpp"
 
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-#include "hypergraph/bucket_list.h"
-#include "hypergraph/hypergraph.h"
+#include "hypergraph/bucket_list.hpp"
+#include "hypergraph/hypergraph.hpp"
 
 void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
                                         OrderingContext &ctx, const int v) {

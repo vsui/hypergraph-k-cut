@@ -7,9 +7,9 @@
 
 #include <boost/heap/fibonacci_heap.hpp>
 
-#include "hypergraph/bucket_list.h"
-#include "hypergraph/certificate.h"
-#include "hypergraph/hypergraph.h"
+#include "hypergraph/bucket_list.hpp"
+#include "hypergraph/certificate.hpp"
+#include "hypergraph/hypergraph.hpp"
 
 // A context for vertex ordering calculations
 struct OrderingContext {

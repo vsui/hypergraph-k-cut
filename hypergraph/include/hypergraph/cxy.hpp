@@ -7,7 +7,7 @@
 #include <random>
 #include <vector>
 
-#include "hypergraph/hypergraph.h"
+#include "hypergraph/hypergraph.hpp"
 
 namespace cxy {
 

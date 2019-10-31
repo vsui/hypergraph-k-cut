@@ -1,6 +1,6 @@
-#include "hypergraph/certificate.h"
+#include "hypergraph/certificate.hpp"
 
-#include "hypergraph/order.h"
+#include "hypergraph/order.hpp"
 
 namespace {
 
