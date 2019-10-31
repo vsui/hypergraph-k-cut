@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "hypergraph.h"
+#include "hypergraph/hypergraph.h"
 
 /* A data structure that can be used to retrieve k-trimmed certificates of a
  * hypergraph. A k-trimmed certificate is a trimmed subhypergraph that retains

@@ -4,60 +4,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 project(HypergraphPartitioning)
 
-# Download and unpack googletest at configure time
-configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-if(result)
-  message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-endif()
-execute_process(COMMAND ${CMAKE_COMMAND} --build .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-if(result)
-  message(FATAL_ERROR "Build step for googletest failed: ${result}")
-endif()
+add_subdirectory(hypergraph)
 
-# Prevent overriding the parent project's compiler/linker
-# settings on Windows
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+add_executable(hcut main.cpp)
+target_link_libraries(hcut hypergraph)
 
-# Add googletest directly to our build. This defines
-# the gtest and gtest_main targets.
-add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-                 ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-                 EXCLUDE_FROM_ALL)
-
-# The gtest/gtest_main targets carry header search path
-# dependencies automatically when using CMake 2.8.11 or
-# later. Otherwise we have to add them here ourselves.
-if (CMAKE_VERSION VERSION_LESS 2.8.11)
-  include_directories("${gtest_SOURCE_DIR}/include")
-endif()
-
-find_package(Boost REQUIRED)
-
-add_executable(main main.cpp hypergraph.cpp certificate.cpp order.cpp bucket_list.cpp)
-#target_compile_options(main PRIVATE 
-#  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Werror -pedantic-errors -Wextra -Wconversion -Wsign-conversion>
-#  $<$<CXX_COMPILER_ID:MSVC>:-W4>
-#  )
-# target_include_directories(main SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
-target_link_libraries(main PRIVATE Boost::headers)
-
-add_executable(gen gen.cpp hypergraph.cpp)
-#target_compile_options(gen PRIVATE 
-#  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Werror -pedantic-errors -Wextra -Wconversion -Wsign-conversion>
-#  $<$<CXX_COMPILER_ID:MSVC>:/W4 /W4>
-#  )
-target_link_libraries(gen PRIVATE Boost::headers)
-
-add_executable(test test.cpp order.cpp hypergraph.cpp certificate.cpp bucket_list.cpp)
-target_link_libraries(test PRIVATE gtest_main Boost::headers)
-target_include_directories(test PRIVATE "${CMAKE_SOURCE_DIR}/../cpp")
-#target_compile_options(test PRIVATE 
-#  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Werror -pedantic-errors -Wextra -Wconversion -Wsign-conversion>
-#  $<$<CXX_COMPILER_ID:MSVC>:-W4>
-#  )
-
+add_executable(hgen gen.cpp)
+target_link_libraries(hgen hypergraph)

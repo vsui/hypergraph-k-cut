@@ -4,7 +4,7 @@
 #include <iostream>
 #include <random>
 
-#include "hypergraph.h"
+#include "hypergraph/hypergraph.h"
 
 namespace fpz {
 
@@ -41,6 +41,7 @@ double redo_probability(size_t n, size_t e, size_t k) {
  * */
 size_t branching_contract_(Hypergraph &hypergraph, size_t k,
                            size_t accumulated = 0) {
+  // TODO add this in debug mode: assert(hypergraph.is_valid());
   // Remove k-spanning hyperedges from hypergraph
   for (auto it = std::begin(hypergraph.edges());
        it != std::end(hypergraph.edges());) {

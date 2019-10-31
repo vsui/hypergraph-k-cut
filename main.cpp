@@ -3,11 +3,11 @@
 #include <sstream>
 #include <vector>
 
-#include "approx.h"
-#include "cxy.h"
-#include "fpz.h"
-#include "hypergraph.h"
-#include "order.h"
+#include "hypergraph/approx.h"
+#include "hypergraph/cxy.h"
+#include "hypergraph/fpz.h"
+#include "hypergraph/hypergraph.h"
+#include "hypergraph/order.h"
 
 /* Attempts to read a hypergraph from a file */
 bool parse_hypergraph(const std::string &filename, Hypergraph &hypergraph) {

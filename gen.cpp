@@ -4,7 +4,7 @@
 #include <sstream>
 #include <vector>
 
-#include "hypergraph.h"
+#include "hypergraph/hypergraph.h"
 
 int main(int argc, char *argv[]) {
   if (argc != 4) {

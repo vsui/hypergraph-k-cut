@@ -1,4 +1,4 @@
-#include "bucket_list.h"
+#include "hypergraph/bucket_list.h"
 
 BucketList::BucketList(std::vector<int> values, const size_t capacity)
     : capacity_(capacity), buckets_(capacity), max_key_(0) {

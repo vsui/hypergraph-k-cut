@@ -2,10 +2,10 @@
 
 #include "gtest/gtest.h"
 
-#include "cxy.h"
-#include "fpz.h"
-#include "hypergraph.h"
-#include "order.h"
+#include "hypergraph/cxy.h"
+#include "hypergraph/fpz.h"
+#include "hypergraph/hypergraph.h"
+#include "hypergraph/order.h"
 
 namespace {
 

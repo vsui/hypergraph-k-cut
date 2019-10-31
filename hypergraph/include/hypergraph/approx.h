@@ -1,7 +1,7 @@
 #pragma once
 
-#include "hypergraph.h"
-#include "order.h"
+#include "hypergraph/hypergraph.h"
+#include "hypergraph/order.h"
 
 /* Approximate (2+epsilon) hypergraph minimum cut from [CX'18].
  *
