@@ -71,7 +71,9 @@ public:
   }
 
   virtual size_t weight(int e) const {
-    if (edge_weights_.find(e) == std::end(edge_weights_)) { return 1; }
+    if (edge_weights_.find(e) == std::end(edge_weights_)) {
+      return 1;
+    }
     return edge_weights_.at(e);
   }
 
@@ -96,4 +98,5 @@ public:
   size_t weight(int e) const { return 1; }
 };
 
+std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);
