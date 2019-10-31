@@ -11,8 +11,6 @@ public:
   Hypergraph();
   Hypergraph(const Hypergraph &other);
 
-  Hypergraph(const int num_edges, const std::vector<std::vector<int>> &edges);
-
   // Constructor that directly sets adjacency lists and next vertex ID
   Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
              std::unordered_map<int, std::vector<int>> &&edges,
@@ -88,8 +86,6 @@ private:
 
   mutable int next_vertex_id_;
 };
-
-#include <iostream>
 
 class UnweightedHypergraph : public Hypergraph {
 public:

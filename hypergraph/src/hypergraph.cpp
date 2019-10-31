@@ -3,27 +3,11 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <numeric>
 
 Hypergraph::Hypergraph() = default;
 Hypergraph::Hypergraph(const Hypergraph &other) = default;
 Hypergraph &Hypergraph::operator=(const Hypergraph &other) = default;
-
-Hypergraph::Hypergraph(const int num_edges,
-                       const std::vector<std::vector<int>> &edges)
-    : next_vertex_id_(num_edges) {
-  for (int i = 0; i < num_edges; ++i) {
-    vertices_[i] = {};
-  }
-
-  int next_edge_id = 0;
-  for (const auto &incident_on : edges) {
-    for (const int v : incident_on) {
-      vertices_[v].push_back(next_edge_id);
-      edges_[next_edge_id].push_back(v);
-    }
-    ++next_edge_id;
-  }
-}
 
 Hypergraph::Hypergraph(const std::vector<int> &vertices,
                        const std::vector<std::vector<int>> &edges) {
@@ -169,7 +153,7 @@ Hypergraph Hypergraph::contract(const int edge_id) const {
 }
 
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
-  int num_edges, num_vertices;
+  size_t num_edges, num_vertices;
   is >> num_edges >> num_vertices;
 
   std::vector<std::vector<int>> edges;
@@ -187,7 +171,10 @@ std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
     edges.push_back(std::move(edge));
   }
 
-  hypergraph = Hypergraph(num_vertices, edges);
+  std::vector<int> vertices(num_vertices);
+  std::iota(std::begin(vertices), std::end(vertices), 0);
+
+  hypergraph = Hypergraph(vertices, edges);
   return is;
 }
 
