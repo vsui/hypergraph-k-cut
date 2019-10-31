@@ -54,11 +54,10 @@ add_executable(gen gen.cpp hypergraph.cpp)
 target_link_libraries(gen INTERFACE Boost::headers)
 
 add_executable(test test.cpp order.cpp hypergraph.cpp certificate.cpp bucket_list.cpp)
-target_link_libraries(test gtest_main)
+target_link_libraries(test PRIVATE gtest_main Boost::headers)
 target_include_directories(test PRIVATE "${CMAKE_SOURCE_DIR}/../cpp")
 #target_compile_options(test PRIVATE 
 #  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Werror -pedantic-errors -Wextra -Wconversion -Wsign-conversion>
 #  $<$<CXX_COMPILER_ID:MSVC>:-W4>
 #  )
-target_include_directories(test INTERFACE Boost::headers})
 
