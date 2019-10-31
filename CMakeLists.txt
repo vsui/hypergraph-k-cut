@@ -44,14 +44,14 @@ add_executable(main main.cpp hypergraph.cpp certificate.cpp order.cpp bucket_lis
 #  $<$<CXX_COMPILER_ID:MSVC>:-W4>
 #  )
 # target_include_directories(main SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
-target_link_libraries(main INTERFACE Boost::headers)
+target_link_libraries(main PRIVATE Boost::headers)
 
 add_executable(gen gen.cpp hypergraph.cpp)
 #target_compile_options(gen PRIVATE 
 #  $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Werror -pedantic-errors -Wextra -Wconversion -Wsign-conversion>
 #  $<$<CXX_COMPILER_ID:MSVC>:/W4 /W4>
 #  )
-target_link_libraries(gen INTERFACE Boost::headers)
+target_link_libraries(gen PRIVATE Boost::headers)
 
 add_executable(test test.cpp order.cpp hypergraph.cpp certificate.cpp bucket_list.cpp)
 target_link_libraries(test PRIVATE gtest_main Boost::headers)
