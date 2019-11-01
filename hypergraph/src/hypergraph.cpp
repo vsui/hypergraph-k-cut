@@ -34,14 +34,6 @@ Hypergraph::Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
 size_t Hypergraph::num_vertices() const { return vertices_.size(); }
 size_t Hypergraph::num_edges() const { return edges_.size(); }
 
-std::unordered_map<int, std::vector<int>> &Hypergraph::vertices() {
-  return vertices_;
-}
-
-std::unordered_map<int, std::vector<int>> &Hypergraph::edges() {
-  return edges_;
-}
-
 const std::unordered_map<int, std::vector<int>> &Hypergraph::vertices() const {
   return vertices_;
 }
@@ -152,6 +144,18 @@ Hypergraph Hypergraph::contract(const int edge_id) const {
   */
 
   return new_hypergraph;
+}
+
+void Hypergraph::remove_hyperedge(int edge_id) {
+    for (const auto v : edges_.at(edge_id)) {
+        auto &vertex_incidence_list = vertices_.at(v);
+        auto it = std::find(std::begin(vertex_incidence_list),
+                std::end(vertex_incidence_list), edge_id);
+        // Swap it with the last element and pop it off to remove in O(1) time
+        std::iter_swap(it, std::end(vertex_incidence_list) - 1);
+        vertex_incidence_list.pop_back();
+    }
+    edges_.erase(edge_id);
 }
 
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {

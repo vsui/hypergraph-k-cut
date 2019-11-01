@@ -19,8 +19,6 @@ public:
   size_t num_vertices() const;
   size_t num_edges() const;
 
-  std::unordered_map<int, std::vector<int>> &vertices();
-  std::unordered_map<int, std::vector<int>> &edges();
   const std::unordered_map<int, std::vector<int>> &vertices() const;
   const std::unordered_map<int, std::vector<int>> &edges() const;
 
@@ -55,6 +53,12 @@ public:
         ++next_edge_id_;
         return new_edge_id;
     }
+
+    /* Remove a hyperedge.
+     *
+     * Time complexity: linear with the size of all vertices contained by the hyperedge
+     */
+    void remove_hyperedge(int edge_id);
 
   /* Contracts the vertices in the range into one vertex.
    *

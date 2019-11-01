@@ -42,25 +42,17 @@ double redo_probability(size_t n, size_t e, size_t k) {
 size_t branching_contract_(Hypergraph &hypergraph, size_t k,
                            size_t accumulated = 0) {
   // TODO add this in debug mode: assert(hypergraph.is_valid());
+
   // Remove k-spanning hyperedges from hypergraph
-  for (auto it = std::begin(hypergraph.edges());
-       it != std::end(hypergraph.edges());) {
-    if (it->second.size() >= hypergraph.num_vertices() - k + 2) {
-      accumulated += hypergraph.weight(it->first);
-      // Remove k-spanning hyperedge from incidence lists
-      for (const int v : it->second) {
-        auto &vertex_incidence_list = hypergraph.vertices().at(v);
-        auto it2 = std::find(std::begin(vertex_incidence_list),
-                             std::end(vertex_incidence_list), it->first);
-        // Swap it with the last element and pop it off to remove in O(1) time
-        std::iter_swap(it2, std::end(vertex_incidence_list) - 1);
-        vertex_incidence_list.pop_back();
+  std::vector<int> k_spanning_hyperedges;
+  for (const auto &[edge_id, vertices] : hypergraph.edges()) {
+      // TODO overflow here?
+      if (vertices.size() >= hypergraph.num_vertices() - k + 2) {
+          k_spanning_hyperedges.push_back(edge_id);
       }
-      // Remove k-spanning hyperedge
-      it = hypergraph.edges().erase(it);
-    } else {
-      ++it;
-    }
+  }
+  for (const auto edge_id : k_spanning_hyperedges) {
+      hypergraph.remove_hyperedge(edge_id);
   }
 
   // If no edges remain, return the answer
