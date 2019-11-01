@@ -13,26 +13,26 @@
 
 // A context for vertex ordering calculations
 struct OrderingContext {
-  // Constructor
-  // OrderingContext(BucketList &&blist);
+    // Constructor
+    // OrderingContext(BucketList &&blist);
 
-  // Heap for tracking which vertices are most tightly connected to the
-  // ordering
-  boost::heap::fibonacci_heap<std::pair<size_t, int>> heap;
+    // Heap for tracking which vertices are most tightly connected to the
+    // ordering
+    boost::heap::fibonacci_heap<std::pair<size_t, int>> heap;
 
-  std::unordered_map<
-      int, boost::heap::fibonacci_heap<std::pair<size_t, int>>::handle_type>
-      handles;
+    std::unordered_map<
+            int, boost::heap::fibonacci_heap<std::pair<size_t, int>>::handle_type>
+            handles;
 
-  // A mapping of edges to the number of vertices inside the edges that have not
-  // been ordered
-  std::unordered_map<int, int> edge_to_num_vertices_outside_ordering;
+    // A mapping of edges to the number of vertices inside the edges that have not
+    // been ordered
+    std::unordered_map<int, int> edge_to_num_vertices_outside_ordering;
 
-  // Vertices that have been marked as used by the ordering
-  std::unordered_set<int> used_vertices;
+    // Vertices that have been marked as used by the ordering
+    std::unordered_set<int> used_vertices;
 
-  // Edges that have been marked as used by the ordering
-  std::unordered_set<int> used_edges;
+    // Edges that have been marked as used by the ordering
+    std::unordered_set<int> used_edges;
 };
 
 /* The method for calculating a vertex ordering for maximum adjacency and tight,
@@ -48,12 +48,15 @@ struct OrderingContext {
  */
 void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
                                         OrderingContext &ctx, const int v);
+
 void tight_ordering_tighten(const Hypergraph &hypergraph, OrderingContext &ctx,
                             const int v);
+
 void queyranne_ordering_tighten(const Hypergraph &hypergraph,
                                 OrderingContext &ctx, const int v);
+
 using tightening_t =
-    std::add_pointer_t<void(const Hypergraph &, OrderingContext &, const int)>;
+std::add_pointer_t<void(const Hypergraph &, OrderingContext &, const int)>;
 
 /* Given a method to update the "tightness" of different vertices, computes a
  * vertex ordering and returns the ordering as well as a list of how tight each
@@ -63,55 +66,55 @@ using tightening_t =
  * TIGHTEN runs in time linear to the number of edges incident on the selected
  * vertex.
  */
-template <tightening_t TIGHTEN>
+template<tightening_t TIGHTEN>
 std::pair<std::vector<int>, std::vector<double>>
 unweighted_ordering(const Hypergraph &hypergraph, const int a) {
-  std::vector<int> ordering = {a};
-  std::vector<double> tightness = {0};
-  std::vector<int> vertices_without_a;
+    std::vector<int> ordering = {a};
+    std::vector<double> tightness = {0};
+    std::vector<int> vertices_without_a;
 
-  for (const auto v : hypergraph.vertices()) {
-    if (v == a) {
-      continue;
+    for (const auto v : hypergraph.vertices()) {
+        if (v == a) {
+            continue;
+        }
+        vertices_without_a.emplace_back(v);
     }
-    vertices_without_a.emplace_back(v);
-  }
 
-  // Initialize context
-  // TODO I would like to initialize the bucketlist directly in the ctx arg list
-  // so i don't have a name dangling around (blist) but for some reason this
-  // causes a runtime error
-  // BucketList blist(vertices_without_a,
-  //                 2 * hypergraph.edges().size() +
-  //                     1 /* multiply by 2 for Queyranne ordering */);
-  OrderingContext ctx;
-  for (const int v : vertices_without_a) {
-    auto handle = ctx.heap.push({0, v});
-    ctx.handles[v] = handle;
-  }
-  for (const auto &[e, vertices] : hypergraph.edges()) {
-    ctx.edge_to_num_vertices_outside_ordering.insert({e, vertices.size()});
-  }
+    // Initialize context
+    // TODO I would like to initialize the bucketlist directly in the ctx arg list
+    // so i don't have a name dangling around (blist) but for some reason this
+    // causes a runtime error
+    // BucketList blist(vertices_without_a,
+    //                 2 * hypergraph.edges().size() +
+    //                     1 /* multiply by 2 for Queyranne ordering */);
+    OrderingContext ctx;
+    for (const int v : vertices_without_a) {
+        auto handle = ctx.heap.push({0, v});
+        ctx.handles[v] = handle;
+    }
+    for (const auto &[e, vertices] : hypergraph.edges()) {
+        ctx.edge_to_num_vertices_outside_ordering.insert({e, vertices.size()});
+    }
 
-  const auto tighten = [&hypergraph, &ctx](const int v) {
-    ctx.used_vertices.insert(v);
-    // It is the responsibility of TIGHTEN to update the context
-    TIGHTEN(hypergraph, ctx, v);
-  };
+    const auto tighten = [&hypergraph, &ctx](const int v) {
+        ctx.used_vertices.insert(v);
+        // It is the responsibility of TIGHTEN to update the context
+        TIGHTEN(hypergraph, ctx, v);
+    };
 
-  tighten(a);
+    tighten(a);
 
-  while (ordering.size() < hypergraph.num_vertices()) {
-    const auto [k, v] = ctx.heap.top();
-    ctx.heap.pop();
-    ordering.emplace_back(v);
-    // We need k / 2 instead of just k because this is just used for Queyranne
-    // for now
-    tightness.push_back(k / 2.0);
-    tighten(v);
-  }
+    while (ordering.size() < hypergraph.num_vertices()) {
+        const auto[k, v] = ctx.heap.top();
+        ctx.heap.pop();
+        ordering.emplace_back(v);
+        // We need k / 2 instead of just k because this is just used for Queyranne
+        // for now
+        tightness.push_back(k / 2.0);
+        tighten(v);
+    }
 
-  return {ordering, tightness};
+    return {ordering, tightness};
 }
 
 /* Returns a maximum adjacency ordering of vertices, starting with vertex a.
@@ -139,8 +142,9 @@ std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a);
  * Takes time linear with the size of the hypergraph.
  */
 std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
+
 constexpr auto queyranne_ordering_with_tightness =
-    unweighted_ordering<queyranne_ordering_tighten>;
+        unweighted_ordering<queyranne_ordering_tighten>;
 
 size_t one_vertex_cut(const Hypergraph &hypergraph, const int v);
 
@@ -160,17 +164,17 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
  * `maximum_adjacency_ordering`.
  */
-template <typename Ordering>
+template<typename Ordering>
 size_t vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
-  size_t min_cut_of_phase = std::numeric_limits<size_t>::max();
-  while (hypergraph.num_vertices() > 1) {
-    auto ordering = f(hypergraph, a);
-    size_t cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
-    hypergraph = merge_vertices(hypergraph, *(std::end(ordering) - 2),
-                                *(std::end(ordering) - 1));
-    min_cut_of_phase = std::min(min_cut_of_phase, cut_of_phase);
-  }
-  return min_cut_of_phase;
+    size_t min_cut_of_phase = std::numeric_limits<size_t>::max();
+    while (hypergraph.num_vertices() > 1) {
+        auto ordering = f(hypergraph, a);
+        size_t cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
+        hypergraph = merge_vertices(hypergraph, *(std::end(ordering) - 2),
+                                    *(std::end(ordering) - 1));
+        min_cut_of_phase = std::min(min_cut_of_phase, cut_of_phase);
+    }
+    return min_cut_of_phase;
 }
 
 /* Given a hypergraph and a function that orders the vertices, find the minimum
@@ -183,20 +187,20 @@ size_t vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
  * `maximum_adjacency_ordering`.
  */
-template <typename Ordering>
+template<typename Ordering>
 size_t vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
                                           Ordering f) {
-  KTrimmedCertificate gen(hypergraph);
-  size_t k = 1;
-  while (true) {
-    // Copy hypergraph
-    std::cout << "Trying k=" << k << std::endl;
-    Hypergraph certificate = gen.certificate(k);
-    std::cout << "Tried k=" << k << std::endl;
-    size_t mincut = vertex_ordering_mincut(certificate, a, f);
-    if (mincut < k) {
-      return mincut;
+    KTrimmedCertificate gen(hypergraph);
+    size_t k = 1;
+    while (true) {
+        // Copy hypergraph
+        std::cout << "Trying k=" << k << std::endl;
+        Hypergraph certificate = gen.certificate(k);
+        std::cout << "Tried k=" << k << std::endl;
+        size_t mincut = vertex_ordering_mincut(certificate, a, f);
+        if (mincut < k) {
+            return mincut;
+        }
+        k *= 2;
     }
-    k *= 2;
-  }
 }

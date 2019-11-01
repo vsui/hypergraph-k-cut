@@ -15,45 +15,45 @@
  */
 class BucketList {
 public:
-  /* Create a bucket list with the given values and capacity (number of
-   * buckets). The values should be unique.
-   *
-   * Time complexity: O(n), where n in the number of values.
-   */
-  BucketList(std::vector<int> values, const size_t capacity);
+    /* Create a bucket list with the given values and capacity (number of
+     * buckets). The values should be unique.
+     *
+     * Time complexity: O(n), where n in the number of values.
+     */
+    BucketList(std::vector<int> values, const size_t capacity);
 
-  /* Increment the key of the value.
-   *
-   * Time complexity: O(1).
-   */
-  void increment(const int value);
+    /* Increment the key of the value.
+     *
+     * Time complexity: O(1).
+     */
+    void increment(const int value);
 
-  /* Pop an arbitrary value with a maximum key.
-   *
-   * Time complexity: Expected is O(1), worst-case is O(b), where b is the
-   * number of buckets.
-   */
-  int pop();
+    /* Pop an arbitrary value with a maximum key.
+     *
+     * Time complexity: Expected is O(1), worst-case is O(b), where b is the
+     * number of buckets.
+     */
+    int pop();
 
-  /* Pop a (key, value) pair with a maximum key.
-   *
-   * Time complexity: Expected is O(1), worst-case is O(b), where b is the
-   * number of buckets.
-   */
-  std::pair<size_t, int> pop_key_val();
+    /* Pop a (key, value) pair with a maximum key.
+     *
+     * Time complexity: Expected is O(1), worst-case is O(b), where b is the
+     * number of buckets.
+     */
+    std::pair<size_t, int> pop_key_val();
 
 private:
-  const size_t capacity_;
+    const size_t capacity_;
 
-  // buckets_[i] is a collection of all values with key = i
-  std::vector<std::list<int>> buckets_;
+    // buckets_[i] is a collection of all values with key = i
+    std::vector<std::list<int>> buckets_;
 
-  // A mapping of values to their keys
-  std::unordered_map<int, size_t> val_to_keys_;
+    // A mapping of values to their keys
+    std::unordered_map<int, size_t> val_to_keys_;
 
-  // A mapping of values to their iterators (for fast deletion)
-  std::unordered_map<int, std::list<int>::iterator> val_to_its_;
+    // A mapping of values to their iterators (for fast deletion)
+    std::unordered_map<int, std::list<int>::iterator> val_to_its_;
 
-  // The current maximum key
-  size_t max_key_;
+    // The current maximum key
+    size_t max_key_;
 };
