@@ -114,7 +114,7 @@ Hypergraph Hypergraph::contract(const int edge_id) const {
   }
 
   // Now add a new vertex v_e replacing the removed hyperedge
-  int v_e = next_vertex_id_++;
+  int v_e = next_vertex_id_;
   new_vertices[v_e] = {};
 
   // Add v_e to all hyperedges with less edges and vice versa
@@ -128,7 +128,7 @@ Hypergraph Hypergraph::contract(const int edge_id) const {
   }
 
   Hypergraph new_hypergraph(std::move(new_vertices), std::move(new_edges),
-                            next_vertex_id_, next_edge_id_);
+                            next_vertex_id_ + 1, next_edge_id_);
 
   // May be useful for debugging later
   /*

@@ -99,8 +99,8 @@ private:
   // Map of edge IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> edges_;
 
-  mutable int next_vertex_id_;
-  mutable int next_edge_id_;
+  int next_vertex_id_;
+  int next_edge_id_;
 };
 
 class UnweightedHypergraph : public Hypergraph {
