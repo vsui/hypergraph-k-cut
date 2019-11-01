@@ -37,12 +37,12 @@ std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
 
 KTrimmedCertificate::KTrimmedCertificate(const Hypergraph &hypergraph)
     : hypergraph_(hypergraph) {
-  for (const auto &[v, edges] : hypergraph_.vertices()) {
+  for (const auto v : hypergraph_.vertices()) {
     backward_edges_[v] = {};
   }
 
   vertex_ordering_ = maximum_adjacency_ordering(
-      hypergraph_, std::begin(hypergraph.vertices())->first);
+      hypergraph_, *std::begin(hypergraph.vertices()));
   std::vector<int> edge_ordering =
       induced_head_ordering(hypergraph_, vertex_ordering_);
 
@@ -60,7 +60,7 @@ KTrimmedCertificate::KTrimmedCertificate(const Hypergraph &hypergraph)
     }
   }
 
-  for (const auto &[v, edges] : hypergraph_.vertices()) {
+  for (const auto v : hypergraph_.vertices()) {
     for (const int e : edge_ordering) {
       const auto &e_vertices = hypergraph.edges().at(e);
       if (std::find(std::begin(e_vertices), std::end(e_vertices), v) !=
@@ -78,13 +78,13 @@ Hypergraph KTrimmedCertificate::certificate(size_t k) const {
 
   std::unordered_map<int, std::vector<int>> new_edges;
   std::unordered_map<int, std::vector<int>> new_vertices;
-  for (const auto &[v, edges] : hypergraph_.vertices()) {
+  for (const auto v : hypergraph_.vertices()) {
     next_vertex_id = std::max(next_vertex_id, v + 1);
     new_vertices.insert({v, {}});
   }
 
   // O(kn) loop
-  for (const auto &[v, edges] : hypergraph_.vertices()) {
+  for (const auto v : hypergraph_.vertices()) {
     const auto backward_edges = backward_edges_.at(v);
     for (auto it = std::begin(backward_edges);
          it != std::end(backward_edges) &&

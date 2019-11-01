@@ -70,7 +70,7 @@ unweighted_ordering(const Hypergraph &hypergraph, const int a) {
   std::vector<double> tightness = {0};
   std::vector<int> vertices_without_a;
 
-  for (const auto &[v, incidence] : hypergraph.vertices()) {
+  for (const auto v : hypergraph.vertices()) {
     if (v == a) {
       continue;
     }
@@ -101,7 +101,7 @@ unweighted_ordering(const Hypergraph &hypergraph, const int a) {
 
   tighten(a);
 
-  while (ordering.size() < hypergraph.vertices().size()) {
+  while (ordering.size() < hypergraph.num_vertices()) {
     const auto [k, v] = ctx.heap.top();
     ctx.heap.pop();
     ordering.emplace_back(v);
@@ -163,7 +163,7 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
 template <typename Ordering>
 size_t vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
   size_t min_cut_of_phase = std::numeric_limits<size_t>::max();
-  while (hypergraph.vertices().size() > 1) {
+  while (hypergraph.num_vertices() > 1) {
     auto ordering = f(hypergraph, a);
     size_t cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
     hypergraph = merge_vertices(hypergraph, *(std::end(ordering) - 2),

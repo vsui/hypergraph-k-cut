@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <boost/range/adaptors.hpp>
+
 class KTrimmedCertificate;
 
 class Hypergraph {
@@ -19,7 +21,12 @@ public:
   size_t num_vertices() const;
   size_t num_edges() const;
 
-  const std::unordered_map<int, std::vector<int>> &vertices() const;
+  using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
+
+  vertex_range vertices() const;
+
+  const std::vector<int> &edges_incident_on(int vertex_id) const;
+
   const std::unordered_map<int, std::vector<int>> &edges() const;
 
   /* Checks that the internal state of the hypergraph is consistent. Mainly for

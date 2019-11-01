@@ -16,7 +16,7 @@ void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
   // We are adding v to the ordering so far, and need to update the keys for the
   // other vertices
   // Check each edge e incident on v
-  for (const int e : hypergraph.vertices().at(v)) {
+  for (const int e : hypergraph.edges_incident_on(v)) {
     // If e has already been used, then skip it
     if (ctx.used_edges.find(e) != std::end(ctx.used_edges)) {
       continue;
@@ -39,7 +39,7 @@ void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
 void tight_ordering_tighten(const Hypergraph &hypergraph, OrderingContext &ctx,
                             const int v) {
   // For every edge e incident on v
-  for (const int e : hypergraph.vertices().at(v)) {
+  for (const int e : hypergraph.edges_incident_on(v)) {
     // Tighten this edge
     ctx.edge_to_num_vertices_outside_ordering.at(e) -= 1ul;
     // If the edge only has one vertex u left that is outside the ordering,
@@ -82,7 +82,7 @@ std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a) {
 // Takes time linear to the number of vertices across all edges.
 size_t one_vertex_cut(const Hypergraph &hypergraph, const int v) {
   size_t cut = 0;
-  for (const int e : hypergraph.vertices().at(v)) {
+  for (const int e : hypergraph.edges_incident_on(v)) {
     cut += hypergraph.weight(e);
   }
   return cut;

@@ -34,8 +34,8 @@ Hypergraph::Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
 size_t Hypergraph::num_vertices() const { return vertices_.size(); }
 size_t Hypergraph::num_edges() const { return edges_.size(); }
 
-const std::unordered_map<int, std::vector<int>> &Hypergraph::vertices() const {
-  return vertices_;
+Hypergraph::vertex_range Hypergraph::vertices() const {
+  return boost::adaptors::keys(vertices_);
 }
 
 const std::unordered_map<int, std::vector<int>> &Hypergraph::edges() const {
@@ -158,6 +158,10 @@ void Hypergraph::remove_hyperedge(int edge_id) {
     edges_.erase(edge_id);
 }
 
+const std::vector<int> &Hypergraph::edges_incident_on(int vertex_id) const {
+    return vertices_.at(vertex_id);
+}
+
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
   size_t num_edges, num_vertices;
   is >> num_edges >> num_vertices;
@@ -188,9 +192,9 @@ std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
   os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
   os << "VERTICES\n";
 
-  for (const auto &[id, edges] : hypergraph.vertices()) {
-    os << id << ": ";
-    for (const int e : edges) {
+  for (const auto v : hypergraph.vertices()) {
+    os << v << ": ";
+    for (const int e : hypergraph.edges_incident_on(v)) {
       os << e << " ";
     }
     os << std::endl;
