@@ -10,7 +10,8 @@ Hypergraph::Hypergraph(const Hypergraph &other) = default;
 Hypergraph &Hypergraph::operator=(const Hypergraph &other) = default;
 
 Hypergraph::Hypergraph(const std::vector<int> &vertices,
-                       const std::vector<std::vector<int>> &edges) {
+                       const std::vector<std::vector<int>> &edges):
+                       next_edge_id_(static_cast<int>(edges.size())) {
   for (const int v : vertices) {
     vertices_[v] = {};
   }
@@ -26,8 +27,9 @@ Hypergraph::Hypergraph(const std::vector<int> &vertices,
 
 Hypergraph::Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
                        std::unordered_map<int, std::vector<int>> &&edges,
-                       int next_vertex_id)
-    : vertices_(vertices), edges_(edges), next_vertex_id_(next_vertex_id) {}
+                       int next_vertex_id, int next_edge_id)
+    : vertices_(vertices), edges_(edges), next_vertex_id_(next_vertex_id),
+    next_edge_id_(next_edge_id) {}
 
 size_t Hypergraph::num_vertices() const { return vertices_.size(); }
 size_t Hypergraph::num_edges() const { return edges_.size(); }
@@ -134,7 +136,7 @@ Hypergraph Hypergraph::contract(const int edge_id) const {
   }
 
   Hypergraph new_hypergraph(std::move(new_vertices), std::move(new_edges),
-                            next_vertex_id_);
+                            next_vertex_id_, next_edge_id_);
 
   // May be useful for debugging later
   /*

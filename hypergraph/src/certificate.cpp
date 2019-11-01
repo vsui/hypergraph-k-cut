@@ -100,7 +100,7 @@ Hypergraph KTrimmedCertificate::certificate(size_t k) const {
     }
   }
 
-  return Hypergraph(std::move(new_vertices), std::move(new_edges), next_vertex_id);
+  return Hypergraph(std::move(new_vertices), std::move(new_edges), hypergraph_.next_vertex_id_, hypergraph_.next_edge_id_);
 }
 
 int KTrimmedCertificate::head(const int e) const {
