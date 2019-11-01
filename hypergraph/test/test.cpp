@@ -8,8 +8,6 @@
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/order.hpp"
 
-using namespace testing;
-
 namespace {
 
 // d1 and d2 are useful for testing but are not actually directly used in
@@ -345,28 +343,93 @@ TEST(KCut, FPZ) {
 }
  */
 
-// TODO FLAKY!!!
-TEST(Hypergraph, Contract) {
+TEST(Hypergraph, ContractSimple) {
     Hypergraph h = {
-            {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+            {0, 1, 2, 3, 4},
             {
-             {9, 2, 1}, // 0
-                {9, 3, 1},
-                   {8, 5, 2, 1, 0},
-                      {8, 5, 3},
-                         {5, 2, 0},
-                            {9, 0}, // 5
-                               {10, 3, 2},
-                                  {10, 5},
-                                     {4, 1},
-                                        {10, 8, 4},
-                                           {3, 2, 1}, // 10
-                    {5, 4, 3, 2, 1, 0},
-                    {5, 1},
-                    {8, 4},
+             {0, 1, 2}
             }
     };
-    Hypergraph contracted = h.contract(13); // {8, 4}
+    Hypergraph contracted = h.contract(0);
+
+    int new_vertex_id = 5;
+    EXPECT_THAT(contracted.vertices(), testing::UnorderedElementsAre(3, 4, new_vertex_id));
+    EXPECT_THAT(contracted.edges(), testing::IsEmpty());
+    EXPECT_EQ(contracted.num_vertices(), 3);
+    EXPECT_EQ(contracted.num_edges(), 0);
+    EXPECT_TRUE(contracted.is_valid());
+}
+
+TEST(Hypergraph, ContractRemovesMultipleEdges) {
+    Hypergraph h = {
+            {1, 2, 3, 4, 5},
+            {
+             {1, 2, 3},
+                {1, 2},
+                   {1, 2, 3, 4},
+                      {4, 5}
+            }
+    };
+    Hypergraph contracted = h.contract(0);
+    int new_vertex_id = 6;
+    ASSERT_THAT(contracted.vertices(), testing::UnorderedElementsAre(4, 5, new_vertex_id));
+    std::vector<std::pair<int, std::vector<int>>> expected_edges = {
+            {2, {4, 6}},
+            {3 , {4, 5}}
+    };
+    ASSERT_THAT(contracted.edges(), testing::UnorderedElementsAreArray(expected_edges));
+    ASSERT_EQ(contracted.num_vertices(), 3);
+    ASSERT_EQ(contracted.num_edges(), 2);
+    ASSERT_TRUE(contracted.is_valid());
+}
+
+TEST(Hypergraph, ContractAddsNewVertex) {
+    // TODO contract returns new vertex id
+    Hypergraph h = {
+            {1, 2, 3, 4, 5},
+            {
+             {1, 2},
+                {1, 2, 3},
+                   {2, 4, 5},
+                      {1, 3}
+            }
+
+    };
+    int new_vertex_id = 6;
+    Hypergraph contracted = h.contract(0);
+    EXPECT_THAT(contracted.vertices(), testing::UnorderedElementsAre(3, 4, 5, new_vertex_id));
+    std::vector<std::pair<int, std::vector<int>>> expected_edges = {
+            {1, {3, new_vertex_id}},
+            {2, {4, 5, new_vertex_id}},
+            {3, {3, new_vertex_id}}
+    };
+    EXPECT_THAT(contracted.edges(), testing::UnorderedElementsAreArray(expected_edges));
+    EXPECT_EQ(contracted.num_vertices(), 4);
+    EXPECT_EQ(contracted.num_edges(), 3);
+    EXPECT_TRUE(contracted.is_valid());
+}
+
+TEST(Hypergraph, ContractKeepsGraphValid) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+      {
+          {9, 2, 1}, // 0
+          {9, 3, 1},
+          {8, 5, 2, 1, 0},
+          {8, 5, 3},
+          {5, 2, 0},
+          {9, 0}, // 5
+          {10, 3, 2},
+          {10, 5},
+          {4, 1},
+          {10, 8, 4},
+          {3, 2, 1}, // 10
+          {5, 4, 3, 2, 1, 0},
+          {5, 1},
+          {8, 4},
+      }
+  };
+  Hypergraph contracted = h.contract(13); // {8, 4}
 
     EXPECT_TRUE(contracted.is_valid());
 }

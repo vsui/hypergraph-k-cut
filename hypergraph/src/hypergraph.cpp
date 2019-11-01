@@ -13,11 +13,12 @@ Hypergraph &Hypergraph::operator=(const Hypergraph &other) = default;
 
 Hypergraph::Hypergraph(const std::vector<int> &vertices,
                        const std::vector<std::vector<int>> &edges) :
+        next_vertex_id_(*std::max_element(std::begin(vertices), std::end(vertices)) + 1),
         next_edge_id_(static_cast<int>(edges.size())) {
+    assert(vertices.size() > 0);
     for (const int v : vertices) {
         vertices_[v] = {};
     }
-    next_vertex_id_ = *std::max(std::begin(vertices), std::end(vertices));
     int e_i = -1;
     for (const auto &incident_vertices : edges) {
         edges_[++e_i] = incident_vertices;
@@ -76,6 +77,7 @@ bool Hypergraph::is_valid() const {
 /* Returns a new hypergraph with the edge contracted. Assumes that there is
  * such an edge in the hypergraph */
 Hypergraph Hypergraph::contract(const int edge_id) const {
+  // TODO verify that inserts actually insert (not overwrite)
     // Set V' := V \ e (do not copy incidence lists)
     std::unordered_map<int, std::vector<int>> new_vertices;
     new_vertices.reserve(vertices_.size());
