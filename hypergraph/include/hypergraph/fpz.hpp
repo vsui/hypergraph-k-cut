@@ -41,7 +41,9 @@ double redo_probability(size_t n, size_t e, size_t k) {
  * */
 size_t branching_contract_(Hypergraph &hypergraph, size_t k,
                            size_t accumulated = 0) {
-  // TODO add this in debug mode: assert(hypergraph.is_valid());
+#ifndef NDEBUG
+  assert(hypergraph.is_valid());
+#endif
 
   // Remove k-spanning hyperedges from hypergraph
   std::vector<int> k_spanning_hyperedges;
@@ -49,6 +51,7 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
     // TODO overflow here?
     if (vertices.size() >= hypergraph.num_vertices() - k + 2) {
       k_spanning_hyperedges.push_back(edge_id);
+      accumulated += 1;
     }
   }
   for (const auto edge_id : k_spanning_hyperedges) {

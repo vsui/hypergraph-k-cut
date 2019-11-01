@@ -312,36 +312,26 @@ TEST(KTrimmedCertificate, Works) {
   }
 }
 
-// This test causes trouble for cxy_contract for some reason...
-//TEST(KCut, SanityCheck) {
-//  for (int k = 3; k <= 5; ++k) {
-//    Hypergraph h1 = factory();
-//    Hypergraph h2 = factory();
-//    size_t ans1 = cxy::cxy_contract(h1, k);
-//    size_t ans2 = fpz::branching_contract(h2, k);
-//
-//    ASSERT_EQ(ans1, ans2);
-//  }
-//
-//  // Causes errors
-//  //ASSERT_EQ(cxy::cxy_contract(h1, 3), fpz::branching_contract(h2, 3));
-//  //ASSERT_EQ(cxy::cxy_contract(h1, 4), fpz::branching_contract(h2, 4));
-//  //ASSERT_EQ(cxy::cxy_contract(h1, 5), fpz::branching_contract(h2, 5));
-//}
+TEST(KCut, SanityCheck) {
+  for (int k = 3; k <= 5; ++k) {
+    Hypergraph h1 = factory();
+    Hypergraph h2 = factory();
 
-/*
+    ASSERT_EQ(cxy::cxy_contract(h1, k), fpz::branching_contract(h2, k));
+  }
+}
+
 TEST(KCut, CXY) {
-    Hypergraph h = factory();
-    size_t ans = cxy::cxy_contract(h, 4);
-    ASSERT_EQ(ans, 6);
+  Hypergraph h = factory();
+  size_t ans = cxy::cxy_contract(h, 4);
+  ASSERT_EQ(ans, 6);
 }
 
 TEST(KCut, FPZ) {
-    Hypergraph h = factory();
-    size_t ans = fpz::branching_contract(h, 4);
-    ASSERT_EQ(ans, 6);
+  Hypergraph h = factory();
+  size_t ans = fpz::branching_contract(h, 4);
+  ASSERT_EQ(ans, 6);
 }
- */
 
 TEST(Hypergraph, ContractSimple) {
   Hypergraph h = {
@@ -432,4 +422,76 @@ TEST(Hypergraph, ContractKeepsGraphValid) {
   Hypergraph contracted = h.contract(13); // {8, 4}
 
   EXPECT_TRUE(contracted.is_valid());
+}
+
+TEST(Hypergraph, RemoveHyperedgeSimple) {
+  Hypergraph h = {
+      {2, 4, 5, 6},
+      {
+          {2, 4, 5},
+          {2, 4},
+          {5, 6}
+      }
+  };
+  h.remove_hyperedge(0);
+  ASSERT_THAT(h.vertices(), testing::UnorderedElementsAre(2, 4, 5, 6));
+  std::vector<std::pair<int, std::vector<int>>> expected_edges = {
+      {1, {2, 4}}, {2, {5, 6}}
+  };
+  ASSERT_THAT(h.edges(),
+              testing::UnorderedElementsAreArray(expected_edges));
+  ASSERT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, RemoveHyperedgeKeepsGraphValid) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+      {
+          {9, 2, 1}, // 0
+          {9, 3, 1},
+          {8, 5, 2, 1, 0},
+          {8, 5, 3},
+          {5, 2, 0},
+          {9, 0}, // 5
+          {10, 3, 2},
+          {10, 5},
+          {4, 1},
+          {10, 8, 4},
+          {3, 2, 1}, // 10
+          {5, 4, 3, 2, 1, 0},
+          {5, 1},
+          {8, 4},
+      }
+  };
+  h.remove_hyperedge(11);
+
+  EXPECT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, RemoveHyperedgeKeepsGraphValidRepeated) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+      {
+          {9, 2, 1}, // 0
+          {9, 3, 1},
+          {8, 5, 2, 1, 0},
+          {8, 5, 3},
+          {5, 2, 0},
+          {9, 0}, // 5
+          {10, 3, 2},
+          {10, 5},
+          {4, 1},
+          {10, 8, 4},
+          {3, 2, 1}, // 10
+          {5, 4, 3, 2, 1, 0},
+          {5, 1},
+          {8, 4},
+      }
+  };
+
+  while (h.num_edges() > 0) {
+    const auto &[edge_id, vertices] = *std::begin(h.edges());
+    h.remove_hyperedge(edge_id);
+    ASSERT_TRUE(h.is_valid());
+  }
 }
