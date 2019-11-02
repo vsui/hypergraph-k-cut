@@ -1,4 +1,4 @@
-// Branching contraction algorithm from FPZ '19
+// Branching contraction algorithm from [FPZ'19]
 
 #include <cmath>
 #include <iostream>
@@ -88,30 +88,14 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
   }
 }
 
-/* Runs branching contraction log^2(n) times and returns the minimum */
-size_t branching_contract(Hypergraph &hypergraph, size_t k) {
-  size_t logn =
+size_t default_num_runs(const Hypergraph &hypergraph, size_t k) {
+  size_t log_n =
       static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
-  size_t repeat = logn * logn;
+  return log_n * log_n;
+}
 
-  size_t min_so_far = std::numeric_limits<size_t>::max();
-  for (size_t i = 0; i < repeat; ++i) {
-    // branching_contract_ modifies the input hypergraph so avoid copying, so
-    // copy it once in the beginning to save time
-    Hypergraph copy(hypergraph);
-    auto start = std::chrono::high_resolution_clock::now();
-    size_t answer_ = branching_contract_(copy, k);
-    min_so_far = std::min(min_so_far, answer_);
-    auto stop = std::chrono::high_resolution_clock::now();
-    std::cout << "[" << i + 1 << "/" << repeat << "] took "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(stop -
-                  start)
-                  .count()
-              << " milliseconds, got " << answer_ << ", min is " << min_so_far
-              << "\n";
-  }
-
-  return min_so_far;
+inline size_t branching_contract(const Hypergraph &hypergraph, size_t k, size_t num_runs = 0, bool verbose = false) {
+  return hypergraph_util::minimum_of_runs<branching_contract_, default_num_runs>(hypergraph, k, num_runs, verbose);
 }
 
 } // namespace fpz

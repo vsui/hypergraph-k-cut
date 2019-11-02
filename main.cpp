@@ -54,9 +54,9 @@ int main(int argc, char *argv[]) {
   auto start = std::chrono::high_resolution_clock::now();
   size_t answer;
   if (argv[3] == std::string("FPZ")) {
-    answer = fpz::branching_contract(h, k);
+    answer = fpz::branching_contract(h, k, 0, true);
   } else if (argv[3] == std::string("CXY")) {
-    answer = cxy::cxy_contract(h, k);
+    answer = cxy::cxy_contract(h, k, 0, true);
   } else if (argv[3] == std::string("Q")) {
     if (k != 2) {
       std::cout << "Q can only compute mincuts" << std::endl;
