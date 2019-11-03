@@ -20,29 +20,29 @@ public:
   Hypergraph(const std::vector<int> &vertices,
              const std::vector<std::vector<int>> &edges);
 
-  size_t num_vertices() const;
+  [[nodiscard]] size_t num_vertices() const;
 
-  size_t num_edges() const;
+  [[nodiscard]] size_t num_edges() const;
 
   using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
 
-  vertex_range vertices() const;
+  [[nodiscard]] vertex_range vertices() const;
 
-  const std::vector<int> &edges_incident_on(int vertex_id) const;
+  [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const;
 
-  const std::unordered_map<int, std::vector<int>> &edges() const;
+  [[nodiscard]] const std::unordered_map<int, std::vector<int>> &edges() const;
 
   /* Checks that the internal state of the hypergraph is consistent. Mainly for
    * debugging.
    */
-  bool is_valid() const;
+  [[nodiscard]] bool is_valid() const;
 
   /* Returns a new hypergraph with the edge contracted. Assumes that there is
    * an edge in the hypergraph with the given edge ID.
    *
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
-  Hypergraph contract(const int edge_id) const;
+  [[nodiscard]] Hypergraph contract(const int edge_id) const;
 
   /* Add hyperedge and return its ID.
    *
@@ -75,7 +75,7 @@ public:
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
   template<typename InputIt>
-  Hypergraph contract(InputIt begin, InputIt end) const {
+  [[nodiscard]] Hypergraph contract(InputIt begin, InputIt end) const {
     assert(edges().size() > 0);
 
     // TODO if we have a non-const contract then this copy is unnecessary. Right
@@ -86,7 +86,7 @@ public:
     return copy.contract(new_e);
   }
 
-  virtual size_t weight(int e) const {
+  [[nodiscard]] virtual size_t weight(int e) const {
     if (edge_weights_.find(e) == std::end(edge_weights_)) {
       return 1;
     }
@@ -117,7 +117,7 @@ class UnweightedHypergraph : public Hypergraph {
 public:
   virtual ~UnweightedHypergraph() = default;
 
-  size_t weight([[maybe_unused]] int e) const { return 1; }
+  [[nodiscard]] size_t weight([[maybe_unused]] int e) const { return 1; }
 };
 
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
