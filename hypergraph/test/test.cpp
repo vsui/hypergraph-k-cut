@@ -321,6 +321,23 @@ TEST(KCut, SanityCheck) {
   }
 }
 
+TEST(KCut, WeightedSanityCheck) {
+  const WeightedHypergraph<size_t> h = {
+      {0, 1, 2, 3, 4, 5},
+      {
+          {{0, 1, 2}, 3},
+          {{1, 2, 3}, 4},
+          {{3, 4, 5}, 3},
+          {{0, 3, 5}, 7},
+          {{0, 1, 2, 3, 4}, 2}
+      }
+  };
+
+  for (size_t k = 3; k <= 5; ++k) {
+    ASSERT_EQ(cxy::cxy_contract(h, k), fpz::branching_contract(h, k));
+  }
+}
+
 TEST(KCut, CXY) {
   Hypergraph h = factory();
   size_t ans = cxy::cxy_contract(h, 4);
@@ -346,16 +363,37 @@ TEST(KCut, UnweightedVsWeightedSanityCXY) {
     Hypergraph h1 = factory();
     WeightedHypergraph<size_t> h2(h1);
 
-    // Why does this compile????
     ASSERT_EQ(cxy::cxy_contract(h1, k), cxy::cxy_contract(h2, k));
   }
-
 }
 
 TEST(KCut, FPZ) {
   Hypergraph h = factory();
   size_t ans = fpz::branching_contract(h, 4);
   ASSERT_EQ(ans, 6);
+}
+
+TEST(KCut, WeightedFPZ) {
+  WeightedHypergraph<size_t> h = {
+      {0, 1, 2, 3, 4, 5},
+      {
+          {{0, 1, 2}, 3},
+          {{1, 2, 3}, 4},
+          {{3, 4, 5}, 3},
+          {{0, 3, 5}, 7},
+          {{0, 1, 2, 3, 4}, 2}
+      }
+  };
+  ASSERT_EQ(fpz::branching_contract(h, 3), 9);
+}
+
+TEST(KCut, UnweightedVsWeightedSanityFPZ) {
+  for (size_t k = 3; k <= 5; ++k) {
+    Hypergraph h1 = factory();
+    WeightedHypergraph<size_t> h2(h1);
+
+    ASSERT_EQ(fpz::branching_contract(h1, k), fpz::branching_contract(h2, k));
+  }
 }
 
 TEST(Hypergraph, ContractSimple) {

@@ -119,7 +119,7 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
 
 // Algorithm for calculating hypergraph min-k-cut from CXY '18
 template<typename HypergraphType, typename EdgeWeightType = size_t>
-inline size_t cxy_contract(HypergraphType &hypergraph, size_t k, size_t num_runs = 0, bool verbose = false) {
+inline size_t cxy_contract(const HypergraphType &hypergraph, size_t k, size_t num_runs = 0, bool verbose = false) {
   return hypergraph_util::minimum_of_runs<HypergraphType,
                                           EdgeWeightType,
                                           cxy_contract_<HypergraphType, EdgeWeightType>,

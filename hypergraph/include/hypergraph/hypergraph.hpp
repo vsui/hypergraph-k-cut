@@ -173,7 +173,7 @@ public:
 
   void remove_hyperedge(int edge_id) {
     // Edge weights from edges that were subsets of the removed edge are not removed
-    hypergraph_.remove_hyperedge();
+    hypergraph_.remove_hyperedge(edge_id);
     edges_to_weights_.erase(edge_id);
   }
 

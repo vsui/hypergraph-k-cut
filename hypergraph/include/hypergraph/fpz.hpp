@@ -39,8 +39,8 @@ double redo_probability(size_t n, size_t e, size_t k) {
  * accumulated : a running count of k-spanning hyperedges used to calculate the
  *               min cut
  * */
-size_t branching_contract_(Hypergraph &hypergraph, size_t k,
-                           size_t accumulated = 0) {
+template<typename HypergraphType, typename EdgeWeightType>
+EdgeWeightType branching_contract_(HypergraphType &hypergraph, size_t k, EdgeWeightType accumulated = 0) {
 #ifndef NDEBUG
   assert(hypergraph.is_valid());
 #endif
@@ -51,7 +51,7 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
     // TODO overflow here?
     if (vertices.size() >= hypergraph.num_vertices() - k + 2) {
       k_spanning_hyperedges.push_back(edge_id);
-      accumulated += 1;
+      accumulated += edge_weight(hypergraph, edge_id);
     }
   }
   for (const auto edge_id : k_spanning_hyperedges) {
@@ -68,17 +68,22 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
   static std::mt19937 gen(rd());
   static std::uniform_real_distribution<> dis(0.0, 1.0);
 
+
   // Select a hyperedge with probability proportional to its weight
-  // Note: dealing with unweighted hyperedges
-  // TODO support weight hyperedges
-  std::pair<int, std::vector<int>> sampled[1];
-  std::sample(std::begin(hypergraph.edges()), std::end(hypergraph.edges()),
-              std::begin(sampled), 1, gen);
+  std::vector<int> edge_ids;
+  std::vector<EdgeWeightType> edge_weights;
+  for (const auto &[edge_id, vertices] : hypergraph.edges()) {
+    edge_ids.push_back(edge_id);
+    edge_weights.push_back(edge_weight(hypergraph, edge_id));
+  }
+  std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
+  const auto sampled_edge_id = edge_ids.at(distribution(gen));
+  const auto sampled_edge = hypergraph.edges().at(sampled_edge_id);
 
   double redo =
-      redo_probability(hypergraph.num_vertices(), sampled[0].second.size(), k);
+      redo_probability(hypergraph.num_vertices(), sampled_edge.size(), k);
 
-  Hypergraph contracted = hypergraph.contract(sampled->first);
+  HypergraphType contracted = hypergraph.contract(sampled_edge_id);
 
   if (dis(gen) < redo) {
     return std::min(branching_contract_(contracted, k, accumulated),
@@ -88,8 +93,9 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
   }
 }
 
-size_t default_num_runs(const Hypergraph &hypergraph, [[maybe_unused]] size_t k) {
-  size_t log_n =
+template<typename HypergraphType>
+size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_t k) {
+  auto log_n =
       static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
   return log_n * log_n;
 }
@@ -99,11 +105,10 @@ inline EdgeWeightType branching_contract(const HypergraphType &hypergraph,
                                          size_t k,
                                          size_t num_runs = 0,
                                          bool verbose = false) {
-  return hypergraph_util::minimum_of_runs<HypergraphType, EdgeWeightType, branching_contract_, default_num_runs>(
-      hypergraph,
-      k,
-      num_runs,
-      verbose);
+  return hypergraph_util::minimum_of_runs<HypergraphType,
+                                          EdgeWeightType,
+                                          branching_contract_<HypergraphType, EdgeWeightType>,
+                                          default_num_runs>(hypergraph, k, num_runs, verbose);
 }
 
 } // namespace fpz
