@@ -86,13 +86,6 @@ public:
     return copy.contract(new_e);
   }
 
-  [[nodiscard]] virtual size_t weight(int e) const {
-    if (edge_weights_.find(e) == std::end(edge_weights_)) {
-      return 1;
-    }
-    return edge_weights_.at(e);
-  }
-
 private:
   friend class KTrimmedCertificate;
 
@@ -100,8 +93,6 @@ private:
   Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
              std::unordered_map<int, std::vector<int>> &&edges,
              int next_vertex_id, int next_edge_id);
-
-  std::unordered_map<int, size_t> edge_weights_;
 
   // Map of vertex IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> vertices_;

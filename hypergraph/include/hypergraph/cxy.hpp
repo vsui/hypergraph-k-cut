@@ -45,7 +45,7 @@ size_t cxy_contract_(Hypergraph &hypergraph, size_t k, [[maybe_unused]] size_t a
   // TODO function for sum of all edge weights
   size_t min_so_far = 0;
   for (const auto &[e, vertices] : hypergraph.edges()) {
-    min_so_far += hypergraph.weight(e);
+    min_so_far += 1;
   }
 
   while (true) {
@@ -55,17 +55,13 @@ size_t cxy_contract_(Hypergraph &hypergraph, size_t k, [[maybe_unused]] size_t a
     size_t i = 0;
     for (const auto &[edge_id, incidence] : hypergraph.edges()) {
       edge_ids[i] = edge_id;
-      deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k,
-                            hypergraph.weight(edge_id));
+      deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k, 1);
       ++i;
     }
 
     if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
       // TODO function for sum of all edge weights
-      size_t cut = 0;
-      for (const auto &[e, vertices] : hypergraph.edges()) {
-        cut += hypergraph.weight(e);
-      }
+      size_t cut = hypergraph.edges().size();
       min_so_far = std::min(min_so_far, cut);
       break;
     }
