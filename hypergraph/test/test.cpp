@@ -313,7 +313,7 @@ TEST(KTrimmedCertificate, Works) {
 }
 
 TEST(KCut, SanityCheck) {
-  for (int k = 3; k <= 5; ++k) {
+  for (size_t k = 3; k <= 5; ++k) {
     Hypergraph h1 = factory();
     Hypergraph h2 = factory();
 
@@ -325,6 +325,31 @@ TEST(KCut, CXY) {
   Hypergraph h = factory();
   size_t ans = cxy::cxy_contract(h, 4);
   ASSERT_EQ(ans, 6);
+}
+
+TEST(KCut, WeightedCXY) {
+  WeightedHypergraph<size_t> h = {
+      {0, 1, 2, 3, 4, 5},
+      {
+          {{0, 1, 2}, 3},
+          {{1, 2, 3}, 4},
+          {{3, 4, 5}, 3},
+          {{0, 3, 5}, 7},
+          {{0, 1, 2, 3, 4}, 2}
+      }
+  };
+  ASSERT_EQ(cxy::cxy_contract(h, 3), 9);
+}
+
+TEST(KCut, UnweightedVsWeightedSanityCXY) {
+  for (size_t k = 3; k <= 5; ++k) {
+    Hypergraph h1 = factory();
+    WeightedHypergraph<size_t> h2(h1);
+
+    // Why does this compile????
+    ASSERT_EQ(cxy::cxy_contract(h1, k), cxy::cxy_contract(h2, k));
+  }
+
 }
 
 TEST(KCut, FPZ) {

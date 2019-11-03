@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <numeric>
 
 #include <boost/range/adaptors.hpp>
 
@@ -9,8 +10,6 @@ class KTrimmedCertificate;
 
 class Hypergraph {
 public:
-  virtual ~Hypergraph() = default;
-
   Hypergraph &operator=(const Hypergraph &other);
 
   Hypergraph();
@@ -104,12 +103,125 @@ private:
   int next_edge_id_;
 };
 
-class UnweightedHypergraph : public Hypergraph {
+/* A hypergraph with weighted edges. The time complexities of all operations are the same as with the unweighted
+ * hypergraph.
+ */
+template<typename EdgeWeightType>
+class WeightedHypergraph {
+  // The reason this is implemented with composition instead of inheritance is that many algorithms need to be aware of
+  // exhibit significantly different behavior in the weighted vs. unweighted case.
 public:
-  virtual ~UnweightedHypergraph() = default;
+  WeightedHypergraph() = delete;
 
-  [[nodiscard]] size_t weight([[maybe_unused]] int e) const { return 1; }
+  explicit WeightedHypergraph(const Hypergraph &hypergraph) : hypergraph_(hypergraph) {
+    for (const auto &[edge_id, incident_on] : hypergraph.edges()) {
+      edges_to_weights_.insert({edge_id, 1});
+    }
+  }
+
+  WeightedHypergraph(const std::vector<int> &vertices,
+                     const std::vector<std::pair<std::vector<int>, EdgeWeightType>> edges) {
+    std::vector<std::vector<int>> edges_without_weights;
+    std::transform(std::begin(edges), std::end(edges), std::back_inserter(edges_without_weights), [](const auto &pair) {
+      return pair.first;
+    });
+    hypergraph_ = Hypergraph(vertices, edges_without_weights);
+    for (size_t i = 0; i < edges.size(); ++i) {
+      const auto[it, inserted] = edges_to_weights_.insert({i, edges.at(i).second});
+#ifndef NDEBUG
+      assert(inserted);
+#endif
+    }
+  }
+
+  [[nodiscard]] size_t num_vertices() const { return hypergraph_.num_vertices(); }
+  [[nodiscard]] size_t num_edges() const { return hypergraph_.num_edges(); }
+
+  using vertex_range = Hypergraph::vertex_range;
+
+  vertex_range vertices() { return hypergraph_.vertices(); }
+  [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const {
+    return hypergraph_.edges_incident_on(vertex_id);
+  }
+
+  [[nodiscard]] const std::unordered_map<int, std::vector<int>> &edges() const {
+    return hypergraph_.edges();
+  }
+
+  [[nodiscard]] bool is_valid() const {
+    return hypergraph_.is_valid();
+  }
+
+  WeightedHypergraph contract(int edge_id) const {
+    Hypergraph contracted = hypergraph_.contract(edge_id);
+    // TODO edges to weights should still be valid
+    return WeightedHypergraph(contracted, edges_to_weights_);
+  }
+
+  EdgeWeightType edge_weight(int edge_id) const {
+    return edges_to_weights_.at(edge_id);
+  }
+
+  template<typename InputIt>
+  int add_hyperedge(InputIt begin, InputIt end, EdgeWeightType weight) {
+    auto id = hypergraph_.add_hyperedge(begin, end);
+    const auto[inserted, it] = edges_to_weights_.insert({id, weight});
+#ifndef NDEBUG
+    assert(inserted);
+#endif
+  }
+
+  void remove_hyperedge(int edge_id) {
+    // Edge weights from edges that were subsets of the removed edge are not removed
+    hypergraph_.remove_hyperedge();
+    edges_to_weights_.erase(edge_id);
+  }
+
+  template<typename InputIt>
+  Hypergraph contract(InputIt begin, InputIt end) const {
+    Hypergraph copy(*this);
+    auto new_e = copy.add_hyperedge(begin, end, {}); // Doesn't matter what weight you add
+    return copy.contract(new_e);
+  }
+
+private:
+  WeightedHypergraph(const Hypergraph &hypergraph, const std::unordered_map<int, EdgeWeightType> edge_weights) :
+      hypergraph_(hypergraph), edges_to_weights_(edge_weights) {}
+
+  Hypergraph hypergraph_;
+
+  std::unordered_map<int, EdgeWeightType> edges_to_weights_;
 };
+
+template<typename HypergraphType, typename EdgeWeightType = size_t>
+inline EdgeWeightType edge_weight(const HypergraphType &hypergraph, int edge_id) {
+  static_assert(
+      std::is_same_v<HypergraphType, Hypergraph> || std::is_same_v<HypergraphType, WeightedHypergraph<EdgeWeightType>>);
+  if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+    return 1;
+  } else {
+    return hypergraph.edge_weight(edge_id);
+  }
+}
+
+/* Return the cost of all edges of a hypergraph combined
+ */
+template<typename HypergraphType, typename EdgeWeightType = size_t>
+inline EdgeWeightType total_edge_weight(const HypergraphType &hypergraph) {
+  // TODO could probably optimize for weighted hypergraphs by caching the weight, but then we would have to be a lot
+  //      more careful about keeping edge_to_weights_ completely accurate
+  static_assert(
+      std::is_same_v<HypergraphType, Hypergraph> || std::is_same_v<HypergraphType, WeightedHypergraph<EdgeWeightType>>);
+  if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+    return hypergraph.edges().size();
+  } else {
+    return std::accumulate(hypergraph.edges().begin(), hypergraph.edges().end(), EdgeWeightType(0), [&hypergraph](
+        const EdgeWeightType accum,
+        const auto &a) {
+      return accum + hypergraph.edge_weight(a.first);
+    });
+  }
+}
 
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
 

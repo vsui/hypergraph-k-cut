@@ -88,14 +88,22 @@ size_t branching_contract_(Hypergraph &hypergraph, size_t k,
   }
 }
 
-size_t default_num_runs(const Hypergraph &hypergraph, size_t k) {
+size_t default_num_runs(const Hypergraph &hypergraph, [[maybe_unused]] size_t k) {
   size_t log_n =
       static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
   return log_n * log_n;
 }
 
-inline size_t branching_contract(const Hypergraph &hypergraph, size_t k, size_t num_runs = 0, bool verbose = false) {
-  return hypergraph_util::minimum_of_runs<branching_contract_, default_num_runs>(hypergraph, k, num_runs, verbose);
+template<typename HypergraphType, typename EdgeWeightType = size_t>
+inline EdgeWeightType branching_contract(const HypergraphType &hypergraph,
+                                         size_t k,
+                                         size_t num_runs = 0,
+                                         bool verbose = false) {
+  return hypergraph_util::minimum_of_runs<HypergraphType, EdgeWeightType, branching_contract_, default_num_runs>(
+      hypergraph,
+      k,
+      num_runs,
+      verbose);
 }
 
 } // namespace fpz

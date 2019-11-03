@@ -4,8 +4,11 @@
 
 namespace hypergraph_util {
 
-using contract_t = std::add_pointer_t<size_t(Hypergraph &, size_t, size_t)>;
-using default_num_runs_t = std::add_pointer_t<size_t(const Hypergraph &, size_t)>;
+template<typename HypergraphType, typename EdgeWeightType>
+using contract_t = std::add_pointer_t<EdgeWeightType(HypergraphType &, size_t, size_t)>;
+
+template<typename HypergraphType>
+using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, size_t)>;
 
 /* A utility to repeatedly run Monte Carlo minimum cut algorithms like [CXY'18] and [FPZ'19]
  *
@@ -15,22 +18,26 @@ using default_num_runs_t = std::add_pointer_t<size_t(const Hypergraph &, size_t)
  *   num_runs: number of runs. Pass in 0 to get the number of runs from DefaultNumRuns
  *   verbose: whether or not to log
  */
-template<contract_t Contract, default_num_runs_t DefaultNumRuns>
-size_t minimum_of_runs(const Hypergraph &hypergraph,
-                       size_t k,
-                       size_t num_runs = 0,
-                       bool verbose = false) {
+template<
+    typename HypergraphType,
+    typename EdgeWeightType,
+    contract_t<HypergraphType, EdgeWeightType> Contract,
+    default_num_runs_t<HypergraphType> DefaultNumRuns>
+EdgeWeightType minimum_of_runs(const HypergraphType &hypergraph,
+                               size_t k,
+                               size_t num_runs,
+                               bool verbose) {
   if (num_runs == 0) {
     num_runs = DefaultNumRuns(hypergraph, k);
   }
   if (verbose) {
     std::cout << "Running algorithm " << num_runs << " times..." << std::endl;
   }
-  size_t min_so_far = std::numeric_limits<size_t>::max();
+  EdgeWeightType min_so_far = std::numeric_limits<size_t>::max();
   for (size_t i = 0; i < num_runs; ++i) {
-    Hypergraph copy(hypergraph);
+    HypergraphType copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
-    size_t min_cut = Contract(copy, k, 0);
+    size_t min_cut = Contract(copy, k, /* unused */ 0);
     auto stop = std::chrono::high_resolution_clock::now();
     min_so_far = std::min(min_so_far, min_cut);
     if (verbose) {
