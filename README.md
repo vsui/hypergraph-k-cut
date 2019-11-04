@@ -2,6 +2,8 @@
 
 ## Building
 
+You will need cmake, boost (at least version 1.66), and a c++17 compiler.
+
 ```
 mkdir build
 cd build
@@ -10,9 +12,11 @@ make
 
 ## Usage
 
-To generate hypergraphs, run `./gen <num_vertices> <num_edges> <sampling percentage>`
+To generate hypergraphs, run `./hgen <num_vertices> <num_edges> <sampling percentage>`
 
-To run the algorithm, run `./main <input file> <k> <algorithm>`
+To run the algorithm, run `./hcut <input file> <k> <algorithm>`
+
+To run the tests, run `./hypergraph/test/hypergraph_test`
 
 ## References
 
