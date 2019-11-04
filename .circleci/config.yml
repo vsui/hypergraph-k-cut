@@ -20,9 +20,13 @@ jobs:
           command: 'apt-get update && sudo apt-get install -y cmake'
 
       - run:
-          name: Build
-          command: 'mkdir build; cmake ..; make'
+          name: Create build files
+          command: 'cmake -H. -Bbuild'
+
+      - run:
+          name: Build project
+          command: 'cmake --build build'
 
       - run:
           name: Test
-          command: './hypergraph/test/hypergraph_test'
+          command: './bin/hypergraph/test/hypergraph_test'
