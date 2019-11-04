@@ -21,7 +21,7 @@ jobs:
 
       - run:
           name: Install cmake
-          command: 'wget https://github.com/Kitware/CMake/releases/download/v3.16.0-rc3/cmake-3.16.0-rc3-Linux-x86_64.sh; bash ./cmake-3.16.0-rc3-Linux-x86_64.sh --skip-license'
+          command: 'mkdir cmake; cd cmake; wget https://github.com/Kitware/CMake/releases/download/v3.16.0-rc3/cmake-3.16.0-rc3-Linux-x86_64.sh; bash ./cmake-3.16.0-rc3-Linux-x86_64.sh --skip-license; export PATH=`pwd`/bin; cd ..'
 
       - run:
           name: Create build files
