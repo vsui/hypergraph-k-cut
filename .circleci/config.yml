@@ -24,6 +24,10 @@ jobs:
           command: 'apt-get update && apt-get install -y wget'
 
       - run:
+          name: Install boost
+          command: 'wget https://dl.bintray.com/boostorg/release/1.66.0/source/boost_1_66_0.tar.bz2; tar --bzip2 -xf boost_1_66_0.tar.bz2; ln -s `pwd`/boost_1_66_0/boost /usr/include'
+
+      - run:
           name: Install cmake
           command: 'mkdir cmake; cd cmake; wget https://github.com/Kitware/CMake/releases/download/v3.16.0-rc3/cmake-3.16.0-rc3-Linux-x86_64.sh; bash ./cmake-3.16.0-rc3-Linux-x86_64.sh --skip-license; cd ..'
 
