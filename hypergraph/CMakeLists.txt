@@ -1,4 +1,3 @@
-find_package(Boost REQUIRED)
 
 add_library(
         hypergraph
@@ -9,8 +8,10 @@ add_library(
         ${CMAKE_CURRENT_SOURCE_DIR}/src/order.cpp
 )
 
+find_package(Boost 1.66.0 REQUIRED)
+
 target_include_directories(hypergraph PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(hypergraph PUBLIC Boost::headers)
+target_link_libraries(hypergraph PUBLIC Boost::boost)
 
 # Add warnings
 target_compile_options(
