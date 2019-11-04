@@ -28,6 +28,10 @@ jobs:
           command: 'apt-get update && apt-get install -y bzip2'
 
       - run:
+          name: Install git
+          command: 'apt-get update && apt-get install -y git'
+
+      - run:
           name: Install boost
           command: 'wget https://dl.bintray.com/boostorg/release/1.66.0/source/boost_1_66_0.tar.bz2; tar --bzip2 -xf boost_1_66_0.tar.bz2; ln -s `pwd`/boost_1_66_0/boost /usr/include'
 
