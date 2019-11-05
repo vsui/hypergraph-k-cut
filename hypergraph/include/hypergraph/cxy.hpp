@@ -37,18 +37,14 @@ double cxy_delta(size_t n, size_t e, size_t k) {
   return std::exp(s);
 }
 
-template<typename HypergraphType, typename EdgeWeightType = size_t>
+template<typename HypergraphType>
 size_t cxy_contract_(HypergraphType &hypergraph, size_t k, [[maybe_unused]] size_t accumulated) {
-  static_assert(
-      std::is_same_v<HypergraphType, Hypergraph> ||
-          std::is_same_v<HypergraphType, WeightedHypergraph<EdgeWeightType>>
-  );
   std::vector<int> candidates = {};
   std::vector<int> edge_ids;
   std::vector<double> deltas;
 
   // TODO function for sum of all edge weights
-  EdgeWeightType min_so_far = 0;
+  typename HypergraphType::EdgeWeight min_so_far = 0;
   for (const auto &[e, vertices] : hypergraph.edges()) {
     min_so_far += edge_weight(hypergraph, e);
   }
@@ -66,7 +62,7 @@ size_t cxy_contract_(HypergraphType &hypergraph, size_t k, [[maybe_unused]] size
 
     if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
       // TODO function for sum of all edge weights
-      EdgeWeightType cut = total_edge_weight(hypergraph);
+      typename HypergraphType::EdgeWeight cut = total_edge_weight(hypergraph);
       min_so_far = std::min(min_so_far, cut);
       break;
     }
@@ -121,8 +117,7 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
 template<typename HypergraphType, typename EdgeWeightType = size_t>
 inline size_t cxy_contract(const HypergraphType &hypergraph, size_t k, size_t num_runs = 0, bool verbose = false) {
   return hypergraph_util::minimum_of_runs<HypergraphType,
-                                          EdgeWeightType,
-                                          cxy_contract_<HypergraphType, EdgeWeightType>,
+                                          cxy_contract_<HypergraphType>,
                                           default_num_runs>(hypergraph, k, num_runs, verbose);
 }
 

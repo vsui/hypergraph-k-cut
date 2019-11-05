@@ -39,8 +39,10 @@ double redo_probability(size_t n, size_t e, size_t k) {
  * accumulated : a running count of k-spanning hyperedges used to calculate the
  *               min cut
  * */
-template<typename HypergraphType, typename EdgeWeightType>
-EdgeWeightType branching_contract_(HypergraphType &hypergraph, size_t k, EdgeWeightType accumulated = 0) {
+template<typename HypergraphType>
+typename HypergraphType::EdgeWeight branching_contract_(HypergraphType &hypergraph,
+                                                        size_t k,
+                                                        typename HypergraphType::EdgeWeight accumulated = 0) {
 #ifndef NDEBUG
   assert(hypergraph.is_valid());
 #endif
@@ -71,7 +73,7 @@ EdgeWeightType branching_contract_(HypergraphType &hypergraph, size_t k, EdgeWei
 
   // Select a hyperedge with probability proportional to its weight
   std::vector<int> edge_ids;
-  std::vector<EdgeWeightType> edge_weights;
+  std::vector<Hypergraph::EdgeWeight> edge_weights;
   for (const auto &[edge_id, vertices] : hypergraph.edges()) {
     edge_ids.push_back(edge_id);
     edge_weights.push_back(edge_weight(hypergraph, edge_id));
@@ -100,14 +102,13 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
   return log_n * log_n;
 }
 
-template<typename HypergraphType, typename EdgeWeightType = size_t>
-inline EdgeWeightType branching_contract(const HypergraphType &hypergraph,
-                                         size_t k,
-                                         size_t num_runs = 0,
-                                         bool verbose = false) {
+template<typename HypergraphType>
+inline typename HypergraphType::EdgeWeight branching_contract(const HypergraphType &hypergraph,
+                                                              size_t k,
+                                                              size_t num_runs = 0,
+                                                              bool verbose = false) {
   return hypergraph_util::minimum_of_runs<HypergraphType,
-                                          EdgeWeightType,
-                                          branching_contract_<HypergraphType, EdgeWeightType>,
+                                          branching_contract_<HypergraphType>,
                                           default_num_runs>(hypergraph, k, num_runs, verbose);
 }
 

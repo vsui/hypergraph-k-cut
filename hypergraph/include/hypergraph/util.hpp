@@ -4,8 +4,8 @@
 
 namespace hypergraph_util {
 
-template<typename HypergraphType, typename EdgeWeightType>
-using contract_t = std::add_pointer_t<EdgeWeightType(HypergraphType &, size_t, size_t)>;
+template<typename HypergraphType>
+using contract_t = std::add_pointer_t<typename HypergraphType::EdgeWeight(HypergraphType &, size_t, size_t)>;
 
 template<typename HypergraphType>
 using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, size_t)>;
@@ -20,20 +20,19 @@ using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, siz
  */
 template<
     typename HypergraphType,
-    typename EdgeWeightType,
-    contract_t<HypergraphType, EdgeWeightType> Contract,
+    contract_t<HypergraphType> Contract,
     default_num_runs_t<HypergraphType> DefaultNumRuns>
-EdgeWeightType minimum_of_runs(const HypergraphType &hypergraph,
-                               size_t k,
-                               size_t num_runs,
-                               bool verbose) {
+typename HypergraphType::EdgeWeight minimum_of_runs(const HypergraphType &hypergraph,
+                                                    size_t k,
+                                                    size_t num_runs,
+                                                    bool verbose) {
   if (num_runs == 0) {
     num_runs = DefaultNumRuns(hypergraph, k);
   }
   if (verbose) {
     std::cout << "Running algorithm " << num_runs << " times..." << std::endl;
   }
-  EdgeWeightType min_so_far = std::numeric_limits<size_t>::max();
+  typename HypergraphType::EdgeWeight min_so_far = std::numeric_limits<size_t>::max();
   for (size_t i = 0; i < num_runs; ++i) {
     HypergraphType copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
