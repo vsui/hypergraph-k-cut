@@ -123,7 +123,7 @@ std::add_pointer_t<void(const HypergraphType &, OrderingContext<typename Hypergr
  */
 template<typename HypergraphType, tightening_t<HypergraphType> TIGHTEN>
 std::pair<std::vector<int>, std::vector<double>>
-unweighted_ordering(const HypergraphType &hypergraph, const int a) {
+ordering(const HypergraphType &hypergraph, const int a) {
   std::vector<int> ordering = {a};
   std::vector<double> tightness = {0};
   std::vector<int> vertices_without_a;
@@ -170,7 +170,7 @@ unweighted_ordering(const HypergraphType &hypergraph, const int a) {
 template<typename HypergraphType>
 inline std::vector<int> maximum_adjacency_ordering(const HypergraphType &hypergraph,
                                                    const int a) {
-  return unweighted_ordering<HypergraphType, maximum_adjacency_ordering_tighten>(hypergraph, a).first;
+  return ordering<HypergraphType, maximum_adjacency_ordering_tighten>(hypergraph, a).first;
 }
 
 /* Return a tight ordering of vertices, starting with vertex a. Linear in the
@@ -184,7 +184,7 @@ inline std::vector<int> maximum_adjacency_ordering(const HypergraphType &hypergr
  */
 template<typename HypergraphType>
 inline std::vector<int> tight_ordering(const HypergraphType &hypergraph, const int a) {
-  return unweighted_ordering<HypergraphType, tight_ordering_tighten>(hypergraph, a).first;
+  return ordering<HypergraphType, tight_ordering_tighten>(hypergraph, a).first;
 }
 
 /* Return a Queyranne ordering of vertices, starting with vertex a.
@@ -193,13 +193,13 @@ inline std::vector<int> tight_ordering(const HypergraphType &hypergraph, const i
  */
 template<typename HypergraphType>
 inline std::vector<int> queyranne_ordering(const HypergraphType &hypergraph, const int a) {
-  return unweighted_ordering<HypergraphType, queyranne_ordering_tighten>(hypergraph, a).first;
+  return ordering<HypergraphType, queyranne_ordering_tighten>(hypergraph, a).first;
 }
 
 template<typename HypergraphType>
 inline std::pair<std::vector<int>,
                  std::vector<double>> queyranne_ordering_with_tightness(const HypergraphType &hypergraph, const int a) {
-  return unweighted_ordering<HypergraphType, queyranne_ordering_tighten>(hypergraph, a);
+  return ordering<HypergraphType, queyranne_ordering_tighten>(hypergraph, a);
 }
 
 template<typename HypergraphType>
