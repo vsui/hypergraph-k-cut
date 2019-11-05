@@ -34,7 +34,7 @@ double cxy_delta(size_t n, size_t e, size_t k) {
   for (size_t i = n - (k - 2); i <= n; ++i) {
     s -= std::log(i);
   }
-  assert(!isnan(s));
+  assert(!std::isnan(s));
   return std::exp(s);
 }
 
