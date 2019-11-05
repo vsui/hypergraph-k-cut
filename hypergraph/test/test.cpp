@@ -125,6 +125,20 @@ Hypergraph factory() {
                                                       {1, 5}});
 }
 
+WeightedHypergraph<size_t> weighted_factory() {
+  const WeightedHypergraph<size_t> h = {
+      {0, 1, 2, 3, 4, 5},
+      {
+          {{0, 1, 2}, 3},
+          {{1, 2, 3}, 4},
+          {{3, 4, 5}, 3},
+          {{0, 3, 5}, 7},
+          {{0, 1, 2, 3, 4}, 2}
+      }
+  };
+  return h;
+}
+
 template<typename InputIt>
 bool verify_maximum_adjacency_ordering(const Hypergraph &hypergraph,
                                        InputIt begin, InputIt end) {
@@ -272,8 +286,8 @@ TEST(QueyranneOrdering, TightnessMatchesConnectivity) {
     ASSERT_EQ(ordering.size(), tightness.size());
 
     auto tightness_it = std::begin(tightness);
-    for (auto i = std::begin(ordering); i != std::end(ordering); ++i) {
-      auto conn = connectivity(hypergraph, std::begin(ordering), i, i, i + 1);
+    for (auto it = std::begin(ordering); it != std::end(ordering); ++it) {
+      auto conn = connectivity(hypergraph, std::begin(ordering), it, it, it + 1);
       EXPECT_EQ(conn, *tightness_it);
       tightness_it++;
     }
@@ -281,24 +295,79 @@ TEST(QueyranneOrdering, TightnessMatchesConnectivity) {
   }
 }
 
+TEST(QueyranneOrdering, UnweightedVsWeightedSanityCheck) {
+  for (int i = 1; i <= 10; ++i) {
+    auto unweighted = factory();
+    auto weighted = WeightedHypergraph<size_t>(unweighted);
+
+    const auto unweighted_cut = vertex_ordering_mincut<decltype(unweighted), queyranne_ordering>(unweighted, i);
+    const auto weighted_cut = vertex_ordering_mincut<decltype(weighted), queyranne_ordering>(weighted, i);
+
+    ASSERT_EQ(unweighted_cut, weighted_cut);
+  }
+}
+
 TEST(MaximumAdjacencyMinCut, Works) {
   for (int i = 1; i <= 10; ++i) {
     auto h = factory();
-    ASSERT_EQ(vertex_ordering_mincut(h, i, maximum_adjacency_ordering), 3);
+    const auto f = vertex_ordering_mincut<decltype(h), maximum_adjacency_ordering>;
+    ASSERT_EQ(f(h, i),
+              3);
+  }
+}
+
+TEST(MaximumAdjacencyMinCut, WeightedUnweightedSanityCheck) {
+  for (int i = 1; i <= 10; ++i) {
+    auto unweighted = factory();
+    auto weighted = WeightedHypergraph<size_t>(unweighted);
+
+    const auto unweighted_cut = vertex_ordering_mincut<decltype(unweighted), maximum_adjacency_ordering>(unweighted, i);
+    const auto weighted_cut = vertex_ordering_mincut<decltype(weighted), maximum_adjacency_ordering>(weighted, i);
+
+    ASSERT_EQ(unweighted_cut, weighted_cut);
   }
 }
 
 TEST(TightMinCut, Works) {
   for (int i = 1; i <= 10; ++i) {
     auto h = factory();
-    ASSERT_EQ(vertex_ordering_mincut(h, i, tight_ordering), 3);
+    const auto f = vertex_ordering_mincut<decltype(h), tight_ordering>;
+    ASSERT_EQ(f(h, i), 3);
   }
 }
 
 TEST(QueyranneMinCut, Works) {
   for (int i = 1; i <= 10; ++i) {
     auto h = factory();
-    ASSERT_EQ(vertex_ordering_mincut(h, i, queyranne_ordering), 3);
+    const auto f = vertex_ordering_mincut<decltype(h), queyranne_ordering>;
+    ASSERT_EQ(f(h, i), 3);
+  }
+}
+
+TEST(MaximumAdjacencyMinCut, WeightedWorks) {
+  const auto factory = weighted_factory();
+  for (int i : factory.vertices()) {
+    auto h = weighted_factory();
+    const auto f = vertex_ordering_mincut<decltype(h), maximum_adjacency_ordering>;
+    ASSERT_EQ(f(h, i), 5);
+  }
+}
+
+TEST(TightOrderingMinCut, WeightedWorks) {
+  const auto factory = weighted_factory();
+  for (int i : factory.vertices()) {
+    auto h = weighted_factory();
+    const auto f = vertex_ordering_mincut<decltype(h), tight_ordering>;
+    ASSERT_EQ(f(h, i), 5);
+  }
+}
+
+TEST(QueyranneOrderingMinCut, WeightedWorks) {
+  const auto factory = weighted_factory();
+  for (int i : factory.vertices()) {
+    auto h = weighted_factory();
+    const auto f = vertex_ordering_mincut<decltype(h), queyranne_ordering>;
+    ASSERT_EQ(f(h, i), 5);
   }
 }
 
@@ -307,7 +376,8 @@ TEST(KTrimmedCertificate, Works) {
     auto h = factory();
     KTrimmedCertificate certifier(h);
     Hypergraph certificate = certifier.certificate(k);
-    ASSERT_EQ(vertex_ordering_mincut(certificate, 1, tight_ordering),
+    const auto f = vertex_ordering_mincut<decltype(h), tight_ordering>;
+    ASSERT_EQ(f(certificate, 1),
               std::min(k, 3ul));
   }
 }

@@ -2,10 +2,9 @@
 add_library(
         hypergraph
         STATIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/bucket_list.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/heap.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/certificate.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/hypergraph.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/order.cpp
 )
 
 find_package(Boost 1.66.0 REQUIRED)

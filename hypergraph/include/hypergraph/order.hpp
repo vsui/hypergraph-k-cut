@@ -7,18 +7,19 @@
 
 #include <boost/heap/fibonacci_heap.hpp>
 
-#include "hypergraph/bucket_list.hpp"
+#include "hypergraph/heap.hpp"
 #include "hypergraph/certificate.hpp"
 #include "hypergraph/hypergraph.hpp"
 
 // A context for vertex ordering calculations
+template<typename Heap>
 struct OrderingContext {
   // Constructor
-  // OrderingContext(BucketList &&blist);
+  OrderingContext(const std::vector<int> &vertices, size_t capacity) : heap(vertices, capacity) {}
 
   // Heap for tracking which vertices are most tightly connected to the
   // ordering
-  boost::heap::fibonacci_heap<std::pair<size_t, int>> heap;
+  Heap heap;
 
   std::unordered_map<
       int, boost::heap::fibonacci_heap<std::pair<size_t, int>>::handle_type>
@@ -43,20 +44,74 @@ struct OrderingContext {
  *
  * Each of these methods runs in time linear to the number of edges incident on
  * v.
- *
- * TODO these don't need to be exposed in the header anymore
  */
-void maximum_adjacency_ordering_tighten(const Hypergraph &hypergraph,
-                                        OrderingContext &ctx, const int v);
+template<typename HypergraphType>
+void maximum_adjacency_ordering_tighten(
+    const HypergraphType &hypergraph,
+    OrderingContext<typename HypergraphType::Heap> &ctx,
+    const int v) {
+  // We are adding v to the ordering so far, and need to update the keys for the
+  // other vertices
+  // Check each edge e incident on v
+  for (const int e : hypergraph.edges_incident_on(v)) {
+    // If e has already been used, then skip it
+    if (ctx.used_edges.find(e) != std::end(ctx.used_edges)) {
+      continue;
+    }
+    // For every vertex u in e that is not v and not already in the ordering,
+    // increment its key (it is one edge tighter now)
+    // TODO I think vertices need to be removed from the edge's incidence list
+    //      to maintain the runtime.
+    for (const int u : hypergraph.edges().at(e)) {
+      if (ctx.used_vertices.find(u) == std::end(ctx.used_vertices)) {
+        if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+          ctx.heap.increment(u);
+        } else {
+          ctx.heap.increment(u, edge_weight(hypergraph, e));
+        }
+      }
+    }
+    ctx.used_edges.insert(e);
+  }
+}
 
-void tight_ordering_tighten(const Hypergraph &hypergraph, OrderingContext &ctx,
-                            const int v);
+template<typename HypergraphType>
+void tight_ordering_tighten(
+    const HypergraphType &hypergraph,
+    OrderingContext<typename HypergraphType::Heap> &ctx,
+    const int v) {
+  // For every edge e incident on v
+  for (const int e : hypergraph.edges_incident_on(v)) {
+    // Tighten this edge
+    ctx.edge_to_num_vertices_outside_ordering.at(e) -= 1ul;
+    // If the edge only has one vertex u left that is outside the ordering,
+    // increase the key of u
+    if (ctx.edge_to_num_vertices_outside_ordering.at(e) == 1) {
+      for (const int u : hypergraph.edges().at(e)) {
+        if (ctx.used_vertices.find(u) == std::end(ctx.used_vertices)) {
+          if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+            ctx.heap.increment(u);
+          } else {
+            ctx.heap.increment(u, edge_weight(hypergraph, e));
+          }
+        }
+      }
+    }
+  }
+}
 
-void queyranne_ordering_tighten(const Hypergraph &hypergraph,
-                                OrderingContext &ctx, const int v);
+template<typename HypergraphType>
+void queyranne_ordering_tighten(
+    const HypergraphType &hypergraph,
+    OrderingContext<typename HypergraphType::Heap> &ctx,
+    const int v) {
+  maximum_adjacency_ordering_tighten(hypergraph, ctx, v);
+  tight_ordering_tighten(hypergraph, ctx, v);
+}
 
+template<typename HypergraphType>
 using tightening_t =
-std::add_pointer_t<void(const Hypergraph &, OrderingContext &, const int)>;
+std::add_pointer_t<void(const HypergraphType &, OrderingContext<typename HypergraphType::Heap> &, const int)>;
 
 /* Given a method to update the "tightness" of different vertices, computes a
  * vertex ordering and returns the ordering as well as a list of how tight each
@@ -66,9 +121,9 @@ std::add_pointer_t<void(const Hypergraph &, OrderingContext &, const int)>;
  * TIGHTEN runs in time linear to the number of edges incident on the selected
  * vertex.
  */
-template<tightening_t TIGHTEN>
+template<typename HypergraphType, tightening_t<HypergraphType> TIGHTEN>
 std::pair<std::vector<int>, std::vector<double>>
-unweighted_ordering(const Hypergraph &hypergraph, const int a) {
+unweighted_ordering(const HypergraphType &hypergraph, const int a) {
   std::vector<int> ordering = {a};
   std::vector<double> tightness = {0};
   std::vector<int> vertices_without_a;
@@ -80,18 +135,8 @@ unweighted_ordering(const Hypergraph &hypergraph, const int a) {
     vertices_without_a.emplace_back(v);
   }
 
-  // Initialize context
-  // TODO I would like to initialize the bucketlist directly in the ctx arg list
-  // so i don't have a name dangling around (blist) but for some reason this
-  // causes a runtime error
-  // BucketList blist(vertices_without_a,
-  //                 2 * hypergraph.edges().size() +
-  //                     1 /* multiply by 2 for Queyranne ordering */);
-  OrderingContext ctx;
-  for (const int v : vertices_without_a) {
-    auto handle = ctx.heap.push({0, v});
-    ctx.handles[v] = handle;
-  }
+  // Multiply edges by 2 for Queyranne ordering
+  OrderingContext<typename HypergraphType::Heap> ctx(vertices_without_a, 2 * hypergraph.num_edges() + 1);
   for (const auto &[e, vertices] : hypergraph.edges()) {
     ctx.edge_to_num_vertices_outside_ordering.insert({e, vertices.size()});
   }
@@ -105,8 +150,7 @@ unweighted_ordering(const Hypergraph &hypergraph, const int a) {
   tighten(a);
 
   while (ordering.size() < hypergraph.num_vertices()) {
-    const auto[k, v] = ctx.heap.top();
-    ctx.heap.pop();
+    const auto[k, v] = ctx.heap.pop_key_val();
     ordering.emplace_back(v);
     // We need k / 2 instead of just k because this is just used for Queyranne
     // for now
@@ -123,8 +167,11 @@ unweighted_ordering(const Hypergraph &hypergraph, const int a) {
  * Here, tightness for a vertex v is the number of edges that intersect the
  * ordering so far and v.
  */
-std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
-                                            const int a);
+template<typename HypergraphType>
+inline std::vector<int> maximum_adjacency_ordering(const HypergraphType &hypergraph,
+                                                   const int a) {
+  return unweighted_ordering<HypergraphType, maximum_adjacency_ordering_tighten>(hypergraph, a).first;
+}
 
 /* Return a tight ordering of vertices, starting with vertex a. Linear in the
  * number of vertices across all hyperedges.
@@ -135,25 +182,28 @@ std::vector<int> maximum_adjacency_ordering(const Hypergraph &hypergraph,
  *
  * Takes time linear with the size of the hypergraph.
  */
-std::vector<int> tight_ordering(const Hypergraph &hypergraph, const int a);
+template<typename HypergraphType>
+inline std::vector<int> tight_ordering(const HypergraphType &hypergraph, const int a) {
+  return unweighted_ordering<HypergraphType, tight_ordering_tighten>(hypergraph, a).first;
+}
 
 /* Return a Queyranne ordering of vertices, starting with vertex a.
  *
  * Takes time linear with the size of the hypergraph.
  */
-std::vector<int> queyranne_ordering(const Hypergraph &hypergraph, const int a);
+template<typename HypergraphType>
+inline std::vector<int> queyranne_ordering(const HypergraphType &hypergraph, const int a) {
+  return unweighted_ordering<HypergraphType, queyranne_ordering_tighten>(hypergraph, a).first;
+}
 
-constexpr auto queyranne_ordering_with_tightness =
-    unweighted_ordering<queyranne_ordering_tighten>;
+template<typename HypergraphType>
+inline std::pair<std::vector<int>,
+                 std::vector<double>> queyranne_ordering_with_tightness(const HypergraphType &hypergraph, const int a) {
+  return unweighted_ordering<HypergraphType, queyranne_ordering_tighten>(hypergraph, a);
+}
 
-size_t one_vertex_cut(const Hypergraph &hypergraph, const int v);
-
-/* Return a new hypergraph with vertices s and t merged.
- *
- * Time complexity: O(p), where p is the size of the hypergraph
- */
-Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
-                          const int t);
+template<typename HypergraphType>
+using ordering_t = std::add_pointer_t<std::vector<int>(const HypergraphType &, const int)>;
 
 /* Given a hypergraph and a function that orders the vertices, find the min cut
  * by repeatedly finding and contracting pendant pairs.
@@ -164,11 +214,11 @@ Hypergraph merge_vertices(const Hypergraph &hypergraph, const int s,
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
  * `maximum_adjacency_ordering`.
  */
-template<typename Ordering>
-size_t vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
+template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
+size_t vertex_ordering_mincut(HypergraphType &hypergraph, const int a) {
   size_t min_cut_of_phase = std::numeric_limits<size_t>::max();
   while (hypergraph.num_vertices() > 1) {
-    auto ordering = f(hypergraph, a);
+    auto ordering = Ordering(hypergraph, a);
     size_t cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
     hypergraph = merge_vertices(hypergraph, *(std::end(ordering) - 2),
                                 *(std::end(ordering) - 1));
@@ -187,9 +237,8 @@ size_t vertex_ordering_mincut(Hypergraph &hypergraph, const int a, Ordering f) {
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
  * `maximum_adjacency_ordering`.
  */
-template<typename Ordering>
-size_t vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
-                                          Ordering f) {
+template<ordering_t<Hypergraph> Ordering>
+size_t vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a) {
   KTrimmedCertificate gen(hypergraph);
   size_t k = 1;
   while (true) {
@@ -197,7 +246,7 @@ size_t vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a,
     std::cout << "Trying k=" << k << std::endl;
     Hypergraph certificate = gen.certificate(k);
     std::cout << "Tried k=" << k << std::endl;
-    size_t mincut = vertex_ordering_mincut(certificate, a, f);
+    size_t mincut = vertex_ordering_mincut<Hypergraph, Ordering>(certificate, a);
     if (mincut < k) {
       return mincut;
     }

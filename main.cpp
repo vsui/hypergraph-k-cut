@@ -62,38 +62,38 @@ int main(int argc, char *argv[]) {
       std::cout << "Q can only compute mincuts" << std::endl;
       return 1;
     }
-    answer = vertex_ordering_mincut(h, 1, queyranne_ordering);
+    answer = vertex_ordering_mincut<Hypergraph, queyranne_ordering>(h, 1);
   } else if (argv[3] == std::string("KW")) {
     if (k != 2) {
       std::cout << "KW can only compute mincuts" << std::endl;
       return 1;
     }
-    answer = vertex_ordering_mincut(h, 1, maximum_adjacency_ordering);
+    answer = vertex_ordering_mincut<Hypergraph, maximum_adjacency_ordering>(h, 1);
   } else if (argv[3] == std::string("MW")) {
     if (k != 2) {
       std::cout << "MW can only compute mincuts" << std::endl;
       return 1;
     }
-    answer = vertex_ordering_mincut(h, 1, tight_ordering);
+    answer = vertex_ordering_mincut<Hypergraph, tight_ordering>(h, 1);
   } else if (argv[3] == std::string("sparseQ")) {
     if (k != 2) {
       std::cout << "sparseQ can only compute mincuts" << std::endl;
       return 1;
     }
-    answer = vertex_ordering_mincut_certificate(h, 1, queyranne_ordering);
+    answer = vertex_ordering_mincut_certificate<queyranne_ordering>(h, 1);
   } else if (argv[3] == std::string("sparseKW")) {
     if (k != 2) {
       std::cout << "sparseKW can only compute mincuts" << std::endl;
       return 1;
     }
     answer =
-        vertex_ordering_mincut_certificate(h, 1, maximum_adjacency_ordering);
+        vertex_ordering_mincut_certificate<maximum_adjacency_ordering>(h, 1);
   } else if (argv[3] == std::string("sparseMW")) {
     if (k != 2) {
       std::cout << "sparseMW can only compute mincuts" << std::endl;
       return 1;
     }
-    answer = vertex_ordering_mincut_certificate(h, 1, tight_ordering);
+    answer = vertex_ordering_mincut_certificate<tight_ordering>(h, 1);
   } else if (argv[3] == std::string("CXapprox")) {
     if (k != 2) {
       std::cout << "CXapprox can only compute mincuts" << std::endl;

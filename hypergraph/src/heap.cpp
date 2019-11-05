@@ -1,6 +1,6 @@
-#include "hypergraph/bucket_list.hpp"
+#include "hypergraph/heap.hpp"
 
-BucketList::BucketList(std::vector<int> values, const size_t capacity)
+BucketHeap::BucketHeap(std::vector<int> values, const size_t capacity)
     : capacity_(capacity), buckets_(capacity), max_key_(0) {
   for (const int value : values) {
     buckets_.front().emplace_front(value);
@@ -9,7 +9,7 @@ BucketList::BucketList(std::vector<int> values, const size_t capacity)
   }
 }
 
-void BucketList::increment(const int value) {
+void BucketHeap::increment(const int value) {
   const auto old_key = val_to_keys_.at(value);
   const auto new_key = ++val_to_keys_.at(value);
   assert(new_key < capacity_);
@@ -21,9 +21,9 @@ void BucketList::increment(const int value) {
   val_to_its_.at(value) = std::begin(buckets_.at(new_key));
 }
 
-int BucketList::pop() { return pop_key_val().second; }
+int BucketHeap::pop() { return pop_key_val().second; }
 
-std::pair<size_t, int> BucketList::pop_key_val() {
+std::pair<size_t, int> BucketHeap::pop_key_val() {
   while (buckets_.at(max_key_).empty()) {
     --max_key_;
   }

@@ -6,10 +6,15 @@
 
 #include <boost/range/adaptors.hpp>
 
+#include "heap.hpp"
+
 class KTrimmedCertificate;
 
 class Hypergraph {
 public:
+  using Heap = BucketHeap;
+  using EdgeWeight = size_t;
+
   Hypergraph &operator=(const Hypergraph &other);
 
   Hypergraph();
@@ -111,6 +116,9 @@ class WeightedHypergraph {
   // The reason this is implemented with composition instead of inheritance is that many algorithms need to be aware of
   // exhibit significantly different behavior in the weighted vs. unweighted case.
 public:
+  using Heap = FibonacciHeap<EdgeWeightType>;
+  using EdgeWeight = EdgeWeightType;
+
   WeightedHypergraph() = delete;
 
   explicit WeightedHypergraph(const Hypergraph &hypergraph) : hypergraph_(hypergraph) {
@@ -139,7 +147,7 @@ public:
 
   using vertex_range = Hypergraph::vertex_range;
 
-  vertex_range vertices() { return hypergraph_.vertices(); }
+  vertex_range vertices() const { return hypergraph_.vertices(); }
   [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const {
     return hypergraph_.edges_incident_on(vertex_id);
   }
@@ -165,10 +173,11 @@ public:
   template<typename InputIt>
   int add_hyperedge(InputIt begin, InputIt end, EdgeWeightType weight) {
     auto id = hypergraph_.add_hyperedge(begin, end);
-    const auto[inserted, it] = edges_to_weights_.insert({id, weight});
+    const auto[it, inserted] = edges_to_weights_.insert({id, weight});
 #ifndef NDEBUG
     assert(inserted);
 #endif
+    return id;
   }
 
   void remove_hyperedge(int edge_id) {
@@ -178,8 +187,8 @@ public:
   }
 
   template<typename InputIt>
-  Hypergraph contract(InputIt begin, InputIt end) const {
-    Hypergraph copy(*this);
+  WeightedHypergraph contract(InputIt begin, InputIt end) const {
+    WeightedHypergraph copy(*this);
     auto new_e = copy.add_hyperedge(begin, end, {}); // Doesn't matter what weight you add
     return copy.contract(new_e);
   }
@@ -221,6 +230,32 @@ inline EdgeWeightType total_edge_weight(const HypergraphType &hypergraph) {
       return accum + hypergraph.edge_weight(a.first);
     });
   }
+}
+
+/* For a hypergraph with vertices V, returns the value of the cut (V\{v}, {v}).
+ *
+ * Time complexity: O(m), where m is the number of edges
+ */
+template<typename HypergraphType>
+typename HypergraphType::EdgeWeight one_vertex_cut(const HypergraphType &hypergraph, const int v) {
+  if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+    return hypergraph.edges_incident_on(v).size();
+  }
+  typename HypergraphType::EdgeWeight cut = 0;
+  for (const auto e : hypergraph.edges_incident_on(v)) {
+    cut += edge_weight(hypergraph, e);
+  }
+  return cut;
+}
+
+/* Return a new hypergraph with vertices s and t merged.
+ *
+ * Time complexity: O(p), where p is the size of the hypergraph
+ */
+template<typename HypergraphType>
+HypergraphType merge_vertices(const HypergraphType &hypergraph, const int s, const int t) {
+  const auto vs = {s, t};
+  return hypergraph.contract(std::begin(vs), std::end(vs));
 }
 
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
