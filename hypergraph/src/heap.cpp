@@ -1,5 +1,7 @@
 #include "hypergraph/heap.hpp"
 
+#include <cassert>
+
 BucketHeap::BucketHeap(std::vector<int> values, const size_t capacity)
     : capacity_(capacity), buckets_(capacity), max_key_(0) {
   for (const int value : values) {

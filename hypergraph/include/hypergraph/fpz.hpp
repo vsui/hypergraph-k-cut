@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <cassert>
 
 #include "hypergraph/hypergraph.hpp"
 

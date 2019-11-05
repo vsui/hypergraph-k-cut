@@ -6,6 +6,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <cassert>
 
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/util.hpp"
