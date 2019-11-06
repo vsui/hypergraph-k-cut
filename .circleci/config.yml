@@ -1,6 +1,25 @@
 version: 2
+
+orbs:
+  win: circleci/windows@1.0.0
+
 jobs:
-  build:
+  build_and_test_windows:
+    executor: win/vs2019
+    steps:
+      - checkout
+      - run: Write-Host 'TODO'
+
+  build_and_test_macos:
+    macos:
+      xcode: "10.0.0"
+    steps:
+      - checkout
+      - run:
+          name: TODO
+          command: echo TODO
+
+  build_and_test_linux:
     docker:
       - image: gcc:9
 
@@ -49,4 +68,13 @@ jobs:
 
       - run:
           name: Test
-          command: './bin/hypergraph/test/hypergraph_test'
+          command: './hypergraph/test/hypergraph_test'
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build_and_test_linux
+      - build_and_test_macos
+      - build_and_test_windows
+
+
