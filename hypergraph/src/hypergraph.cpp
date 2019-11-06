@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <numeric>
+#include <cassert>
 
 Hypergraph::Hypergraph() = default;
 
