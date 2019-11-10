@@ -122,7 +122,7 @@ std::add_pointer_t<void(const HypergraphType &, OrderingContext<typename Hypergr
  * vertex.
  */
 template<typename HypergraphType, tightening_t<HypergraphType> TIGHTEN>
-std::pair<std::vector<int>, std::vector<double>>
+inline std::pair<std::vector<int>, std::vector<double>>
 ordering(const HypergraphType &hypergraph, const int a) {
   std::vector<int> ordering = {a};
   std::vector<double> tightness = {0};
@@ -215,7 +215,7 @@ using ordering_t = std::add_pointer_t<std::vector<int>(const HypergraphType &, c
  * `maximum_adjacency_ordering`.
  */
 template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
-size_t vertex_ordering_mincut(HypergraphType &hypergraph, const int a) {
+size_t vertex_ordering_minimum_cut_start_vertex(HypergraphType &hypergraph, const int a) {
   size_t min_cut_of_phase = std::numeric_limits<size_t>::max();
   while (hypergraph.num_vertices() > 1) {
     auto ordering = Ordering(hypergraph, a);
@@ -225,6 +225,12 @@ size_t vertex_ordering_mincut(HypergraphType &hypergraph, const int a) {
     min_cut_of_phase = std::min(min_cut_of_phase, cut_of_phase);
   }
   return min_cut_of_phase;
+}
+
+template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
+inline size_t vertex_ordering_mincut(HypergraphType &hypergraph) {
+  const auto a = *std::begin(hypergraph.vertices());
+  return vertex_ordering_minimum_cut_start_vertex<HypergraphType, Ordering>(hypergraph, a);
 }
 
 /* Given a hypergraph and a function that orders the vertices, find the minimum

@@ -203,10 +203,8 @@ private:
   std::unordered_map<int, EdgeWeightType> edges_to_weights_;
 };
 
-template<typename HypergraphType, typename EdgeWeightType = size_t>
-inline EdgeWeightType edge_weight(const HypergraphType &hypergraph, int edge_id) {
-  static_assert(
-      std::is_same_v<HypergraphType, Hypergraph> || std::is_same_v<HypergraphType, WeightedHypergraph<EdgeWeightType>>);
+template<typename HypergraphType>
+inline typename HypergraphType::EdgeWeight edge_weight(const HypergraphType &hypergraph, int edge_id) {
   if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
     return 1;
   } else {
@@ -262,3 +260,16 @@ HypergraphType merge_vertices(const HypergraphType &hypergraph, const int s, con
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
 
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);
+
+template<typename EdgeWeightType>
+std::ostream &operator<<(std::ostream &os, const WeightedHypergraph<EdgeWeightType> &hypergraph) {
+  os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
+  for (const auto &[edge_id, vertices] : hypergraph.edges()) {
+    os << hypergraph.edge_weight(edge_id);
+    for (const auto v : vertices) {
+      os << " " << v;
+    }
+    os << std::endl;
+  }
+  return os;
+}
