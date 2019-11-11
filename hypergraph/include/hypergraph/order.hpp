@@ -45,6 +45,8 @@ struct OrderingContext {
  * Each of these methods runs in time linear to the number of edges incident on
  * v.
  */
+
+// See [KW'96] for more details
 template<typename HypergraphType>
 void maximum_adjacency_ordering_tighten(
     const HypergraphType &hypergraph,
@@ -75,6 +77,7 @@ void maximum_adjacency_ordering_tighten(
   }
 }
 
+// See [MW'00] for more details
 template<typename HypergraphType>
 void tight_ordering_tighten(
     const HypergraphType &hypergraph,
@@ -100,6 +103,7 @@ void tight_ordering_tighten(
   }
 }
 
+// See [Q'98] for more details
 template<typename HypergraphType>
 void queyranne_ordering_tighten(
     const HypergraphType &hypergraph,
@@ -166,6 +170,8 @@ ordering(const HypergraphType &hypergraph, const int a) {
  *
  * Here, tightness for a vertex v is the number of edges that intersect the
  * ordering so far and v.
+ *
+ * See [KW'96] for more details.
  */
 template<typename HypergraphType>
 inline std::vector<int> maximum_adjacency_ordering(const HypergraphType &hypergraph,
@@ -181,6 +187,8 @@ inline std::vector<int> maximum_adjacency_ordering(const HypergraphType &hypergr
  * itself.
  *
  * Takes time linear with the size of the hypergraph.
+ *
+ * See [MW'00] for more details.
  */
 template<typename HypergraphType>
 inline std::vector<int> tight_ordering(const HypergraphType &hypergraph, const int a) {
@@ -190,6 +198,8 @@ inline std::vector<int> tight_ordering(const HypergraphType &hypergraph, const i
 /* Return a Queyranne ordering of vertices, starting with vertex a.
  *
  * Takes time linear with the size of the hypergraph.
+ *
+ * See [Q'98] for more details.
  */
 template<typename HypergraphType>
 inline std::vector<int> queyranne_ordering(const HypergraphType &hypergraph, const int a) {
