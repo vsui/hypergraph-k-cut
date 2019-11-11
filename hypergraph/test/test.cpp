@@ -563,7 +563,8 @@ TYPED_TEST_P(MinimumCutTest, MinimumCutWorks) {
     for (const auto &[hypergraph, cut_values] : this->test_cases()) {
       TypeParam copy(hypergraph);
       const auto cut = minimum_cut(copy);
-      EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2)) << name << " produced invalid cut\n" << cut;
+      std::string error;
+      EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2, error)) << name << " produced invalid cut: " << error << "\n" << cut;
       EXPECT_EQ(cut.value, cut_values.at(2)) << name << " produced a non-minimal cut";
     }
   }
@@ -575,7 +576,9 @@ TYPED_TEST_P(MinimumCutTest, VertexOrderingMinimumCutAnyStartVertexWorks) {
       for (const auto v : hypergraph.vertices()) {
         TypeParam copy(hypergraph);
         const auto cut = minimum_cut(copy, v);
-        EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2)) << name << " produced invalid cut\n" << cut;
+        std::string error;
+        EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2, error))
+                << name << " produced invalid cut: " << error << "\n" << cut;
         EXPECT_EQ(cut.value, cut_values.at(2)) << name << " produced a non-minimal cut";
       }
     }
@@ -589,7 +592,9 @@ TYPED_TEST_P(MinimumCutTest, MinimumKCutWorks) {
         // Technically can skip k = 2 since other test does this.
         TypeParam copy(hypergraph);
         const auto cut = minimum_k_cut(copy, k);
-        EXPECT_TRUE(cut_is_valid(cut, hypergraph, k)) << name << " " << k << "-cut produced invalid cut\n" << cut;
+        std::string error;
+        EXPECT_TRUE(cut_is_valid(cut, hypergraph, k, error))
+                << name << " produced invalid cut: " << error << "\n" << cut;
         EXPECT_EQ(cut.value, cut_values.at(k)) << name << " " << k << "-cut produced a non-minimal cut";
       }
     }

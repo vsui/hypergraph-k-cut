@@ -36,9 +36,13 @@ struct HypergraphCut {
 };
 
 template<typename HypergraphType>
-bool cut_is_valid(const HypergraphCut<HypergraphType> &cut, const HypergraphType &hypergraph, size_t k) {
+bool cut_is_valid(const HypergraphCut<HypergraphType> &cut,
+                  const HypergraphType &hypergraph,
+                  size_t k,
+                  std::string &error) {
   // Check number of partitions
   if (cut.partitions.size() != k) {
+    error = "Number of partitions does not match k";
     return false;
   }
 
@@ -50,6 +54,7 @@ bool cut_is_valid(const HypergraphCut<HypergraphType> &cut, const HypergraphType
                                         return accum + partition.size();
                                       });
   if (n_vertices != hypergraph.num_vertices()) {
+    error = "Number of vertices in all partitions is not equal to the number of vertices in the hypergraph";
     return false;
   }
 
@@ -61,6 +66,7 @@ bool cut_is_valid(const HypergraphCut<HypergraphType> &cut, const HypergraphType
   }
   std::set<int> in_hypergraph(std::begin(hypergraph.vertices()), std::end(hypergraph.vertices()));
   if (in_partitions != in_hypergraph) {
+    error = "Vertices in partitions do not match vertices in hypergraph";
     return false;
   }
 
@@ -92,6 +98,18 @@ bool cut_is_valid(const HypergraphCut<HypergraphType> &cut, const HypergraphType
       expected_cut_value += edge_weight(hypergraph, edge_id);
     }
   }
+  if constexpr (std::is_floating_point_v<typename HypergraphType::EdgeWeight>) {
+    if (std::abs(expected_cut_value - cut.value) > 0.1) {
+      error = "Stored value of cut (" + std::to_string(cut.value) + ") does not match actual value of cut ("
+          + std::to_string(expected_cut_value) + ")";
+    }
+  } else {
+    if (expected_cut_value != cut.value) {
+      error = "Stored value of cut (" + std::to_string(cut.value) + ") does not match actual value of cut ("
+          + std::to_string(expected_cut_value) + ")";
+    }
+  }
+
   return expected_cut_value == cut.value;
 }
 

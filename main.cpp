@@ -134,9 +134,9 @@ int dispatch(Options options) {
                 .count()
             << " milliseconds\n";
   std::cout << cut;
-  if (!cut_is_valid(cut, copy, options.k)) {
-    // TODO error message
-    std::cout << "CUT IS NOT VALID" << std::endl;
+  std::string error;
+  if (!cut_is_valid(cut, copy, options.k, error)) {
+    std::cout << "ERROR: CUT IS NOT VALID " << "(" << error << ")" << std::endl;
   }
   return 0;
 }
