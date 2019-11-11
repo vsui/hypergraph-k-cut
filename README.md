@@ -2,12 +2,12 @@
 
 ## Building
 
-You will need cmake, boost (at least version 1.66), and a c++17 compiler.
+You will need cmake, boost, and a c++17 compiler.
 
 ```
 mkdir build
-cmake ..
 cd build
+cmake ..
 make
 ```
 
