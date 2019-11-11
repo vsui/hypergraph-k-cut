@@ -10,11 +10,29 @@
 #include "hypergraph/order.hpp"
 #include "hypergraph/registry.hpp"
 
+std::string binary_name;
+
 struct Options {
   std::string algorithm_name;
   std::string filename;
   size_t k;
 };
+
+int usage() {
+  HypergraphMinimumCutRegistry<Hypergraph> registry;
+  std::cerr << "Usage: " << binary_name
+            << " <input hypergraph filename> <k> <algorithm>\n";
+  std::cerr << "Algorithms:\n";
+  std::cerr << " min-cut (works for k = 2):\n";
+  for (const auto &[name, f] : registry.minimum_cut_functions) {
+    std::cerr << "  " << name << std::endl;
+  }
+  std::cerr << " min-k-cut (works for k > 1):\n";
+  for (const auto &[name, f] : registry.minimum_k_cut_functions) {
+    std::cerr << "  " << name << std::endl;
+  }
+  return 1;
+}
 
 bool hmetis_file_is_unweighted(const std::string &filename) {
   std::ifstream input;
@@ -62,7 +80,7 @@ int dispatch(Options options) {
     const auto it = registry.minimum_cut_functions.find(options.algorithm_name);
     if (it == std::end(registry.minimum_cut_functions)) {
       std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
-      return 1;
+      return usage();
     }
     f = [it](const HypergraphType &h, int k) {
       return it->second(h);
@@ -76,7 +94,7 @@ int dispatch(Options options) {
         return 1;
       } else {
         std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
-        return 1;
+        return usage();
       }
     }
     f = it->second;
@@ -103,12 +121,9 @@ int dispatch(Options options) {
 }
 
 int main(int argc, char *argv[]) {
+  binary_name = argv[0];
   if (argc != 4 && argc != 5 /* for epsilon */) {
-    usage:
-    std::cerr << "Usage: " << argv[0]
-              << " <input hypergraph filename> <k> <algorithm>\n"
-              << "  algorithm: FPZ, CXY, Q, KW or MW\n";
-    return 1;
+    return usage();
   }
 
   Options options;
