@@ -23,15 +23,16 @@ using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, siz
 template<
     typename HypergraphType,
     contract_t<HypergraphType> Contract,
-    default_num_runs_t<HypergraphType> DefaultNumRuns>
+    default_num_runs_t<HypergraphType> DefaultNumRuns,
+    bool Verbose = false
+>
 HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
                                               size_t k,
-                                              size_t num_runs,
-                                              bool verbose) {
+                                              size_t num_runs) {
   if (num_runs == 0) {
     num_runs = DefaultNumRuns(hypergraph, k);
   }
-  if (verbose) {
+  if constexpr (Verbose) {
     std::cout << "Running algorithm " << num_runs << " times..." << std::endl;
   }
   auto min_so_far = HypergraphCut<HypergraphType>::max();
@@ -41,7 +42,7 @@ HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
     auto min_cut = Contract(copy, k, /* unused */ 0);
     auto stop = std::chrono::high_resolution_clock::now();
     min_so_far = std::min(min_so_far, min_cut);
-    if (verbose) {
+    if constexpr (Verbose) {
       std::cout << "[" << i + 1 << "/" << num_runs << "] took "
                 << std::chrono::duration_cast<std::chrono::milliseconds>(stop -
                     start)

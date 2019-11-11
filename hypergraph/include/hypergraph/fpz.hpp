@@ -108,14 +108,14 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
   return log_n * log_n;
 }
 
-template<typename HypergraphType>
+template<typename HypergraphType, bool Verbose = false>
 inline auto branching_contract(const HypergraphType &hypergraph,
                                size_t k,
-                               size_t num_runs = 0,
-                               bool verbose = false) {
+                               size_t num_runs = 0) {
   return hypergraph_util::minimum_of_runs<HypergraphType,
                                           branching_contract_<HypergraphType>,
-                                          default_num_runs>(hypergraph, k, num_runs, verbose);
+                                          default_num_runs,
+                                          Verbose>(hypergraph, k, num_runs);
 }
 
 } // namespace fpz

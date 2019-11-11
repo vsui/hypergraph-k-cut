@@ -6,7 +6,7 @@
 
 /* Registry of cut functions. Adding functions to this will automatically add them to the CLI/tests.
  */
-template<typename HypergraphType>
+template<typename HypergraphType, bool Verbose = false>
 struct HypergraphMinimumCutRegistry {
   using MinimumCutFunction = std::add_pointer_t<HypergraphCut<HypergraphType>(const HypergraphType &)>;
   using MinimumCutFunctionWithVertex = std::add_pointer_t<HypergraphCut<HypergraphType>(const HypergraphType &, int)>;
@@ -38,18 +38,18 @@ struct HypergraphMinimumCutRegistry {
 
 private:
   static inline auto cxy_minimum_cut_(const HypergraphType &hypergraph) {
-    return cxy::cxy_contract(hypergraph, 2);
+    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, 2);
   };
 
   static inline auto fpz_minimum_cut_(const HypergraphType &hypergraph) {
-    return fpz::branching_contract(hypergraph, 2);
+    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, 2);
   };
 
   static inline auto cxy_k_cut_(const HypergraphType &hypergraph, size_t k) {
-    return cxy::cxy_contract(hypergraph, k);
+    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, k);
   }
 
   static inline auto fpz_k_cut_(const HypergraphType &hypergraph, size_t k) {
-    return fpz::branching_contract(hypergraph, k);
+    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, k);
   }
 };

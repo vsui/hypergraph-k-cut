@@ -52,7 +52,7 @@ bool parse_hypergraph(const std::string &filename, HypergraphType &hypergraph) {
 // Runs algorithm
 template<typename HypergraphType>
 int dispatch(Options options) {
-  HypergraphMinimumCutRegistry<HypergraphType> registry;
+  HypergraphMinimumCutRegistry<HypergraphType, true> registry;
 
   // Read hypergraph
   HypergraphType hypergraph;
@@ -76,28 +76,49 @@ int dispatch(Options options) {
 
   std::function<HypergraphCut<HypergraphType>(const HypergraphType &, size_t)> f;
 
-  if (options.k == 2) {
-    const auto it = registry.minimum_cut_functions.find(options.algorithm_name);
-    if (it == std::end(registry.minimum_cut_functions)) {
-      std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
-      return usage();
-    }
-    f = [it](const HypergraphType &h, int k) {
-      return it->second(h);
+  // Special logic to pass in number of runs
+  if (options.algorithm_name == "CXY") {
+    auto recommended_num_runs = cxy::default_num_runs(hypergraph, options.k);
+    std::cout << "Input how many times would you like to run the algorithm (recommended is " << recommended_num_runs
+              << " for low error probability)" << std::endl;
+    size_t num_runs;
+    std::cin >> num_runs;
+    f = [num_runs](const HypergraphType &h, size_t k) {
+      return cxy::cxy_contract<HypergraphType, true>(h, k, num_runs);
+    };
+  } else if (options.algorithm_name == "FPZ") {
+    auto recommended_num_runs = fpz::default_num_runs(hypergraph, options.k);
+    std::cout << "Input how many times would you like to run the algorithm (recommended is " << recommended_num_runs
+              << " for low error probability)" << std::endl;
+    size_t num_runs;
+    std::cin >> num_runs;
+    f = [num_runs](const HypergraphType &h, size_t k) {
+      return fpz::branching_contract<HypergraphType, true>(h, k, num_runs);
     };
   } else {
-    const auto it = registry.minimum_k_cut_functions.find(options.algorithm_name);
-    if (it == std::end(registry.minimum_k_cut_functions)) {
-      if (registry.minimum_cut_functions.find(options.algorithm_name) != std::end(registry.minimum_cut_functions)) {
-        std::cerr << "Algorithm \"" << options.algorithm_name
-                  << "\" is a minimum cut function and is only valid for k = 2" << std::endl;
-        return 1;
-      } else {
+    if (options.k == 2) {
+      const auto it = registry.minimum_cut_functions.find(options.algorithm_name);
+      if (it == std::end(registry.minimum_cut_functions)) {
         std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
         return usage();
       }
+      f = [it](const HypergraphType &h, int k) {
+        return it->second(h);
+      };
+    } else {
+      const auto it = registry.minimum_k_cut_functions.find(options.algorithm_name);
+      if (it == std::end(registry.minimum_k_cut_functions)) {
+        if (registry.minimum_cut_functions.find(options.algorithm_name) != std::end(registry.minimum_cut_functions)) {
+          std::cerr << "Algorithm \"" << options.algorithm_name
+                    << "\" is a minimum cut function and is only valid for k = 2" << std::endl;
+          return 1;
+        } else {
+          std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
+          return usage();
+        }
+      }
+      f = it->second;
     }
-    f = it->second;
   }
 
   // To check the results later we need a copy of the hypergraph since the cut function may modify it
