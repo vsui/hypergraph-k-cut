@@ -215,11 +215,11 @@ using ordering_t = std::add_pointer_t<std::vector<int>(const HypergraphType &, c
  * `maximum_adjacency_ordering`.
  */
 template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
-size_t vertex_ordering_minimum_cut_start_vertex(HypergraphType &hypergraph, const int a) {
-  size_t min_cut_of_phase = std::numeric_limits<size_t>::max();
+typename HypergraphType::EdgeWeight vertex_ordering_minimum_cut_start_vertex(HypergraphType &hypergraph, const int a) {
+  auto min_cut_of_phase = std::numeric_limits<typename HypergraphType::EdgeWeight>::max();
   while (hypergraph.num_vertices() > 1) {
     auto ordering = Ordering(hypergraph, a);
-    size_t cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
+    auto cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
     hypergraph = merge_vertices(hypergraph, *(std::end(ordering) - 2),
                                 *(std::end(ordering) - 1));
     min_cut_of_phase = std::min(min_cut_of_phase, cut_of_phase);
@@ -228,7 +228,7 @@ size_t vertex_ordering_minimum_cut_start_vertex(HypergraphType &hypergraph, cons
 }
 
 template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
-inline size_t vertex_ordering_mincut(HypergraphType &hypergraph) {
+inline typename HypergraphType::EdgeWeight vertex_ordering_mincut(HypergraphType &hypergraph) {
   const auto a = *std::begin(hypergraph.vertices());
   return vertex_ordering_minimum_cut_start_vertex<HypergraphType, Ordering>(hypergraph, a);
 }

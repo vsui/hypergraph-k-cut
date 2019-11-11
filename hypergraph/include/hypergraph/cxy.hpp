@@ -39,7 +39,9 @@ double cxy_delta(size_t n, size_t e, size_t k) {
 }
 
 template<typename HypergraphType>
-size_t cxy_contract_(HypergraphType &hypergraph, size_t k, [[maybe_unused]] size_t accumulated) {
+typename HypergraphType::EdgeWeight cxy_contract_(HypergraphType &hypergraph,
+                                                  size_t k,
+                                                  [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
   std::vector<int> candidates = {};
   std::vector<int> edge_ids;
   std::vector<double> deltas;
@@ -63,7 +65,7 @@ size_t cxy_contract_(HypergraphType &hypergraph, size_t k, [[maybe_unused]] size
 
     if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
       // TODO function for sum of all edge weights
-      typename HypergraphType::EdgeWeight cut = total_edge_weight(hypergraph);
+      auto cut = total_edge_weight(hypergraph);
       min_so_far = std::min(min_so_far, cut);
       break;
     }
@@ -115,8 +117,11 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
 }
 
 // Algorithm for calculating hypergraph min-k-cut from CXY '18
-template<typename HypergraphType, typename EdgeWeightType = size_t>
-inline size_t cxy_contract(const HypergraphType &hypergraph, size_t k, size_t num_runs = 0, bool verbose = false) {
+template<typename HypergraphType>
+inline typename HypergraphType::EdgeWeight cxy_contract(const HypergraphType &hypergraph,
+                                                        size_t k,
+                                                        size_t num_runs = 0,
+                                                        bool verbose = false) {
   return hypergraph_util::minimum_of_runs<HypergraphType,
                                           cxy_contract_<HypergraphType>,
                                           default_num_runs>(hypergraph, k, num_runs, verbose);

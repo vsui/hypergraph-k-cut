@@ -1,8 +1,9 @@
 #include <fstream>
 #include <iostream>
 #include <random>
-#include <sstream>
 #include <vector>
+
+#include <hypergraph/hypergraph.hpp>
 
 int main(int argc, char *argv[]) {
   if (argc != 4) {
@@ -27,8 +28,19 @@ int main(int argc, char *argv[]) {
   std::mt19937 e2(rd());
   std::uniform_real_distribution<> distribution(0, 1);
 
+  int input;
+  std::cout << "Enter \"1\" for an unweighted graph, \"2\" for a weighted graph" << std::endl;
+  std::cin >> input;
+  if (input != 1 && input != 2) {
+    std::cerr << "Bad input" << std::endl;
+    return 1;
+  }
+
+  bool unweighted = 1 == input;
+
   std::vector<std::vector<int>> edges;
-  for (int i = 0; i < n_edges; ++i) {
+  int i = 0;
+  while (i < n_edges) {
     std::vector<int> edge;
     while (edge.size() == 0) {
       edge = {};
@@ -38,28 +50,33 @@ int main(int argc, char *argv[]) {
         }
       }
     }
+    if (edge.size() < 2) {
+      continue;
+    }
     edges.push_back(std::move(edge));
+    ++i;
   }
 
   std::ofstream output;
   output.open(filename);
 
-  if (!output.is_open()) {
-    std::cerr << "Failed to open file" << std::endl;
-    return 1;
-  }
-
-  // hMETIS hypergraph format
-  output << n_edges << " " << n_vertices << std::endl;
-  for (const auto &edge : edges) {
-    output << edge[0];
-    for (auto it = std::cbegin(edge) + 1; it != std::cend(edge); ++it) {
-      output << " " << *it;
-    }
-    output << std::endl;
+  std::vector<int> vertices(n_vertices);
+  std::iota(std::begin(vertices), std::end(vertices), 0);
+  if (unweighted) {
+    Hypergraph hypergraph(vertices, edges);
+    output << hypergraph;
+  } else {
+    std::vector<std::pair<std::vector<int>, double>> weighted_edges;
+    std::transform(std::begin(edges),
+                   std::end(edges),
+                   std::back_inserter(weighted_edges),
+                   [&distribution, &e2](const auto &edge) {
+                     return std::make_pair(edge, distribution(e2));
+                   });
+    WeightedHypergraph<double> hypergraph(vertices, weighted_edges);
+    output << hypergraph;
   }
 
   output.close();
-
   std::cout << filename;
 }

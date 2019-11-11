@@ -120,7 +120,7 @@ public:
   using Heap = FibonacciHeap<EdgeWeightType>;
   using EdgeWeight = EdgeWeightType;
 
-  WeightedHypergraph() = delete;
+  WeightedHypergraph() = default;
 
   explicit WeightedHypergraph(const Hypergraph &hypergraph) : hypergraph_(hypergraph) {
     for (const auto &[edge_id, incident_on] : hypergraph.edges()) {
@@ -214,20 +214,21 @@ inline typename HypergraphType::EdgeWeight edge_weight(const HypergraphType &hyp
 
 /* Return the cost of all edges of a hypergraph combined
  */
-template<typename HypergraphType, typename EdgeWeightType = size_t>
-inline EdgeWeightType total_edge_weight(const HypergraphType &hypergraph) {
+template<typename HypergraphType>
+inline typename HypergraphType::EdgeWeight total_edge_weight(const HypergraphType &hypergraph) {
   // TODO could probably optimize for weighted hypergraphs by caching the weight, but then we would have to be a lot
   //      more careful about keeping edge_to_weights_ completely accurate
-  static_assert(
-      std::is_same_v<HypergraphType, Hypergraph> || std::is_same_v<HypergraphType, WeightedHypergraph<EdgeWeightType>>);
   if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
     return hypergraph.edges().size();
   } else {
-    return std::accumulate(hypergraph.edges().begin(), hypergraph.edges().end(), EdgeWeightType(0), [&hypergraph](
-        const EdgeWeightType accum,
-        const auto &a) {
-      return accum + hypergraph.edge_weight(a.first);
-    });
+    return std::accumulate(hypergraph.edges().begin(),
+                           hypergraph.edges().end(),
+                           typename HypergraphType::EdgeWeight(0),
+                           [&hypergraph](
+                               const typename HypergraphType::EdgeWeight accum,
+                               const auto &a) {
+                             return accum + hypergraph.edge_weight(a.first);
+                           });
   }
 }
 
@@ -262,8 +263,38 @@ std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);
 
 template<typename EdgeWeightType>
+std::istream &operator>>(std::istream &is, WeightedHypergraph<EdgeWeightType> &hypergraph) {
+  size_t num_edges, num_vertices;
+  is >> num_edges >> num_vertices;
+
+  std::vector<std::pair<std::vector<int>, EdgeWeightType>> edges;
+  std::string line;
+  std::getline(is, line); // Throw away first line
+
+  while (std::getline(is, line)) {
+    EdgeWeightType edge_weight;
+    std::vector<int> edge;
+    std::stringstream sstr(line);
+
+    sstr >> edge_weight;
+
+    int i;
+    while (sstr >> i) {
+      edge.push_back(i);
+    }
+    edges.emplace_back(edge, edge_weight);
+  }
+
+  std::vector<int> vertices(num_vertices);
+  std::iota(std::begin(vertices), std::end(vertices), 0);
+
+  hypergraph = WeightedHypergraph<EdgeWeightType>(vertices, edges);
+  return is;
+}
+
+template<typename EdgeWeightType>
 std::ostream &operator<<(std::ostream &os, const WeightedHypergraph<EdgeWeightType> &hypergraph) {
-  os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
+  os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << " 1" << std::endl;
   for (const auto &[edge_id, vertices] : hypergraph.edges()) {
     os << hypergraph.edge_weight(edge_id);
     for (const auto v : vertices) {
@@ -273,3 +304,6 @@ std::ostream &operator<<(std::ostream &os, const WeightedHypergraph<EdgeWeightTy
   }
   return os;
 }
+
+// Return true if the header of the output stream appears to be an hmetis file
+bool is_unweighted_hmetis_file(std::istream &is);

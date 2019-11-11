@@ -5,7 +5,9 @@
 namespace hypergraph_util {
 
 template<typename HypergraphType>
-using contract_t = std::add_pointer_t<typename HypergraphType::EdgeWeight(HypergraphType &, size_t, size_t)>;
+using contract_t = std::add_pointer_t<typename HypergraphType::EdgeWeight(HypergraphType &,
+                                                                          size_t,
+                                                                          typename HypergraphType::EdgeWeight)>;
 
 template<typename HypergraphType>
 using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, size_t)>;
@@ -32,11 +34,11 @@ typename HypergraphType::EdgeWeight minimum_of_runs(const HypergraphType &hyperg
   if (verbose) {
     std::cout << "Running algorithm " << num_runs << " times..." << std::endl;
   }
-  typename HypergraphType::EdgeWeight min_so_far = std::numeric_limits<size_t>::max();
+  auto min_so_far = std::numeric_limits<typename HypergraphType::EdgeWeight>::max();
   for (size_t i = 0; i < num_runs; ++i) {
     HypergraphType copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
-    size_t min_cut = Contract(copy, k, /* unused */ 0);
+    auto min_cut = Contract(copy, k, /* unused */ 0);
     auto stop = std::chrono::high_resolution_clock::now();
     min_so_far = std::min(min_so_far, min_cut);
     if (verbose) {

@@ -196,24 +196,42 @@ std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
 
 std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
   os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
-  os << "VERTICES\n";
 
-  for (const auto v : hypergraph.vertices()) {
-    os << v << ": ";
-    for (const int e : hypergraph.edges_incident_on(v)) {
-      os << e << " ";
-    }
-    os << std::endl;
-  }
-
-  os << "EDGES\n";
   for (const auto &[id, vertices] : hypergraph.edges()) {
-    os << id << ": ";
     for (const int v : vertices) {
       os << v << " ";
     }
     os << std::endl;
   }
   return os;
+}
+
+//std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
+//  os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
+//  os << "VERTICES\n";
+//
+//  for (const auto v : hypergraph.vertices()) {
+//    os << v << ": ";
+//    for (const int e : hypergraph.edges_incident_on(v)) {
+//      os << e << " ";
+//    }
+//    os << std::endl;
+//  }
+//
+//  os << "EDGES\n";
+//  for (const auto &[id, vertices] : hypergraph.edges()) {
+//    os << id << ": ";
+//    for (const int v : vertices) {
+//      os << v << " ";
+//    }
+//    os << std::endl;
+//  }
+//  return os;
+//}
+
+bool is_unweighted_hmetis_file(std::istream &is) {
+  std::string line;
+  std::getline(is, line);
+  return std::count(std::begin(line), std::end(line), ' ') == 1;
 }
 
