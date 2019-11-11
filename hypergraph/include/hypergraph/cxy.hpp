@@ -39,9 +39,9 @@ double cxy_delta(size_t n, size_t e, size_t k) {
 }
 
 template<typename HypergraphType>
-typename HypergraphType::EdgeWeight cxy_contract_(HypergraphType &hypergraph,
-                                                  size_t k,
-                                                  [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
+                                            size_t k,
+                                            [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
   std::vector<int> candidates = {};
   std::vector<int> edge_ids;
   std::vector<double> deltas;
@@ -80,7 +80,13 @@ typename HypergraphType::EdgeWeight cxy_contract_(HypergraphType &hypergraph,
     hypergraph = hypergraph.contract(sampled_id);
   }
 
-  return min_so_far;
+  std::vector<std::vector<int>> partitions;
+  for (const auto v : hypergraph.vertices()) {
+    const auto &partition = hypergraph.vertices_within(v);
+    partitions.emplace_back(std::begin(partition), std::end(partition));
+  }
+
+  return HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), min_so_far);
 }
 
 /* n choose r
@@ -118,10 +124,10 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
 
 // Algorithm for calculating hypergraph min-k-cut from CXY '18
 template<typename HypergraphType>
-inline typename HypergraphType::EdgeWeight cxy_contract(const HypergraphType &hypergraph,
-                                                        size_t k,
-                                                        size_t num_runs = 0,
-                                                        bool verbose = false) {
+inline auto cxy_contract(const HypergraphType &hypergraph,
+                         size_t k,
+                         size_t num_runs = 0,
+                         bool verbose = false) {
   return hypergraph_util::minimum_of_runs<HypergraphType,
                                           cxy_contract_<HypergraphType>,
                                           default_num_runs>(hypergraph, k, num_runs, verbose);

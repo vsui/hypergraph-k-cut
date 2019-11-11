@@ -11,6 +11,105 @@
 
 class KTrimmedCertificate;
 
+template<typename HypergraphType>
+struct HypergraphCut {
+  explicit HypergraphCut(typename HypergraphType::EdgeWeight value) : value(value) {}
+
+  template<typename It>
+  HypergraphCut(It begin, It end, typename HypergraphType::EdgeWeight value): partitions(), value(value) {
+    for (auto it = begin; it != end; ++it) {
+      partitions.emplace_back(std::begin(*it), std::end(*it));
+    }
+  }
+
+  bool operator<(const HypergraphCut &other) const {
+    return value < other.value;
+  }
+
+  std::vector<std::vector<int>> partitions;
+  typename HypergraphType::EdgeWeight value;
+
+  // Just returns an invalid cut with maximum value for use as a placeholder value
+  static HypergraphCut max() {
+    return HypergraphCut(std::numeric_limits<typename HypergraphType::EdgeWeight>::max());
+  }
+};
+
+template<typename HypergraphType>
+bool cut_is_valid(const HypergraphCut<HypergraphType> &cut, const HypergraphType &hypergraph, size_t k) {
+  // Check number of partitions
+  if (cut.partitions.size() != k) {
+    return false;
+  }
+
+  // Check all vertices in hypergraph are in one of the partitions
+  size_t n_vertices = std::accumulate(std::begin(cut.partitions),
+                                      std::end(cut.partitions),
+                                      0,
+                                      [](const auto accum, const auto partition) {
+                                        return accum + partition.size();
+                                      });
+  if (n_vertices != hypergraph.num_vertices()) {
+    return false;
+  }
+
+  std::set<int> in_partitions;
+  for (const auto &partition : cut.partitions) {
+    for (const auto v : partition) {
+      in_partitions.emplace(v);
+    }
+  }
+  std::set<int> in_hypergraph(std::begin(hypergraph.vertices()), std::end(hypergraph.vertices()));
+  if (in_partitions != in_hypergraph) {
+    return false;
+  }
+
+  // Check cut value is as expected
+  constexpr auto edge_entirely_inside_partition =
+      [](const auto edge_begin, const auto edge_end, const auto partition_begin, const auto partition_end) {
+        return std::all_of(edge_begin, edge_end, [partition_begin, partition_end](const auto v) {
+          return std::find(partition_begin, partition_end, v) != partition_end;
+        });
+      };
+
+  typename HypergraphType::EdgeWeight expected_cut_value = 0;
+  for (const auto &edge : hypergraph.edges()) {
+    // Destructured bindings cannot be captured in lambdas
+    const auto &edge_id = edge.first;
+    const auto &vertices = edge.second;
+    const bool none_of_edges_entirely_inside_partition =
+        std::none_of(std::begin(cut.partitions),
+                     std::end(cut.partitions),
+                     [edge_entirely_inside_partition, vertices](const auto &partition) {
+                       return edge_entirely_inside_partition(
+                           std::begin(vertices),
+                           std::end(vertices),
+                           std::begin(partition),
+                           std::end(partition)
+                       );
+                     });
+    if (none_of_edges_entirely_inside_partition) {
+      expected_cut_value += edge_weight(hypergraph, edge_id);
+    }
+  }
+  return expected_cut_value == cut.value;
+}
+
+template<typename HypergraphType>
+std::ostream &operator<<(std::ostream &os, const HypergraphCut<HypergraphType> &cut) {
+  os << "VALUE: " << cut.value << std::endl;
+  size_t i = 1;
+  for (const auto &partition: cut.partitions) {
+    os << "PARTITION " << i << ":";
+    for (const auto v : partition) {
+      os << " " << v;
+    }
+    os << std::endl;
+    ++i;
+  }
+  return os;
+}
+
 class Hypergraph {
 public:
   using Heap = BucketHeap;
@@ -91,19 +190,28 @@ public:
     return copy.contract(new_e);
   }
 
+  /* When an edge is contracted into a single vertex the original vertices in the edge can be stored and referred to
+   * later using this method. This is useful for calculating the actual partitions that make up the cuts.
+   */
+  const std::list<int> &vertices_within(const int v) const;
+
 private:
   friend class KTrimmedCertificate;
 
-  // Constructor that directly sets adjacency lists and next vertex ID
+  // Constructor that directly sets adjacency lists and next vertex ID (assuming that you just contracted an edge)
   Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
              std::unordered_map<int, std::vector<int>> &&edges,
-             int next_vertex_id, int next_edge_id);
+             const Hypergraph &old);
 
   // Map of vertex IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> vertices_;
 
   // Map of edge IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> edges_;
+
+  // Map of vertex IDs -> the vertices that have been contracted into this vertex.
+  // Note that in the interest of performance, old entries may not be deleted (but each entry is immutable)
+  std::unordered_map<int, std::list<int>> vertices_within_;
 
   int next_vertex_id_;
   int next_edge_id_;
@@ -194,6 +302,10 @@ public:
     return copy.contract(new_e);
   }
 
+  const std::list<int> &vertices_within(const int v) const {
+    return hypergraph_.vertices_within(v);
+  }
+
 private:
   WeightedHypergraph(const Hypergraph &hypergraph, const std::unordered_map<int, EdgeWeightType> edge_weights) :
       hypergraph_(hypergraph), edges_to_weights_(edge_weights) {}
@@ -237,15 +349,33 @@ inline typename HypergraphType::EdgeWeight total_edge_weight(const HypergraphTyp
  * Time complexity: O(m), where m is the number of edges
  */
 template<typename HypergraphType>
-typename HypergraphType::EdgeWeight one_vertex_cut(const HypergraphType &hypergraph, const int v) {
+HypergraphCut<HypergraphType> one_vertex_cut(const HypergraphType &hypergraph, const int v) {
+  // Get cut-value
+  typename HypergraphType::EdgeWeight cut_value = 0;
   if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
-    return hypergraph.edges_incident_on(v).size();
+    cut_value = hypergraph.edges_incident_on(v).size();
+  } else {
+    for (const auto e : hypergraph.edges_incident_on(v)) {
+      cut_value += edge_weight(hypergraph, e);
+    }
   }
-  typename HypergraphType::EdgeWeight cut = 0;
-  for (const auto e : hypergraph.edges_incident_on(v)) {
-    cut += edge_weight(hypergraph, e);
+
+  // Get partitions
+  // TODO can't use splice here because we need to keep the vertices valid
+  std::list<int> partitions[2] = {{}, {}};
+  partitions[0].insert(std::end(partitions[0]),
+                       std::begin(hypergraph.vertices_within(v)), std::end(hypergraph.vertices_within(v)));
+  for (const int u : hypergraph.vertices()) {
+    if (u == v) {
+      continue;
+    }
+    partitions[1].insert(std::end(partitions[1]),
+                         std::begin(hypergraph.vertices_within(u)), std::end(hypergraph.vertices_within(u)));
   }
-  return cut;
+
+  return HypergraphCut<HypergraphType>(std::begin(partitions),
+                                       std::end(partitions),
+                                       cut_value);
 }
 
 /* Return a new hypergraph with vertices s and t merged.

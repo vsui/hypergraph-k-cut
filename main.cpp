@@ -56,7 +56,7 @@ int dispatch(Options options) {
     return 1;
   }
 
-  std::function<typename HypergraphType::EdgeWeight(const HypergraphType &, size_t)> f;
+  std::function<HypergraphCut<HypergraphType>(const HypergraphType &, size_t)> f;
 
   if (options.k == 2) {
     const auto it = registry.minimum_cut_functions.find(options.algorithm_name);
@@ -82,8 +82,11 @@ int dispatch(Options options) {
     f = it->second;
   }
 
+  // To check the results later we need a copy of the hypergraph since the cut function may modify it
+  HypergraphType copy(hypergraph);
+
   auto start = std::chrono::high_resolution_clock::now();
-  auto cut_size = f(hypergraph, options.k);
+  const auto cut = f(hypergraph, options.k);
   auto stop = std::chrono::high_resolution_clock::now();
 
   std::cout << "Algorithm took "
@@ -91,8 +94,11 @@ int dispatch(Options options) {
                 start)
                 .count()
             << " milliseconds\n";
-  std::cout << "The minimum cut size is " << cut_size << std::endl;
-
+  std::cout << cut;
+  if (!cut_is_valid(cut, copy, options.k)) {
+    // TODO error message
+    std::cout << "CUT IS NOT VALID" << std::endl;
+  }
   return 0;
 }
 

@@ -19,6 +19,7 @@ Hypergraph::Hypergraph(const std::vector<int> &vertices,
   assert(vertices.size() > 0);
   for (const int v : vertices) {
     vertices_[v] = {};
+    vertices_within_[v] = {v};
   }
   int e_i = -1;
   for (const auto &incident_vertices : edges) {
@@ -29,11 +30,12 @@ Hypergraph::Hypergraph(const std::vector<int> &vertices,
   }
 }
 
+// TODO needing to copy vertices_within_ may be concerning from a performance standpoint
 Hypergraph::Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
                        std::unordered_map<int, std::vector<int>> &&edges,
-                       int next_vertex_id, int next_edge_id)
-    : vertices_(vertices), edges_(edges), next_vertex_id_(next_vertex_id),
-      next_edge_id_(next_edge_id) {}
+                       const Hypergraph &old)
+    : vertices_(vertices), edges_(edges), next_vertex_id_(old.next_vertex_id_),
+      next_edge_id_(old.next_edge_id_), vertices_within_(old.vertices_within_) {}
 
 size_t Hypergraph::num_vertices() const { return vertices_.size(); }
 
@@ -78,6 +80,8 @@ bool Hypergraph::is_valid() const {
 /* Returns a new hypergraph with the edge contracted. Assumes that there is
  * such an edge in the hypergraph */
 Hypergraph Hypergraph::contract(const int edge_id) const {
+  std::vector<int> old_edge = edges_.at(edge_id);
+
   // TODO verify that inserts actually insert (not overwrite)
   // Set V' := V \ e (do not copy incidence lists)
   std::unordered_map<int, std::vector<int>> new_vertices;
@@ -133,8 +137,16 @@ Hypergraph Hypergraph::contract(const int edge_id) const {
     }
   }
 
-  Hypergraph new_hypergraph(std::move(new_vertices), std::move(new_edges),
-                            next_vertex_id_ + 1, next_edge_id_);
+  Hypergraph new_hypergraph(std::move(new_vertices), std::move(new_edges), *this);
+  new_hypergraph.next_vertex_id_++;
+
+  // Update vertices_within_ of new hypergraph
+  std::list<int> edges_within_new_v;
+  for (const auto v : old_edge) {
+    edges_within_new_v.splice(std::end(edges_within_new_v), std::move(new_hypergraph.vertices_within_.at(v)));
+    new_hypergraph.vertices_within_.erase(v);
+  }
+  new_hypergraph.vertices_within_.insert({v_e, edges_within_new_v});
 
   // May be useful for debugging later
   /*
@@ -228,6 +240,10 @@ std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
 //  }
 //  return os;
 //}
+
+const std::list<int> &Hypergraph::vertices_within(const int v) const {
+  return vertices_within_.at(v);
+}
 
 bool is_unweighted_hmetis_file(std::istream &is) {
   std::string line;

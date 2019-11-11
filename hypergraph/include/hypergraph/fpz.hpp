@@ -41,9 +41,9 @@ double redo_probability(size_t n, size_t e, size_t k) {
  *               min cut
  * */
 template<typename HypergraphType>
-typename HypergraphType::EdgeWeight branching_contract_(HypergraphType &hypergraph,
-                                                        size_t k,
-                                                        typename HypergraphType::EdgeWeight accumulated = 0) {
+HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
+                                                  size_t k,
+                                                  typename HypergraphType::EdgeWeight accumulated = 0) {
 #ifndef NDEBUG
   assert(hypergraph.is_valid());
 #endif
@@ -63,7 +63,12 @@ typename HypergraphType::EdgeWeight branching_contract_(HypergraphType &hypergra
 
   // If no edges remain, return the answer
   if (hypergraph.num_edges() == 0) {
-    return accumulated;
+    std::vector<std::vector<int>> partitions;
+    for (const auto v : hypergraph.vertices()) {
+      const auto &partition = hypergraph.vertices_within(v);
+      partitions.emplace_back(std::begin(partition), std::end(partition));
+    }
+    return HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), accumulated);
   }
 
   // Static random device for random sampling and generating random numbers
@@ -104,10 +109,10 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
 }
 
 template<typename HypergraphType>
-inline typename HypergraphType::EdgeWeight branching_contract(const HypergraphType &hypergraph,
-                                                              size_t k,
-                                                              size_t num_runs = 0,
-                                                              bool verbose = false) {
+inline auto branching_contract(const HypergraphType &hypergraph,
+                               size_t k,
+                               size_t num_runs = 0,
+                               bool verbose = false) {
   return hypergraph_util::minimum_of_runs<HypergraphType,
                                           branching_contract_<HypergraphType>,
                                           default_num_runs>(hypergraph, k, num_runs, verbose);

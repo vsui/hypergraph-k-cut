@@ -5,9 +5,9 @@
 namespace hypergraph_util {
 
 template<typename HypergraphType>
-using contract_t = std::add_pointer_t<typename HypergraphType::EdgeWeight(HypergraphType &,
-                                                                          size_t,
-                                                                          typename HypergraphType::EdgeWeight)>;
+using contract_t = std::add_pointer_t<HypergraphCut<HypergraphType>(HypergraphType &,
+                                                                    size_t,
+                                                                    typename HypergraphType::EdgeWeight)>;
 
 template<typename HypergraphType>
 using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, size_t)>;
@@ -24,17 +24,17 @@ template<
     typename HypergraphType,
     contract_t<HypergraphType> Contract,
     default_num_runs_t<HypergraphType> DefaultNumRuns>
-typename HypergraphType::EdgeWeight minimum_of_runs(const HypergraphType &hypergraph,
-                                                    size_t k,
-                                                    size_t num_runs,
-                                                    bool verbose) {
+HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
+                                              size_t k,
+                                              size_t num_runs,
+                                              bool verbose) {
   if (num_runs == 0) {
     num_runs = DefaultNumRuns(hypergraph, k);
   }
   if (verbose) {
     std::cout << "Running algorithm " << num_runs << " times..." << std::endl;
   }
-  auto min_so_far = std::numeric_limits<typename HypergraphType::EdgeWeight>::max();
+  auto min_so_far = HypergraphCut<HypergraphType>::max();
   for (size_t i = 0; i < num_runs; ++i) {
     HypergraphType copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
@@ -46,7 +46,7 @@ typename HypergraphType::EdgeWeight minimum_of_runs(const HypergraphType &hyperg
                 << std::chrono::duration_cast<std::chrono::milliseconds>(stop -
                     start)
                     .count()
-                << " milliseconds, got " << min_cut << ", min is " << min_so_far
+                << " milliseconds, got " << min_cut.value << ", min is " << min_so_far.value
                 << "\n";
     }
   }

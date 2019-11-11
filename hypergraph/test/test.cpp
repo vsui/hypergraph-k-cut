@@ -296,180 +296,17 @@ TEST(QueyranneOrdering, TightnessMatchesConnectivity) {
   }
 }
 
-TEST(QueyranneOrdering, UnweightedVsWeightedSanityCheck) {
-  for (int i = 1; i <= 10; ++i) {
-    auto unweighted = factory();
-    auto weighted = WeightedHypergraph<size_t>(unweighted);
-
-    const auto unweighted_cut =
-        vertex_ordering_minimum_cut_start_vertex<decltype(unweighted), queyranne_ordering>(unweighted, i);
-    const auto weighted_cut =
-        vertex_ordering_minimum_cut_start_vertex<decltype(weighted), queyranne_ordering>(weighted, i);
-
-    ASSERT_EQ(unweighted_cut, weighted_cut);
-  }
-}
-
-TEST(MaximumAdjacencyMinCut, Works) {
-  for (int i = 1; i <= 10; ++i) {
-    auto h = factory();
-    const auto f = vertex_ordering_minimum_cut_start_vertex<decltype(h), maximum_adjacency_ordering>;
-    ASSERT_EQ(f(h, i),
-              3);
-  }
-}
-
-TEST(MaximumAdjacencyMinCut, WeightedUnweightedSanityCheck) {
-  for (int i = 1; i <= 10; ++i) {
-    auto unweighted = factory();
-    auto weighted = WeightedHypergraph<size_t>(unweighted);
-
-    const auto unweighted_cut =
-        vertex_ordering_minimum_cut_start_vertex<decltype(unweighted), maximum_adjacency_ordering>(unweighted, i);
-    const auto weighted_cut =
-        vertex_ordering_minimum_cut_start_vertex<decltype(weighted), maximum_adjacency_ordering>(weighted, i);
-
-    ASSERT_EQ(unweighted_cut, weighted_cut);
-  }
-}
-
-TEST(TightMinCut, Works) {
-  for (int i = 1; i <= 10; ++i) {
-    auto h = factory();
-    const auto f = vertex_ordering_minimum_cut_start_vertex<decltype(h), tight_ordering>;
-    ASSERT_EQ(f(h, i), 3);
-  }
-}
-
-TEST(QueyranneMinCut, Works) {
-  for (int i = 1; i <= 10; ++i) {
-    auto h = factory();
-    const auto f = vertex_ordering_minimum_cut_start_vertex<decltype(h), queyranne_ordering>;
-    ASSERT_EQ(f(h, i), 3);
-  }
-}
-
-TEST(MaximumAdjacencyMinCut, WeightedWorks) {
-  const auto factory = weighted_factory();
-  for (int i : factory.vertices()) {
-    auto h = weighted_factory();
-    const auto f = vertex_ordering_minimum_cut_start_vertex<decltype(h), maximum_adjacency_ordering>;
-    ASSERT_EQ(f(h, i), 5);
-  }
-}
-
-TEST(TightOrderingMinCut, WeightedWorks) {
-  const auto factory = weighted_factory();
-  for (int i : factory.vertices()) {
-    auto h = weighted_factory();
-    const auto f = vertex_ordering_minimum_cut_start_vertex<decltype(h), tight_ordering>;
-    ASSERT_EQ(f(h, i), 5);
-  }
-}
-
-TEST(QueyranneOrderingMinCut, WeightedWorks) {
-  const auto factory = weighted_factory();
-  for (int i : factory.vertices()) {
-    auto h = weighted_factory();
-    const auto f = vertex_ordering_minimum_cut_start_vertex<decltype(h), queyranne_ordering>;
-    ASSERT_EQ(f(h, i), 5);
-  }
-}
-
 TEST(KTrimmedCertificate, Works) {
   for (size_t k = 1; k <= 10; ++k) {
     auto h = factory();
     KTrimmedCertificate certifier(h);
     Hypergraph certificate = certifier.certificate(k);
     const auto f = vertex_ordering_minimum_cut_start_vertex<decltype(h), tight_ordering>;
-    ASSERT_EQ(f(certificate, 1),
+    ASSERT_EQ(f(certificate, 1).value,
               std::min(k, 3ul));
   }
 }
 
-TEST(KCut, SanityCheck) {
-  for (size_t k = 3; k <= 5; ++k) {
-    Hypergraph h1 = factory();
-    Hypergraph h2 = factory();
-
-    ASSERT_EQ(cxy::cxy_contract(h1, k), fpz::branching_contract(h2, k));
-  }
-}
-
-TEST(KCut, WeightedSanityCheck) {
-  const WeightedHypergraph<size_t> h = {
-      {0, 1, 2, 3, 4, 5},
-      {
-          {{0, 1, 2}, 3},
-          {{1, 2, 3}, 4},
-          {{3, 4, 5}, 3},
-          {{0, 3, 5}, 7},
-          {{0, 1, 2, 3, 4}, 2}
-      }
-  };
-
-  for (size_t k = 3; k <= 5; ++k) {
-    ASSERT_EQ(cxy::cxy_contract(h, k), fpz::branching_contract(h, k));
-  }
-}
-
-TEST(KCut, CXY) {
-  Hypergraph h = factory();
-  size_t ans = cxy::cxy_contract(h, 4);
-  ASSERT_EQ(ans, 6);
-}
-
-TEST(KCut, WeightedCXY) {
-  WeightedHypergraph<size_t> h = {
-      {0, 1, 2, 3, 4, 5},
-      {
-          {{0, 1, 2}, 3},
-          {{1, 2, 3}, 4},
-          {{3, 4, 5}, 3},
-          {{0, 3, 5}, 7},
-          {{0, 1, 2, 3, 4}, 2}
-      }
-  };
-  ASSERT_EQ(cxy::cxy_contract(h, 3), 9);
-}
-
-TEST(KCut, UnweightedVsWeightedSanityCXY) {
-  for (size_t k = 3; k <= 5; ++k) {
-    Hypergraph h1 = factory();
-    WeightedHypergraph<size_t> h2(h1);
-
-    ASSERT_EQ(cxy::cxy_contract(h1, k), cxy::cxy_contract(h2, k));
-  }
-}
-
-TEST(KCut, FPZ) {
-  Hypergraph h = factory();
-  size_t ans = fpz::branching_contract(h, 4);
-  ASSERT_EQ(ans, 6);
-}
-
-TEST(KCut, WeightedFPZ) {
-  WeightedHypergraph<size_t> h = {
-      {0, 1, 2, 3, 4, 5},
-      {
-          {{0, 1, 2}, 3},
-          {{1, 2, 3}, 4},
-          {{3, 4, 5}, 3},
-          {{0, 3, 5}, 7},
-          {{0, 1, 2, 3, 4}, 2}
-      }
-  };
-  ASSERT_EQ(fpz::branching_contract(h, 3), 9);
-}
-
-TEST(KCut, UnweightedVsWeightedSanityFPZ) {
-  for (size_t k = 3; k <= 5; ++k) {
-    Hypergraph h1 = factory();
-    WeightedHypergraph<size_t> h2(h1);
-
-    ASSERT_EQ(fpz::branching_contract(h1, k), fpz::branching_contract(h2, k));
-  }
-}
 
 TEST(Hypergraph, ContractSimple) {
   Hypergraph h = {
@@ -715,39 +552,45 @@ private:
               {4, 16},
               {5, 19}
           }
-      }
+      },
   };
 };
 
 TYPED_TEST_SUITE_P(MinimumCutTest);
 
 TYPED_TEST_P(MinimumCutTest, MinimumCutWorks) {
-  for (const auto &[name, f] : this->registry.minimum_cut_functions) {
+  for (const auto &[name, minimum_cut] : this->registry.minimum_cut_functions) {
     for (const auto &[hypergraph, cut_values] : this->test_cases()) {
       TypeParam copy(hypergraph);
-      EXPECT_EQ(f(copy), cut_values.at(2)) << name << " failed.";
+      const auto cut = minimum_cut(copy);
+      EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2)) << name << " produced invalid cut\n" << cut;
+      EXPECT_EQ(cut.value, cut_values.at(2)) << name << " produced a non-minimal cut";
     }
   }
 }
 
 TYPED_TEST_P(MinimumCutTest, VertexOrderingMinimumCutAnyStartVertexWorks) {
-  for (const auto &[name, f] : this->registry.minimum_cut_functions_with_vertex) {
+  for (const auto &[name, minimum_cut] : this->registry.minimum_cut_functions_with_vertex) {
     for (const auto &[hypergraph, cut_values] : this->test_cases()) {
       for (const auto v : hypergraph.vertices()) {
         TypeParam copy(hypergraph);
-        EXPECT_EQ(f(copy, v), cut_values.at(2)) << name << " failed.";
+        const auto cut = minimum_cut(copy, v);
+        EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2)) << name << " produced invalid cut\n" << cut;
+        EXPECT_EQ(cut.value, cut_values.at(2)) << name << " produced a non-minimal cut";
       }
     }
   }
 }
 
 TYPED_TEST_P(MinimumCutTest, MinimumKCutWorks) {
-  for (const auto &[name, f] : this->registry.minimum_k_cut_functions) {
+  for (const auto &[name, minimum_k_cut] : this->registry.minimum_k_cut_functions) {
     for (const auto &[hypergraph, cut_values] : this->test_cases()) {
       for (const auto &[k, cut_value] : cut_values) {
         // Technically can skip k = 2 since other test does this.
         TypeParam copy(hypergraph);
-        EXPECT_EQ(f(copy, k), cut_value) << name << " " << k << "-cut failed.\n" << hypergraph;
+        const auto cut = minimum_k_cut(copy, k);
+        EXPECT_TRUE(cut_is_valid(cut, hypergraph, k)) << name << " " << k << "-cut produced invalid cut\n" << cut;
+        EXPECT_EQ(cut.value, cut_values.at(k)) << name << " " << k << "-cut produced a non-minimal cut";
       }
     }
   }

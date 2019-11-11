@@ -2,14 +2,15 @@
 
 #include <type_traits>
 
+#include "hypergraph/hypergraph.hpp"
+
 /* Registry of cut functions. Adding functions to this will automatically add them to the CLI/tests.
  */
 template<typename HypergraphType>
 struct HypergraphMinimumCutRegistry {
-  using MinimumCutFunction = std::add_pointer_t<typename HypergraphType::EdgeWeight(const HypergraphType &)>;
-  using MinimumCutFunctionWithVertex = std::add_pointer_t<typename HypergraphType::EdgeWeight(const HypergraphType &,
-                                                                                              int)>;
-  using MinimumKCutFunction = std::add_pointer_t<typename HypergraphType::EdgeWeight(const HypergraphType &, size_t k)>;
+  using MinimumCutFunction = std::add_pointer_t<HypergraphCut<HypergraphType>(const HypergraphType &)>;
+  using MinimumCutFunctionWithVertex = std::add_pointer_t<HypergraphCut<HypergraphType>(const HypergraphType &, int)>;
+  using MinimumKCutFunction = std::add_pointer_t<HypergraphCut<HypergraphType>(const HypergraphType &, size_t k)>;
 
   const std::map<std::string, MinimumKCutFunction> minimum_k_cut_functions =
       {
@@ -36,19 +37,19 @@ struct HypergraphMinimumCutRegistry {
       };
 
 private:
-  static typename HypergraphType::EdgeWeight cxy_minimum_cut_(const HypergraphType &hypergraph) {
+  static inline auto cxy_minimum_cut_(const HypergraphType &hypergraph) {
     return cxy::cxy_contract(hypergraph, 2);
   };
 
-  static typename HypergraphType::EdgeWeight fpz_minimum_cut_(const HypergraphType &hypergraph) {
+  static inline auto fpz_minimum_cut_(const HypergraphType &hypergraph) {
     return fpz::branching_contract(hypergraph, 2);
   };
 
-  static typename HypergraphType::EdgeWeight cxy_k_cut_(const HypergraphType &hypergraph, size_t k) {
+  static inline auto cxy_k_cut_(const HypergraphType &hypergraph, size_t k) {
     return cxy::cxy_contract(hypergraph, k);
   }
 
-  static typename HypergraphType::EdgeWeight fpz_k_cut_(const HypergraphType &hypergraph, size_t k) {
+  static inline auto fpz_k_cut_(const HypergraphType &hypergraph, size_t k) {
     return fpz::branching_contract(hypergraph, k);
   }
 };
