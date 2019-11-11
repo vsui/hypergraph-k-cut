@@ -19,6 +19,55 @@ To run the algorithm, run `./hcut <input file> <k> <algorithm>`
 
 To run the tests, run `./hypergraph/test/hypergraph_test`
 
+## Algorithms
+
+KW: The hypergraph min-cut algorithm described in [KW'96]. Based on vertex orderings.
+
+Q: The hypergraph min-cut algorithm described in [Q'98]. Based on vertex orderings.
+
+MW: The hypergraph min-cut algorithm described in [MW'00]. Based on vertex orderings.
+
+CXY: The hypergraph k-cut algorithm described in [CXY'18]. Based on random contractions.
+
+FPZ: The hypergraph k-cut algorithm described in [FPZ'19]. Based on random contractions.
+
+## Input
+
+The input file should be in the hMETIS hypergraph format.
+
+For unweighted graphs the input should look like:
+```
+<number of hyperedges> <number of vertices>
+<edge>
+<edge>
+...
+```
+
+With real numbers, this would look like:
+```
+3 6
+0 1
+1 2 3
+2 3 4 5 6
+```
+
+For weighted graphs the input file should look like:
+```
+<number of hyperedges> <number of vertices> 1
+<edge weight> <edge>
+<edge weight> <edge>
+<edge weight> <edge>
+...
+```
+
+Here, the edge weight can be a non-negative decimal number:
+```
+3 6
+0.342 0 1
+1.23 1 2 3
+10.34 2 3 4 5 6
+```
+
 ## References
 
 [KW'96] Klimmek, R. and Wagner, F., 1996. A Simple Hypergraph Min Cut Algorithm
