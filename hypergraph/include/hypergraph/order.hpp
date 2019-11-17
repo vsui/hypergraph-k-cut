@@ -8,7 +8,6 @@
 #include <boost/heap/fibonacci_heap.hpp>
 
 #include "hypergraph/heap.hpp"
-#include "hypergraph/certificate.hpp"
 #include "hypergraph/hypergraph.hpp"
 
 // A context for vertex ordering calculations
@@ -243,29 +242,3 @@ inline HypergraphCut<HypergraphType> vertex_ordering_mincut(HypergraphType &hype
   return vertex_ordering_minimum_cut_start_vertex<HypergraphType, Ordering>(hypergraph, a);
 }
 
-/* Given a hypergraph and a function that orders the vertices, find the minimum
- * cut through an exponential search on the minimum cuts of k-trimmed
- * certificates. See [CX'09] for more details.
- *
- * Time complexity: O(p + cn^2), where p is the size of the hypergraph, c is the
- * value of the minimum cut, and n is the number of vertices
- *
- * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
- * `maximum_adjacency_ordering`.
- */
-template<ordering_t<Hypergraph> Ordering>
-size_t vertex_ordering_mincut_certificate(Hypergraph &hypergraph, const int a) {
-  KTrimmedCertificate gen(hypergraph);
-  size_t k = 1;
-  while (true) {
-    // Copy hypergraph
-    std::cout << "Trying k=" << k << std::endl;
-    Hypergraph certificate = gen.certificate(k);
-    std::cout << "Tried k=" << k << std::endl;
-    size_t mincut = vertex_ordering_mincut<Hypergraph, Ordering>(certificate, a);
-    if (mincut < k) {
-      return mincut;
-    }
-    k *= 2;
-  }
-}

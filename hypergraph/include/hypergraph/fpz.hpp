@@ -1,4 +1,5 @@
 // Branching contraction algorithm from [FPZ'19]
+#pragma once
 
 #include <cmath>
 #include <iostream>

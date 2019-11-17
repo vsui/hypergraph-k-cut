@@ -1,4 +1,5 @@
 // Algorithms for calculating hypergraph min-k-cut from [CXY'18]
+#pragma once
 
 #include <algorithm>
 #include <chrono>

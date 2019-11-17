@@ -11,6 +11,7 @@
 
 class KTrimmedCertificate;
 
+
 template<typename HypergraphType>
 struct HypergraphCut {
   explicit HypergraphCut(typename HypergraphType::EdgeWeight value) : value(value) {}
@@ -127,6 +128,13 @@ std::ostream &operator<<(std::ostream &os, const HypergraphCut<HypergraphType> &
   }
   return os;
 }
+
+template<typename HypergraphType>
+using MinimumCutFunction = std::function<HypergraphCut<HypergraphType>(HypergraphType &)>;
+template<typename HypergraphType>
+using MinimumCutFunctionWithVertex = std::function<HypergraphCut<HypergraphType>(HypergraphType &, int)>;
+template<typename HypergraphType>
+using MinimumKCutFunction = std::function<HypergraphCut<HypergraphType>(HypergraphType &, size_t k)>;
 
 class Hypergraph {
 public:

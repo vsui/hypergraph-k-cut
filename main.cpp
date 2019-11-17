@@ -7,6 +7,7 @@
 #include "hypergraph/cxy.hpp"
 #include "hypergraph/fpz.hpp"
 #include "hypergraph/hypergraph.hpp"
+#include "hypergraph/certificate.hpp"
 #include "hypergraph/order.hpp"
 #include "hypergraph/registry.hpp"
 
@@ -74,7 +75,7 @@ int dispatch(Options options) {
     return 1;
   }
 
-  std::function<HypergraphCut<HypergraphType>(const HypergraphType &, size_t)> f;
+  MinimumKCutFunction<HypergraphType> f;
 
   // Special logic to pass in number of runs
   if (options.algorithm_name == "CXY") {
@@ -102,7 +103,7 @@ int dispatch(Options options) {
         std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
         return usage();
       }
-      f = [it](const HypergraphType &h, int k) {
+      f = [it](HypergraphType &h, int k) {
         return it->second(h);
       };
     } else {
@@ -118,6 +119,27 @@ int dispatch(Options options) {
         }
       }
       f = it->second;
+    }
+  }
+
+  // Weighted sparsifier only works on integral cuts
+  if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+    if (options.k == 2) {
+      std::cout << "Input \"1\" if you would like to use a sparsifier, \"2\" otherwise" << std::endl;
+      size_t i;
+      std::cin >> i;
+      if (i != 1 && i != 2) {
+        std::cout << "Invalid input" << std::endl;
+        return 1;
+      }
+      if (i == 1) {
+        f = [f](HypergraphType &hypergraph, size_t) {
+          const auto min_cut = [f](HypergraphType &hypergraph) {
+            return f(hypergraph, 2);
+          };
+          return certificate_minimum_cut<HypergraphType>(hypergraph, min_cut);
+        };
+      }
     }
   }
 

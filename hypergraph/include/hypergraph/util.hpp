@@ -1,6 +1,9 @@
+#pragma once
+
 #include <iostream>
 
 #include "hypergraph/hypergraph.hpp"
+#include "hypergraph/certificate.hpp"
 
 namespace hypergraph_util {
 
@@ -54,3 +57,4 @@ HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
   return min_so_far;
 }
 }
+
