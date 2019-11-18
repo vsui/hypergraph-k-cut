@@ -162,6 +162,41 @@ HypergraphType generate_type_3(size_t n, size_t m, size_t r) {
   }
 }
 
+/* Agressively plant cut
+ *
+ * Args:
+ *   n: number of vertices
+ *   d: number of edges per cluster
+ *   k: number of clusters
+ */
+template<typename HypergraphType>
+HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p) {
+  std::random_device rd;
+  std::mt19937 e2(rd());
+  std::uniform_real_distribution<> distribution(0, 1);
+  std::vector<std::vector<int>> edges;
+
+  size_t v_per_cluster = n / k + 1;
+  // For each cluster, create d hyperedges from points sampled randomly within that cluster
+  for (int ki = 0; ki < k; ++ki) {
+    for (int e = 0; e < d; ++e) {
+      std::vector<int> edge;
+      for (int j = ki * v_per_cluster; j < n && j < (ki + 1) * v_per_cluster; ++j) {
+        if (distribution(e2) < p) {
+          edge.push_back(j);
+        }
+      }
+      edges.emplace_back(std::move(edge));
+    }
+  }
+
+  std::vector<int> vertices(n);
+  std::iota(std::begin(vertices), std::end(vertices), 0);
+
+  auto h = Hypergraph{vertices, edges};
+  return HypergraphType(h);
+}
+
 template<typename HypergraphType>
 void prompt() {
   HypergraphType h;
@@ -174,7 +209,7 @@ void prompt() {
   }
 
   int type;
-  std::cout << "Please input instance type (1, 2, or 3)" << std::endl;
+  std::cout << "Please input instance type (1, 2, 3, or 4)" << std::endl;
   std::cin >> type;
   filename_stream << type << "_";
 
@@ -209,6 +244,15 @@ void prompt() {
     std::cin >> n >> m >> r;
     h = generate_type_3<HypergraphType>(n, m, r);
     filename_stream << n << "_" << m << "_" << r;
+    break;
+  }
+  case 4: {
+    size_t n, d, k;
+    double p;
+    std::cout << "Input n, d, k, p" << std::endl;
+    std::cin >> n >> d >> k >> p;
+    h = generate_type_4<HypergraphType>(n, d, k, p);
+    filename_stream << n << "_" << d << "_" << k << "_" << p;
     break;
   }
   default: {
