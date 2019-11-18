@@ -11,7 +11,6 @@
 
 class KTrimmedCertificate;
 
-
 template<typename HypergraphType>
 struct HypergraphCut {
   explicit HypergraphCut(typename HypergraphType::EdgeWeight value) : value(value) {}
@@ -103,15 +102,16 @@ bool cut_is_valid(const HypergraphCut<HypergraphType> &cut,
     if (std::abs(expected_cut_value - cut.value) > 0.1) {
       error = "Stored value of cut (" + std::to_string(cut.value) + ") does not match actual value of cut ("
           + std::to_string(expected_cut_value) + ")";
+      return false;
     }
+    return true;
   } else {
     if (expected_cut_value != cut.value) {
       error = "Stored value of cut (" + std::to_string(cut.value) + ") does not match actual value of cut ("
           + std::to_string(expected_cut_value) + ")";
     }
+    return expected_cut_value == cut.value;
   }
-
-  return expected_cut_value == cut.value;
 }
 
 template<typename HypergraphType>
@@ -460,6 +460,9 @@ std::ostream &operator<<(std::ostream &os, const WeightedHypergraph<EdgeWeightTy
   }
   return os;
 }
+
+template<typename HypergraphType>
+constexpr bool is_weighted = !std::is_same_v<HypergraphType, Hypergraph>;
 
 // Return true if the header of the output stream appears to be an hmetis file
 bool is_unweighted_hmetis_file(std::istream &is);
