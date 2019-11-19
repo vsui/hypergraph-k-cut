@@ -13,10 +13,30 @@
 
 std::string binary_name;
 
+enum class cut_algorithm {
+  CXY,
+  FPZ,
+  MW,
+  KW,
+  Q,
+  CX,
+  KK,
+};
+
 struct Options {
-  std::string algorithm_name;
+  cut_algorithm algorithm;
   std::string filename;
   size_t k;
+};
+
+static std::map<std::string, cut_algorithm> string_to_algorithm = {
+    {"CXY", cut_algorithm::CXY},
+    {"FPZ", cut_algorithm::FPZ},
+    {"MW", cut_algorithm::MW},
+    {"KW", cut_algorithm::KW},
+    {"Q", cut_algorithm::Q},
+    {"CX", cut_algorithm::CX},
+    {"KK", cut_algorithm::KK}
 };
 
 int usage() {
@@ -75,55 +95,102 @@ int dispatch(Options options) {
     return 1;
   }
 
-  MinimumKCutFunction<HypergraphType> f;
+  size_t num_runs;
+  double epsilon;
 
   // Special logic to pass in number of runs
-  if (options.algorithm_name == "CXY") {
-    auto recommended_num_runs = cxy::default_num_runs(hypergraph, options.k);
-    std::cout << "Input how many times would you like to run the algorithm (recommended is " << recommended_num_runs
-              << " for low error probability)" << std::endl;
-    size_t num_runs;
-    std::cin >> num_runs;
-    f = [num_runs](const HypergraphType &h, size_t k) {
-      return cxy::cxy_contract<HypergraphType, true>(h, k, num_runs);
-    };
-  } else if (options.algorithm_name == "FPZ") {
-    auto recommended_num_runs = fpz::default_num_runs(hypergraph, options.k);
-    std::cout << "Input how many times would you like to run the algorithm (recommended is " << recommended_num_runs
-              << " for low error probability)" << std::endl;
-    size_t num_runs;
-    std::cin >> num_runs;
-    f = [num_runs](const HypergraphType &h, size_t k) {
-      return fpz::branching_contract<HypergraphType, true>(h, k, num_runs);
-    };
-  } else {
-    if (options.k == 2) {
-      const auto it = registry.minimum_cut_functions.find(options.algorithm_name);
-      if (it == std::end(registry.minimum_cut_functions)) {
-        std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
-        return usage();
-      }
-      f = [it](HypergraphType &h, int k) {
-        return it->second(h);
-      };
+  switch (options.algorithm) {
+  case cut_algorithm::CXY:
+  case cut_algorithm::FPZ: {
+    size_t recommended_num_runs;
+    if (options.algorithm == cut_algorithm::CXY) {
+      recommended_num_runs = cxy::default_num_runs(hypergraph, options.k);
     } else {
-      const auto it = registry.minimum_k_cut_functions.find(options.algorithm_name);
-      if (it == std::end(registry.minimum_k_cut_functions)) {
-        if (registry.minimum_cut_functions.find(options.algorithm_name) != std::end(registry.minimum_cut_functions)) {
-          std::cerr << "Algorithm \"" << options.algorithm_name
-                    << "\" is a minimum cut function and is only valid for k = 2" << std::endl;
-          return 1;
-        } else {
-          std::cerr << "Algorithm \"" << options.algorithm_name << "\" not registered" << std::endl;
-          return usage();
-        }
-      }
-      f = it->second;
+      recommended_num_runs = fpz::default_num_runs(hypergraph, options.k);
     }
+    std::cout << "Input how many times you would like to run the algorithm (recommended is " << recommended_num_runs
+              << " for low error probability)" << std::endl;
+    std::cin >> num_runs;
+    break;
+  }
+  default:break;
+  }
+
+  // Special logic to pass in epsilon
+  switch (options.algorithm) {
+  case cut_algorithm::CX:
+  case cut_algorithm::KK: {
+    std::cout << "Please specify epsilon" << std::endl;
+    std::cin >> epsilon;
+  }
+  default:break;
+  }
+
+  // Check k is valid
+  switch (options.algorithm) {
+  case cut_algorithm::CXY:
+  case cut_algorithm::FPZ: {
+    // k is valid
+    break;
+  }
+  case cut_algorithm::MW:
+  case cut_algorithm::KW:
+  case cut_algorithm::Q:
+  case cut_algorithm::CX:
+  case cut_algorithm::KK: {
+    if (options.k != 2) {
+      std::cout << "Only k=2 is acceptable for this algorithm" << std::endl;
+      return 1;
+    }
+    break;
+  }
+  }
+
+  // Set f
+  MinimumKCutFunction<HypergraphType> f;
+  switch (options.algorithm) {
+  case cut_algorithm::CXY: {
+    f = [num_runs](HypergraphType &hypergraph, size_t k) {
+      return cxy::cxy_contract<HypergraphType, true>(hypergraph, k, num_runs);
+    };
+    break;
+  }
+  case cut_algorithm::FPZ: {
+    f = [num_runs](HypergraphType &hypergraph, size_t k) {
+      return fpz::branching_contract<HypergraphType, true>(hypergraph, k, num_runs);
+    };
+    break;
+  }
+  case cut_algorithm::MW: {
+    f = [](HypergraphType &hypergraph, size_t k) {
+      return vertex_ordering_mincut<HypergraphType, tight_ordering>(hypergraph);
+    };
+    break;
+  }
+  case cut_algorithm::KW: {
+    f = [](HypergraphType &hypergraph, size_t k) {
+      return vertex_ordering_mincut<HypergraphType, maximum_adjacency_ordering>(hypergraph);
+    };
+    break;
+  }
+  case cut_algorithm::Q: {
+    f = [](HypergraphType &hypergraph, size_t k) {
+      return vertex_ordering_mincut<HypergraphType, queyranne_ordering>(hypergraph);
+    };
+    break;
+  }
+  case cut_algorithm::CX: {
+    // TODO make CX return cut
+    break;
+  }
+  case cut_algorithm::KK: {
+    // TODO program KK
+    break;
+  }
   }
 
   // Weighted sparsifier only works on integral cuts
-  if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+  if constexpr (!is_weighted<HypergraphType>) {
     if (options.k == 2) {
       std::cout << "Input \"1\" if you would like to use a sparsifier, \"2\" otherwise" << std::endl;
       size_t i;
@@ -172,7 +239,12 @@ int main(int argc, char *argv[]) {
   Options options;
   options.filename = argv[1];
   options.k = std::stoul(argv[2]);
-  options.algorithm_name = argv[3];
+
+  auto algorithm = string_to_algorithm.find(argv[3]);
+  if (algorithm == std::end(string_to_algorithm)) {
+    return usage();
+  }
+  options.algorithm = algorithm->second;
 
   if (hmetis_file_is_unweighted(options.filename)) {
     return dispatch<Hypergraph>(options);
