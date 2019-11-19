@@ -129,7 +129,7 @@ HypergraphType generate_type_3(size_t n, size_t m, size_t r) {
 
   std::vector<int> vertices_bucket;
   for (int v = 0; v < n; ++v) {
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < m * r; ++i) {
       vertices_bucket.emplace_back(v);
     }
   }
@@ -139,7 +139,7 @@ HypergraphType generate_type_3(size_t n, size_t m, size_t r) {
     // Sample an edge
     std::vector<int> edge;
     for (int j = 0; j < r; ++j) {
-      std::uniform_int_distribution<int> bucket(0, vertices_bucket.size());
+      std::uniform_int_distribution<int> bucket(0, vertices_bucket.size() - 1);
       size_t sampled = bucket(e2);
       edge.emplace_back(vertices_bucket.at(sampled));
       vertices_bucket.erase(std::begin(vertices_bucket) + sampled);

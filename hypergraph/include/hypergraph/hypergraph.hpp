@@ -172,7 +172,84 @@ public:
    *
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
-  [[nodiscard]] Hypergraph contract(const int edge_id) const;
+  template<bool EdgeMayContainLoops = true> // TODO check rank and set as necessary
+  [[nodiscard]]
+  Hypergraph contract(const int edge_id) const {
+    std::vector<int> old_edge = edges_.at(edge_id);
+
+    if constexpr (EdgeMayContainLoops) {
+      std::set<int> sorted(std::begin(old_edge), std::end(old_edge));
+      old_edge = {std::begin(sorted), std::end(sorted)};
+    }
+
+    // TODO verify that inserts actually insert (not overwrite)
+    // Set V' := V \ e (do not copy incidence lists)
+    std::unordered_map<int, std::vector<int>> new_vertices;
+    new_vertices.reserve(vertices_.size());
+    for (const auto &[id, incidence] : vertices_) {
+      new_vertices[id] = {};
+    }
+    for (const int id : edges_.at(edge_id)) {
+      new_vertices.erase(id);
+    }
+
+    // Set E' := E \ { e } (do not copy incidence lists)
+    std::unordered_map<int, std::vector<int>> new_edges;
+    new_edges.reserve(edges_.size());
+    for (const auto &[id, incidence] : edges_) {
+      new_edges[id] = {};
+    }
+    new_edges.erase(edge_id);
+
+    // for v' in V'
+    for (auto &[v, v_edges] : new_vertices) {
+      // for e' in E' incident to v in H
+      for (const int e : vertices_.at(v)) {
+        auto &e_vertices = new_edges.at(e);
+        // add v' to the incidence list of e'
+        e_vertices.push_back(v);
+        // add e' to the incidence list of v'
+        v_edges.push_back(e);
+      }
+    }
+
+    // Remove any e' with empty incidence list (it was a subset of the removed
+    // hyperedge)
+    for (auto it = std::begin(new_edges); it != std::end(new_edges);) {
+      if (it->second.empty()) {
+        it = new_edges.erase(it);
+      } else {
+        ++it;
+      }
+    }
+
+    // Now add a new vertex v_e replacing the removed hyperedge
+    int v_e = next_vertex_id_;
+    new_vertices[v_e] = {};
+
+    // Add v_e to all hyperedges with less edges and vice versa
+    for (auto &[e, new_incident_on] : new_edges) {
+      const auto &old_incident_on = edges_.at(e);
+
+      if (new_incident_on.size() < old_incident_on.size()) {
+        new_incident_on.push_back(v_e);
+        new_vertices[v_e].push_back(e);
+      }
+    }
+
+    Hypergraph new_hypergraph(std::move(new_vertices), std::move(new_edges), *this);
+    new_hypergraph.next_vertex_id_++;
+
+    // Update vertices_within_ of new hypergraph
+    std::list<int> edges_within_new_v;
+    for (const auto v : old_edge) {
+      edges_within_new_v.splice(std::end(edges_within_new_v), std::move(new_hypergraph.vertices_within_.at(v)));
+      new_hypergraph.vertices_within_.erase(v);
+    }
+    new_hypergraph.vertices_within_.insert({v_e, edges_within_new_v});
+
+    return new_hypergraph;
+  }
 
   /* Add hyperedge and return its ID.
    *
@@ -295,8 +372,10 @@ public:
     return hypergraph_.is_valid();
   }
 
+  template<bool EdgeMayContainLoops = true>
+  [[nodiscard]]
   WeightedHypergraph contract(int edge_id) const {
-    Hypergraph contracted = hypergraph_.contract(edge_id);
+    Hypergraph contracted = hypergraph_.contract<EdgeMayContainLoops>(edge_id);
     // TODO edges to weights should still be valid
     return WeightedHypergraph(contracted, edges_to_weights_);
   }

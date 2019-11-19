@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 
+#include <hypergraph/kk.hpp>
 #include "hypergraph/approx.hpp"
 #include "hypergraph/cxy.hpp"
 #include "hypergraph/fpz.hpp"
@@ -180,14 +181,18 @@ int dispatch(Options options) {
     break;
   }
   case cut_algorithm::CX: {
-    // TODO make CX return cut
     f = [epsilon](HypergraphType &hypergraph, size_t k) {
       return approximate_minimizer(hypergraph, epsilon);
     };
     break;
   }
   case cut_algorithm::KK: {
-    // TODO program KK
+    std::cout << "Please input r" << std::endl;
+    size_t r;
+    std::cin >> r;
+    f = [epsilon, r](HypergraphType &hypergraph, size_t k) {
+      return kk::contract<HypergraphType>(hypergraph, r, epsilon);
+    };
     break;
   }
   }

@@ -31,6 +31,10 @@ CXY: The hypergraph k-cut algorithm described in [CXY'18]. Based on random contr
 
 FPZ: The hypergraph k-cut algorithm described in [FPZ'19]. Based on random contractions.
 
+CX: The (2+epsilon) approximate hypergraph min-cut algorithm described in [CX'18]. Based on vertex orderings.
+
+KK: The (1+epsilon) approximate min-cut algorithm for uniform (constant rank) hypergraphs described in [KK'14]. Based on random contractions.
+
 ## Input
 
 The input file should be in the hMETIS hypergraph format.
@@ -77,6 +81,8 @@ Here, the edge weight can be a non-negative decimal number:
 [MW'00] Mak, W. and Wong, D., 2000. A fast hypergraph min-cut algorithm for circuit partitioning
 
 [M'05] Mak, W., 2005, Faster Min-Cut Computation in Unweighted Hypergraphs/Circuit Netlists
+
+[KK'14] Kogan, D. and Krauthgamer, R., 2014. Sketching Cuts in Graphs and Hypergraphs
 
 [CXY'18] Chandrasekaran, K., Xu, C., and Yu, X., 2018, Hypergraph k-Cut in Randomized Polynomial Time
 
