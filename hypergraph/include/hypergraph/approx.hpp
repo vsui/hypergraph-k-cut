@@ -7,20 +7,23 @@
  *
  * Time complexity: O(p/epsilon), p is the size of the hypergraph
  */
-size_t approximate_minimizer(Hypergraph &hypergraph, const double epsilon) {
+template<typename HypergraphType>
+HypergraphCut<HypergraphType> approximate_minimizer(HypergraphType &hypergraph, const double epsilon) {
+  using Cut = HypergraphCut<HypergraphType>;
+
   if (hypergraph.num_vertices() == 1) {
-    return std::numeric_limits<size_t>::max();
+    return Cut::max();
   }
 
-  size_t delta = std::numeric_limits<size_t>::max();
+  auto delta = Cut::max();
   for (const auto v : hypergraph.vertices()) {
     // TODO one vertex cut
-    delta = std::min(delta, hypergraph.edges_incident_on(v).size());
+    delta = std::min(delta, one_vertex_cut(hypergraph, v));
   }
-  if (delta == 0) {
-    return 0;
+  if (delta.value == 0) {
+    return delta;
   }
-  double alpha = delta / (2.0 + epsilon);
+  double alpha = delta.value / (2.0 + epsilon);
 
   const auto &[ordering, tightness] = queyranne_ordering_with_tightness(
       hypergraph, *std::begin(hypergraph.vertices()));
@@ -49,7 +52,7 @@ size_t approximate_minimizer(Hypergraph &hypergraph, const double epsilon) {
   }
 
   // alpha contraction
-  Hypergraph temp(hypergraph);
+  HypergraphType temp(hypergraph);
   for (const auto[begin, end] : alpha_tight_sets) {
     temp = temp.contract(begin, end);
   }

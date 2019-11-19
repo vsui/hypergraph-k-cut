@@ -181,6 +181,9 @@ int dispatch(Options options) {
   }
   case cut_algorithm::CX: {
     // TODO make CX return cut
+    f = [epsilon](HypergraphType &hypergraph, size_t k) {
+      return approximate_minimizer(hypergraph, epsilon);
+    };
     break;
   }
   case cut_algorithm::KK: {
@@ -214,7 +217,7 @@ int dispatch(Options options) {
   HypergraphType copy(hypergraph);
 
   auto start = std::chrono::high_resolution_clock::now();
-  const auto cut = f(hypergraph, options.k);
+  auto cut = f(hypergraph, options.k);
   auto stop = std::chrono::high_resolution_clock::now();
 
   std::cout << "Algorithm took "
@@ -222,6 +225,11 @@ int dispatch(Options options) {
                 start)
                 .count()
             << " milliseconds\n";
+
+  for (auto &partition : cut.partitions) {
+    std::sort(std::begin(partition), std::end(partition));
+  }
+
   std::cout << cut;
   std::string error;
   if (!cut_is_valid(cut, copy, options.k, error)) {
