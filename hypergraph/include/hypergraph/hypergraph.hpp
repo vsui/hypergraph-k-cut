@@ -382,6 +382,12 @@ public:
     return edges_to_weights_.at(edge_id);
   }
 
+  void scale_edge_weights(EdgeWeightType factor) {
+    for (auto &[k, v] : edges_to_weights_) {
+      v *= factor;
+    }
+  }
+
   template<typename InputIt>
   int add_hyperedge(InputIt begin, InputIt end, EdgeWeightType weight) {
     auto id = hypergraph_.add_hyperedge(begin, end);

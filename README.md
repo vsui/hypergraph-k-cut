@@ -72,9 +72,31 @@ It takes the following parameters:
 - `d`: number of hyperedges per cluster
 - `k`: number of clusters
 - `p`: sampling probability
+- `P`: edge weights in range [1, 100P]
 
 Generation is similar to type 1, except that for each hyperedge vertices are only
 sampled from one cluster of `n/k` vertices.
+
+### Type 5
+
+This generator groups every vertex into components, and samples some hyperedges from within each component (so each
+hyperedge is contained completely by a component) and sample some hyperedges from all vertices. The generator assigns
+higher edge weights to hyperedges that are completely contained in components compared to hyperedges that span components.
+This encourages non-trivial cuts.
+
+It takes the following parameters:
+- `n` : number of vertices
+- `m1`: number of hyperedges that lie entirely within each cluster
+- `p1`: sampling probability for m1 edges
+- `m2`: number of hyperedges that are sampled from all vertices
+- `p2`: sampling probability for m2 edges
+- `k` : number of clusters
+- `P` : weight multiplier for edges that are entirely contained within a single component
+
+As of now this is the most straight-forward way to generate interesting hypergraphs with non-skewed cuts. Some care in
+the choice of parameters must be taken though, specifically the expected number of hyperedges that a vertex is in should
+be much greater than the weight of an edge crossing a component.
+That is, `E[# hyperedges that contain v] * P >> weight of hyperedge that crosses between components`
 
 ## Algorithms
 

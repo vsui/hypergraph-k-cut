@@ -158,7 +158,7 @@ HypergraphType generate_type_2(size_t n, size_t m, double p, size_t k, size_t P)
         return vertex_to_cluster.at(v) != vertex_to_cluster.at(edge.front());
       });
       double sampled_weight = (distribution(e2) * 100 + 1);
-      if (edge_spans_clusters) {
+      if (!edge_spans_clusters) {
         sampled_weight *=
             P;
       }
@@ -236,9 +236,10 @@ HypergraphType generate_type_3(size_t n, size_t m, size_t r) {
  *   d: number of edges per cluster
  *   k: number of clusters
  *   p: sampling probability
+ *   P: edge weight ranges from [1, 100P]
  */
 template<typename HypergraphType>
-HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p) {
+HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p, size_t P) {
   std::random_device rd;
   std::mt19937 e2(rd());
   std::uniform_real_distribution<> distribution(0, 1);
@@ -261,8 +262,47 @@ HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p) {
   std::vector<int> vertices(n);
   std::iota(std::begin(vertices), std::end(vertices), 0);
 
-  auto h = Hypergraph{vertices, edges};
-  return HypergraphType(h);
+  auto h = HypergraphType(Hypergraph{vertices, edges});
+
+  if constexpr (is_weighted<HypergraphType>) {
+    h.scale_edge_weights(P);
+  }
+
+  return h;
+}
+
+/* Generate a type 5 random hypergraph
+ *
+ * Generate d*k hyperedges by partitioning the vertices into k uniform
+ * clusters and sample d hyperedges from the vertices in each cluster.
+ * Each hyperedge is sampled by randomly sampling each vertex with uniform
+ * probability p.
+ *
+ * This aggressively plants a cut by ensuring no hyperedges cross clusters.
+ *
+ * Args:
+ *   n:  number of vertices
+ *   m1: number of hyperedges that lie entirely within each cluster
+ *   p1: sampling probability for m1 edges
+ *   m2: number of hyperedges that are sampled from all vertices
+ *   p2: sampling probability for m2 edges
+ *   k:  number of clusters
+ *   P:  weight multiplier for edges that are entirely contained within a single components
+ */
+template<typename HypergraphType>
+HypergraphType generate_type_5(size_t n, size_t m1, double p1, size_t m2, double p2, size_t k, size_t P) {
+  // This is just a combo of a type 2 and type 4 hypergraph
+  auto h1 = generate_type_2<HypergraphType>(n, m2, p2, k, P);
+  auto h2 = generate_type_4<HypergraphType>(n, m1, k, p1, P);
+  for (const auto &[edge_id, vertices] : h1.edges()) {
+    if constexpr (is_weighted<HypergraphType>) {
+      // TODO we should actually check if it spans and if it does not then multiply by P
+      h2.add_hyperedge(std::begin(vertices), std::end(vertices), edge_weight(h1, edge_id));
+    } else {
+      h2.add_hyperedge(std::begin(vertices), std::end(vertices));
+    }
+  }
+  return h2;
 }
 
 template<typename HypergraphType>
@@ -277,7 +317,7 @@ void prompt() {
   }
 
   int type;
-  std::cout << "Please input instance type (1, 2, 3, or 4)" << std::endl;
+  std::cout << "Please input instance type (1, 2, 3, 4, or 5)" << std::endl;
   std::cin >> type;
   filename_stream << type << "_";
 
@@ -315,16 +355,25 @@ void prompt() {
     break;
   }
   case 4: {
-    size_t n, d, k;
+    size_t n, d, k, P;
     double p;
-    std::cout << "Input n, d, k, p" << std::endl;
-    std::cin >> n >> d >> k >> p;
-    h = generate_type_4<HypergraphType>(n, d, k, p);
+    std::cout << "Input n, d, k, p, P" << std::endl;
+    std::cin >> n >> d >> k >> p >> P;
+    h = generate_type_4<HypergraphType>(n, d, k, p, P);
     filename_stream << n << "_" << d << "_" << k << "_" << p;
     break;
   }
+  case 5: {
+    size_t n, m1, m2, P, k;
+    double p1, p2;
+    std::cout << "Input n, m1, p1, m2, p2, k, P" << std::endl;
+    std::cin >> n >> m1 >> p1 >> m2 >> p2 >> k >> P;
+    h = generate_type_5<HypergraphType>(n, m1, p1, m2, p2, k, P);
+    filename_stream << n << "_" << m1 << "_" << p1 << "_" << m2 << "_" << p2 << "_" << k << "_" << P;
+    break;
+  }
   default: {
-    std::cout << "Error: unknown type";
+    std::cout << "Error: unknown type" << std::endl;
     exit(1);
   }
   }
