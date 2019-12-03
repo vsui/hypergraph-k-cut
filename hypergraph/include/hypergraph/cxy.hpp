@@ -14,7 +14,19 @@
 
 namespace cxy {
 
-/* Calculates delta from CXY.
+/* Calculates delta from CXY. The probability that an edge
+ * will be contracted in the CXY k-cut algorithm is proportional
+ * to the returned value.
+ *
+ * In the paper delta is defined as
+ *   delta_e := c(e)(n - r(e) CHOOSE k-1) / (n CHOOSE k-1).
+ * This function returns delta_e for unweighted graphs,
+ *   delta_e := (n - r(e) CHOOSE k-1) / (n CHOOSE k-1).
+ * If the caller wants to calculate delta_e for weighted graphs,
+ * then they can multiply the returned value by the weight of the
+ * edge themselves.
+ *
+ * The calculation is computed in logs for numerical stability.
  *
  * Args:
  *   n: number of vertices
@@ -79,6 +91,18 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
     int sampled_id = edge_ids.at(sampled);
 
     hypergraph = hypergraph.contract(sampled_id);
+  }
+
+  // May terminate early if it finds a perfect cut with >k partitions, so need
+  // to merge partitions. At this point the sum of deltas is zero, so every
+  // remaining hyperedge crosses all components, so we can merge components
+  // without changing the cut value.
+  while (hypergraph.num_vertices() > k) {
+    auto begin = std::begin(hypergraph.vertices());
+    auto end = std::begin(hypergraph.vertices());
+    std::advance(end, 2);
+    // Contract two vertices
+    hypergraph = hypergraph.contract(begin, end);
   }
 
   std::vector<std::vector<int>> partitions;

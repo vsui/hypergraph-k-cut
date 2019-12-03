@@ -64,6 +64,16 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
 
   // If no edges remain, return the answer
   if (hypergraph.num_edges() == 0) {
+    // May terminate early if it finds a perfect cut with >k partitions, so need
+    // to merge partitions.
+    while (hypergraph.num_vertices() > k) {
+      auto begin = std::begin(hypergraph.vertices());
+      auto end = std::begin(hypergraph.vertices());
+      std::advance(end, 2);
+      // Contract two vertices
+      hypergraph = hypergraph.contract(begin, end);
+    }
+
     std::vector<std::vector<int>> partitions;
     for (const auto v : hypergraph.vertices()) {
       const auto &partition = hypergraph.vertices_within(v);

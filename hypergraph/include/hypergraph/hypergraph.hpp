@@ -283,8 +283,6 @@ public:
    */
   template<typename InputIt>
   [[nodiscard]] Hypergraph contract(InputIt begin, InputIt end) const {
-    assert(edges().size() > 0);
-
     // TODO if we have a non-const contract then this copy is unnecessary. Right
     // now we copy twice (once to avoid modifying the input hypergraph and the
     // second time to contract)

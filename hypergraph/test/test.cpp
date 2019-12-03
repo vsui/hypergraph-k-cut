@@ -307,7 +307,6 @@ TEST(KTrimmedCertificate, Works) {
   }
 }
 
-
 TEST(Hypergraph, ContractSimple) {
   Hypergraph h = {
       {0, 1, 2, 3, 4},
@@ -526,11 +525,31 @@ private:
                   {1, 5}
               }
           ),
-          {
+          { // k, cut-value tuples
               {2, 3},
               {3, 4},
               {4, 6},
               {5, 7}
+          }
+      },
+      { // Hypergraph with trivial cuts
+          Hypergraph(
+              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+              {
+                  {1, 2},
+                  {3, 4},
+                  {5, 6},
+                  {7, 8},
+                  {9, 10},
+              }
+          ),
+          {
+              {2, 0},
+              {3, 0},
+              {4, 0},
+              {5, 0},
+              {6, 1},
+              {7, 2},
           }
       }
   };
@@ -549,7 +568,7 @@ private:
           {
               {2, 5},
               {3, 9},
-              {4, 16},
+              {4, 12},
               {5, 19}
           }
       },
