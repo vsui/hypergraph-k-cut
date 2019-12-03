@@ -17,7 +17,10 @@ To generate hypergraphs, run `./hgen <num_vertices> <num_edges> <sampling percen
 
 To run the algorithm, run `./hcut <input file> <k> <algorithm>`
 
-To run the tests, run `./hypergraph/test/hypergraph_test`
+## Testing
+
+To run the tests, run `make test`. The tests will run several cut algorithms on small
+problems and verify that everything is working correctly.
 
 ## Problem Families
 
