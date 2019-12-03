@@ -5,6 +5,54 @@
 
 #include <hypergraph/hypergraph.hpp>
 
+// Helper for logic with cluster operations
+class Cluster {
+public:
+  Cluster(size_t n, size_t k, size_t ki) : n_(n), k_(k), ki_(ki) {}
+
+  struct ClusterIt {
+    ClusterIt(size_t v) : v(v) {}
+    ClusterIt &operator++() {
+      v++;
+      return *this;
+    }
+    size_t operator*() { return v; }
+    bool operator!=(const ClusterIt &other) { return other.v != v; }
+
+    size_t v;
+  };
+
+  ClusterIt begin() { return ClusterIt(vertices_before()); }
+  ClusterIt end() { return ClusterIt(vertices_before() + size()); }
+  Cluster operator*() { return *this; }
+  Cluster &operator++() {
+    ki_++;
+    return *this;
+  }
+  bool operator!=(const Cluster &other) {
+    return other.n_ != n_ || other.k_ != k_ || other.ki_ != ki_;
+  }
+
+private:
+  size_t vertices_before() { return size_() * ki_; }
+  size_t size_() { return n_ / k_; }
+  size_t size() { return size_() + (ki_ == k_ - 1 ? (n_ % k_) : 0); }
+
+  size_t n_;
+  size_t k_;
+  size_t ki_;
+};
+
+class Clusters {
+public:
+  Clusters(size_t n, size_t k) : n_(n), k_(k) {}
+  Cluster begin() { return {n_, k_, 0}; }
+  Cluster end() { return {n_, k_, k_}; }
+private:
+  size_t n_;
+  size_t k_;
+};
+
 /* Generate a type 1 random hypergraph.
  *
  * Samples m random hyperedges. For each random hyperedge, samples every
@@ -196,14 +244,14 @@ HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p) {
   std::uniform_real_distribution<> distribution(0, 1);
   std::vector<std::vector<int>> edges;
 
-  size_t v_per_cluster = n / k + 1;
+  Clusters clusters(n, k);
   // For each cluster, create d hyperedges from points sampled randomly within that cluster
-  for (int ki = 0; ki < k; ++ki) {
+  for (auto cluster : clusters) {
     for (int e = 0; e < d; ++e) {
       std::vector<int> edge;
-      for (int j = ki * v_per_cluster; j < n && j < (ki + 1) * v_per_cluster; ++j) {
+      for (size_t v : cluster) {
         if (distribution(e2) < p) {
-          edge.push_back(j);
+          edge.push_back(v);
         }
       }
       edges.emplace_back(std::move(edge));
