@@ -7,6 +7,9 @@
 
 /* Generate a type 1 random hypergraph.
  *
+ * Samples m random hyperedges. For each random hyperedge, samples every
+ * vertex with probability p.
+ *
  * Args:
  *   n: number of vertices
  *   m: number of hyperedges
@@ -46,6 +49,11 @@ HypergraphType generate_type_1(size_t n, size_t m, double p) {
 
 /* Generate a type 2 random hypergraph.
  *
+ * Similar to type 1 except that in addition to sampling random hyperedges,
+ * it creates k uniform clusters of points. When a hyperedge is sampled, if
+ * it is completely contained within a cluster, its weight is multiplied by
+ * P.
+ *
  * Args:
  *   n: number of vertices
  *   m: number of hyperedges
@@ -77,7 +85,7 @@ HypergraphType generate_type_2(size_t n, size_t m, double p, size_t k, size_t P)
   std::uniform_int_distribution<int> cluster_distribution(0, k - 1);
   std::map<int, int> vertex_to_cluster;
   for (int v = 0; v < n; ++v) {
-    vertex_to_cluster[v] = cluster_distribution(e2);
+    vertex_to_cluster[v] = v % k;
   }
 
   if constexpr (!is_weighted<HypergraphType>) {
@@ -114,7 +122,11 @@ HypergraphType generate_type_2(size_t n, size_t m, double p, size_t k, size_t P)
   }
 }
 
-/* Generate a type 3 random hypergraph
+/* Generate a type 3 random hypergraph.
+ *
+ * Generate m random hyperedges by sampling r vertices without replacement
+ * from each hyperedge. This creates constant rank hypergraphs. Note that
+ * hyperedges may contain self-loops.
  *
  * Args:
  *   n: Number of vertices
@@ -162,12 +174,20 @@ HypergraphType generate_type_3(size_t n, size_t m, size_t r) {
   }
 }
 
-/* Agressively plant cut
+/* Generate a type 4 random hypergraph
+ *
+ * Generate d*k hyperedges by partitioning the vertices into k uniform
+ * clusters and sample d hyperedges from the vertices in each cluster.
+ * Each hyperedge is sampled by randomly sampling each vertex with uniform
+ * probability p.
+ *
+ * This aggressively plants a cut by ensuring no hyperedges cross clusters.
  *
  * Args:
  *   n: number of vertices
  *   d: number of edges per cluster
  *   k: number of clusters
+ *   p: sampling probability
  */
 template<typename HypergraphType>
 HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p) {
