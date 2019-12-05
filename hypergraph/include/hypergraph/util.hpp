@@ -10,6 +10,7 @@ namespace hypergraph_util {
 template<typename HypergraphType>
 using contract_t = std::add_pointer_t<HypergraphCut<HypergraphType>(HypergraphType &,
                                                                     size_t,
+                                                                    std::mt19937_64 &,
                                                                     typename HypergraphType::EdgeWeight)>;
 
 template<typename HypergraphType>
@@ -31,7 +32,8 @@ template<
 >
 HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
                                               size_t k,
-                                              size_t num_runs) {
+                                              size_t num_runs,
+                                              std::mt19937_64 &random_generator) {
   if (num_runs == 0) {
     num_runs = DefaultNumRuns(hypergraph, k);
   }
@@ -42,7 +44,7 @@ HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
   for (size_t i = 0; i < num_runs; ++i) {
     HypergraphType copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();
-    auto min_cut = Contract(copy, k, /* unused */ 0);
+    auto min_cut = Contract(copy, k, random_generator, /* unused */ 0);
     auto stop = std::chrono::high_resolution_clock::now();
     min_so_far = std::min(min_so_far, min_cut);
     if (min_so_far.value == 0) {
