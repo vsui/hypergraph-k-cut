@@ -482,9 +482,9 @@ public:
 
   using TestCase = std::pair<const HypergraphType, /* k, cut-value pair */ std::map<size_t, Hypergraph::EdgeWeight>>;
 
-  using MinimumCutFunction = typename HypergraphMinimumCutRegistry<HypergraphType>::MinimumCutFunction;
-  using MinimumCutFunctionWithVertex = typename HypergraphMinimumCutRegistry<HypergraphType>::MinimumCutFunctionWithVertex;
-  using MinimumKCutFunction = typename HypergraphMinimumCutRegistry<HypergraphType>::MinimumKCutFunction;
+  using MinimumCutFunction = typename HypergraphMinimumCutRegistry<HypergraphType>::MinCutFunction;
+  using MinimumCutFunctionWithVertex = typename HypergraphMinimumCutRegistry<HypergraphType>::MinCutFunctionWithVertex;
+  using MinimumKCutFunction = typename HypergraphMinimumCutRegistry<HypergraphType>::MinKCutFunction;
 
   const std::vector<TestCase> test_cases() {
     if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
