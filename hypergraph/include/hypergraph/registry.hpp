@@ -7,7 +7,10 @@
 #include "hypergraph/cxy.hpp"
 #include "hypergraph/fpz.hpp"
 
-/* Registry of cut functions. Adding functions to this will automatically add them to the CLI/tests.
+constexpr uint64_t kTestRandomSeed = 408408408408;
+constexpr uint64_t kTestNumRuns = 0; // Use default number of runs
+
+/* Registry of cut functions. Adding functions to this will automatically add them to the tests.
  */
 template<typename HypergraphType, bool Verbose = false>
 struct HypergraphMinimumCutRegistry {
@@ -38,18 +41,18 @@ struct HypergraphMinimumCutRegistry {
 
 private:
   static inline auto cxy_minimum_cut_(const HypergraphType &hypergraph) {
-    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, 2);
+    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, 2, kTestNumRuns, kTestRandomSeed);
   };
 
   static inline auto fpz_minimum_cut_(const HypergraphType &hypergraph) {
-    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, 2);
+    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, 2, kTestNumRuns, kTestRandomSeed);
   };
 
   static inline auto cxy_k_cut_(const HypergraphType &hypergraph, size_t k) {
-    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, k);
+    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, k, kTestNumRuns, kTestRandomSeed);
   }
 
   static inline auto fpz_k_cut_(const HypergraphType &hypergraph, size_t k) {
-    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, k);
+    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, k, kTestNumRuns, kTestRandomSeed);
   }
 };

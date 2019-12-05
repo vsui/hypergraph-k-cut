@@ -54,6 +54,7 @@ double cxy_delta(size_t n, size_t e, size_t k) {
 template<typename HypergraphType>
 HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
                                             size_t k,
+                                            std::mt19937_64 &random_generator,
                                             [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
   std::vector<int> candidates = {};
   std::vector<int> edge_ids;
@@ -83,11 +84,10 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
       break;
     }
 
-    static std::default_random_engine generator;
     std::discrete_distribution<size_t> distribution(std::begin(deltas),
                                                     std::end(deltas));
 
-    size_t sampled = distribution(generator);
+    size_t sampled = distribution(random_generator);
     int sampled_id = edge_ids.at(sampled);
 
     hypergraph = hypergraph.contract(sampled_id);
@@ -151,11 +151,16 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
 template<typename HypergraphType, bool Verbose = false>
 inline auto cxy_contract(const HypergraphType &hypergraph,
                          size_t k,
-                         size_t num_runs = 0) {
+                         size_t num_runs = 0,
+                         uint64_t default_seed = 0) {
+  std::mt19937_64 random_generator;
+  if (default_seed) {
+    random_generator.seed(default_seed);
+  }
   return hypergraph_util::minimum_of_runs<HypergraphType,
                                           cxy_contract_<HypergraphType>,
                                           default_num_runs,
-                                          Verbose>(hypergraph, k, num_runs);
+                                          Verbose>(hypergraph, k, num_runs, random_generator);
 }
 
 }
