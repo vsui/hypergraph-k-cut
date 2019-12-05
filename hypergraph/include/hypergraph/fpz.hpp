@@ -44,6 +44,7 @@ double redo_probability(size_t n, size_t e, size_t k) {
 template<typename HypergraphType>
 HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
                                                   size_t k,
+                                                  std::mt19937_64 &random_generator,
                                                   typename HypergraphType::EdgeWeight accumulated = 0) {
 #ifndef NDEBUG
   assert(hypergraph.is_valid());
@@ -82,11 +83,7 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
     return HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), accumulated);
   }
 
-  // Static random device for random sampling and generating random numbers
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
   static std::uniform_real_distribution<> dis(0.0, 1.0);
-
 
   // Select a hyperedge with probability proportional to its weight
   std::vector<int> edge_ids;
@@ -96,7 +93,7 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
     edge_weights.push_back(edge_weight(hypergraph, edge_id));
   }
   std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
-  const auto sampled_edge_id = edge_ids.at(distribution(gen));
+  const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
   const auto sampled_edge = hypergraph.edges().at(sampled_edge_id);
 
   double redo =
@@ -104,11 +101,11 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
 
   HypergraphType contracted = hypergraph.contract(sampled_edge_id);
 
-  if (dis(gen) < redo) {
-    return std::min(branching_contract_(contracted, k, accumulated),
-                    branching_contract_(hypergraph, k, accumulated));
+  if (dis(random_generator) < redo) {
+    return std::min(branching_contract_(contracted, k, random_generator, accumulated),
+                    branching_contract_(hypergraph, k, random_generator, accumulated));
   } else {
-    return branching_contract_(contracted, k, accumulated);
+    return branching_contract_(contracted, k, random_generator, accumulated);
   }
 }
 
@@ -122,11 +119,16 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
 template<typename HypergraphType, bool Verbose = false>
 inline auto branching_contract(const HypergraphType &hypergraph,
                                size_t k,
-                               size_t num_runs = 0) {
+                               size_t num_runs = 0,
+                               uint64_t default_seed = 0) {
+  std::mt19937_64 random_generator;
+  if (default_seed) {
+    random_generator.seed(default_seed);
+  }
   return hypergraph_util::minimum_of_runs<HypergraphType,
                                           branching_contract_<HypergraphType>,
                                           default_num_runs,
-                                          Verbose>(hypergraph, k, num_runs);
+                                          Verbose>(hypergraph, k, num_runs, random_generator);
 }
 
 } // namespace fpz
