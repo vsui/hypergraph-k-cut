@@ -24,7 +24,7 @@ problems and verify that everything is working correctly.
 
 ## Problem Families
 
-The following problem families can be generated with `./hcut`:
+The following problem families can be generated with `./hgen`:
 
 ### Type 1
 
