@@ -41,7 +41,7 @@ double redo_probability(size_t n, size_t e, size_t k) {
  * accumulated : a running count of k-spanning hyperedges used to calculate the
  *               min cut
  * */
-template<typename HypergraphType>
+template<typename HypergraphType, bool Verbose = false>
 HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
                                                   size_t k,
                                                   std::mt19937_64 &random_generator,
@@ -80,7 +80,11 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
       const auto &partition = hypergraph.vertices_within(v);
       partitions.emplace_back(std::begin(partition), std::end(partition));
     }
-    return HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), accumulated);
+    const auto cut = HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), accumulated);
+    if constexpr (Verbose) {
+      std::cout << "Got cut of value " << cut.value << std::endl;
+    }
+    return cut;
   }
 
   static std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -102,10 +106,10 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
   HypergraphType contracted = hypergraph.contract(sampled_edge_id);
 
   if (dis(random_generator) < redo) {
-    return std::min(branching_contract_(contracted, k, random_generator, accumulated),
-                    branching_contract_(hypergraph, k, random_generator, accumulated));
+    return std::min(branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated),
+                    branching_contract_<HypergraphType, Verbose>(hypergraph, k, random_generator, accumulated));
   } else {
-    return branching_contract_(contracted, k, random_generator, accumulated);
+    return branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated);
   }
 }
 
@@ -116,7 +120,7 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
   return log_n * log_n;
 }
 
-template<typename HypergraphType, bool Verbose = false>
+template<typename HypergraphType, bool Verbose = false, bool VVerbose = false>
 inline auto branching_contract(const HypergraphType &hypergraph,
                                size_t k,
                                size_t num_runs = 0,
@@ -126,7 +130,7 @@ inline auto branching_contract(const HypergraphType &hypergraph,
     random_generator.seed(default_seed);
   }
   return hypergraph_util::minimum_of_runs<HypergraphType,
-                                          branching_contract_<HypergraphType>,
+                                          branching_contract_<HypergraphType, VVerbose>,
                                           default_num_runs,
                                           Verbose>(hypergraph, k, num_runs, random_generator);
 }
