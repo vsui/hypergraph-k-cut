@@ -265,7 +265,10 @@ HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p, size_t P)
   auto h = HypergraphType(Hypergraph{vertices, edges});
 
   if constexpr (is_weighted<HypergraphType>) {
-    h.scale_edge_weights(P);
+    const auto sample_edge_weight = [P, &e2, &distribution]() {
+      return distribution(e2) * 100 * (P - 1) + 1;
+    };
+    h.resample_edge_weights(sample_edge_weight);
   }
 
   return h;

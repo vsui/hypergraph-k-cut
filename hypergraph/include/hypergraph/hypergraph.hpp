@@ -3,6 +3,7 @@
 #include <cassert>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 #include <numeric>
 
 #include <boost/range/adaptors.hpp>
@@ -397,9 +398,9 @@ public:
     return edges_to_weights_.at(edge_id);
   }
 
-  void scale_edge_weights(EdgeWeightType factor) {
+  void resample_edge_weights(std::function<EdgeWeightType()> f) {
     for (auto &[k, v] : edges_to_weights_) {
-      v *= factor;
+      v = f();
     }
   }
 
