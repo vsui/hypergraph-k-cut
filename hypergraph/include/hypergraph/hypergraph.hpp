@@ -293,18 +293,21 @@ public:
     vertices_[new_v] = {};
 
     // Remove v from all edges such that v in edge
-    for (auto &[e, vertices]: edges_) {
+    for (auto it = std::begin(edges_); it != std::end(edges_);) {
+      auto e = it->first;
+      auto &vertices = it->second;
       auto old_size = vertices.size();
       for (auto v : edge) {
         vertices.erase(std::remove(std::begin(vertices), std::end(vertices), v), std::end(vertices));
       }
       if (vertices.size() == 0) {
-        edges_.erase(e);
-        continue;
-      }
-      if (old_size != vertices.size()) {
-        vertices.push_back(new_v);
-        vertices_[new_v].push_back(e);
+        it = edges_.erase(it);
+      } else {
+        if (old_size != vertices.size()) {
+          vertices.push_back(new_v);
+          vertices_[new_v].push_back(e);
+        }
+        ++it;
       }
     }
   }
@@ -434,6 +437,11 @@ public:
     Hypergraph contracted = hypergraph_.contract<EdgeMayContainLoops>(edge_id);
     // TODO edges to weights should still be valid
     return WeightedHypergraph(contracted, edges_to_weights_);
+  }
+
+  template<bool EdgeMayContainLoops = true>
+  void contract_in_place(int edge_id) {
+    hypergraph_.contract_in_place<EdgeMayContainLoops>(edge_id);
   }
 
   EdgeWeightType edge_weight(int edge_id) const {
