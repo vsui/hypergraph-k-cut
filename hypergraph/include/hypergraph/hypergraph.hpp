@@ -267,6 +267,48 @@ public:
     return new_hypergraph;
   }
 
+  template<bool EdgeMayContainLoops = true>
+  void contract_in_place(const int edge_id) {
+    if (edges_.at(edge_id).empty()) {
+      return;
+    }
+
+    std::vector<int> edge = edges_.at(edge_id);
+    if constexpr (EdgeMayContainLoops) {
+      std::set<int> sorted(std::begin(edge), std::end(edge));
+      edge = {std::begin(sorted), std::end(sorted)};
+    }
+
+    for (auto v : edge) {
+      vertices_.erase(v);
+    }
+    edges_.erase(edge_id);
+
+    // Remove edge_id from incidence of all v in e
+    for (auto &[v, edges] : vertices_) {
+      edges.erase(std::remove(std::begin(edges), std::end(edges), edge_id), std::end(edges));
+    }
+
+    auto new_v = next_vertex_id_++;
+    vertices_[new_v] = {};
+
+    // Remove v from all edges such that v in edge
+    for (auto &[e, vertices]: edges_) {
+      auto old_size = vertices.size();
+      for (auto v : edge) {
+        vertices.erase(std::remove(std::begin(vertices), std::end(vertices), v), std::end(vertices));
+      }
+      if (vertices.size() == 0) {
+        edges_.erase(e);
+        continue;
+      }
+      if (old_size != vertices.size()) {
+        vertices.push_back(new_v);
+        vertices_[new_v].push_back(e);
+      }
+    }
+  }
+
   /* Add hyperedge and return its ID.
    *
    * Time complexity: O(n), where n is the number of vertices in the hyperedge

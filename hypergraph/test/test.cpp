@@ -373,6 +373,98 @@ TEST(Hypergraph, ContractAddsNewVertex) {
   EXPECT_TRUE(contracted.is_valid());
 }
 
+TEST(Hypergraph, InplaceContractSimple) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4},
+      {
+          {0, 1, 2}
+      }
+  };
+
+  h.contract_in_place(0);
+
+  int new_vertex_id = 5;
+  EXPECT_THAT(h.vertices(), testing::UnorderedElementsAre(3, 4, new_vertex_id));
+  EXPECT_THAT(h.edges(), testing::IsEmpty());
+  EXPECT_EQ(h.num_vertices(), 3);
+  EXPECT_EQ(h.num_edges(), 0);
+  EXPECT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, InplaceContractRemovesMultipleEdges) {
+  Hypergraph h = {
+      {1, 2, 3, 4, 5},
+      {
+          {1, 2, 3},
+          {1, 2},
+          {1, 2, 3, 4},
+          {4, 5}
+      }
+  };
+  h.contract_in_place(0);
+  int new_vertex_id = 6;
+  ASSERT_THAT(h.vertices(), testing::UnorderedElementsAre(4, 5, new_vertex_id));
+  std::vector<std::pair<int, std::vector<int>>> expected_edges = {
+      {2, {4, 6}},
+      {3, {4, 5}}
+  };
+  ASSERT_THAT(h.edges(), testing::UnorderedElementsAreArray(expected_edges));
+  ASSERT_EQ(h.num_vertices(), 3);
+  ASSERT_EQ(h.num_edges(), 2);
+  ASSERT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, InplaceContractAddsNewVertex) {
+  // TODO contract returns new vertex id
+  Hypergraph h = {
+      {1, 2, 3, 4, 5},
+      {
+          {1, 2},
+          {1, 2, 3},
+          {2, 4, 5},
+          {1, 3}
+      }
+
+  };
+  int new_vertex_id = 6;
+  h.contract_in_place(0);
+  EXPECT_THAT(h.vertices(), testing::UnorderedElementsAre(3, 4, 5, new_vertex_id));
+  std::vector<std::pair<int, std::vector<int>>> expected_edges = {
+      {1, {3, new_vertex_id}},
+      {2, {4, 5, new_vertex_id}},
+      {3, {3, new_vertex_id}}
+  };
+  EXPECT_THAT(h.edges(), testing::UnorderedElementsAreArray(expected_edges));
+  EXPECT_EQ(h.num_vertices(), 4);
+  EXPECT_EQ(h.num_edges(), 3);
+  EXPECT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, InplaceContractKeepsGraphValid) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+      {
+          {9, 2, 1}, // 0
+          {9, 3, 1},
+          {8, 5, 2, 1, 0},
+          {8, 5, 3},
+          {5, 2, 0},
+          {9, 0}, // 5
+          {10, 3, 2},
+          {10, 5},
+          {4, 1},
+          {10, 8, 4},
+          {3, 2, 1}, // 10
+          {5, 4, 3, 2, 1, 0},
+          {5, 1},
+          {8, 4},
+      }
+  };
+  h.contract_in_place(13); // {8, 4}
+
+  EXPECT_TRUE(h.is_valid());
+}
+
 TEST(Hypergraph, ContractKeepsGraphValid) {
   Hypergraph h = {
       {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
