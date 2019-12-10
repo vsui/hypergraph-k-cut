@@ -58,6 +58,7 @@ bool cut_is_valid(const HypergraphCut<HypergraphType> &cut,
     return false;
   }
 
+  // Check vertices in partitions are the vertices in the hypergraph
   std::set<int> in_partitions;
   for (const auto &partition : cut.partitions) {
     for (const auto v : partition) {
@@ -67,6 +68,12 @@ bool cut_is_valid(const HypergraphCut<HypergraphType> &cut,
   std::set<int> in_hypergraph(std::begin(hypergraph.vertices()), std::end(hypergraph.vertices()));
   if (in_partitions != in_hypergraph) {
     error = "Vertices in partitions do not match vertices in hypergraph";
+    return false;
+  }
+
+  // Check that no partition is empty
+  if (std::any_of(std::begin(cut.partitions), std::end(cut.partitions), [](const auto &c) { return c.empty(); })) {
+    error = "One of the partitions was empty";
     return false;
   }
 
@@ -176,6 +183,14 @@ public:
   [[nodiscard]]
   Hypergraph contract(const int edge_id) const {
     std::vector<int> old_edge = edges_.at(edge_id);
+
+    if (old_edge.empty()) {
+      // Pretty much nothing will change, just remove the old edge
+      auto new_vertices = vertices_;
+      auto new_edges = edges_;
+      new_edges.erase(edge_id);
+      return Hypergraph(std::move(new_vertices), std::move(new_edges), *this);
+    }
 
     if constexpr (EdgeMayContainLoops) {
       std::set<int> sorted(std::begin(old_edge), std::end(old_edge));
