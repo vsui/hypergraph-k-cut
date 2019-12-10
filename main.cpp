@@ -157,9 +157,21 @@ int dispatch(Options options) {
     break;
   }
   case cut_algorithm::FPZ: {
-    f = [num_runs](HypergraphType &hypergraph, size_t k) {
-      return fpz::branching_contract<HypergraphType, true>(hypergraph, k, num_runs);
-    };
+    std::cout << "Input 1 if you want to output the values of intermediate cuts, 0 otherwise" << std::endl;
+    int i;
+    std::cin >> i;
+    if (i == 1) {
+      f = [num_runs](HypergraphType &hypergraph, size_t k) {
+        return fpz::branching_contract<HypergraphType, true, true>(hypergraph, k, num_runs);
+      };
+    } else if (i == 0) {
+      f = [num_runs](HypergraphType &hypergraph, size_t k) {
+        return fpz::branching_contract<HypergraphType, true, false>(hypergraph, k, num_runs);
+      };
+    } else {
+      std::cout << "Bad input" << std::endl;
+      exit(1);
+    }
     break;
   }
   case cut_algorithm::MW: {
