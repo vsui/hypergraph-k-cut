@@ -34,6 +34,12 @@ namespace cxy {
  *   k: number of partitions
  */
 double cxy_delta(size_t n, size_t e, size_t k) {
+  static std::map<std::tuple<size_t, size_t, size_t>, double> memo;
+
+  if (auto it = memo.find(std::make_tuple(n, e, k)); it != std::end(memo)) {
+    return it->second;
+  }
+
   double s = 0;
   if (n < e + k - 2) {
     return 0;

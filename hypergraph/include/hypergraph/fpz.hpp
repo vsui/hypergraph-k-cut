@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include "hypergraph/hypergraph.hpp"
+#include "hypergraph/cxy.hpp"
 
 namespace fpz {
 
@@ -19,21 +20,7 @@ namespace fpz {
  *   k: number of partitions
  */
 double redo_probability(size_t n, size_t e, size_t k) {
-  double s = 0;
-  if (n < e + k - 2) {
-    return 0;
-  }
-  for (size_t i = n - (e + k - 2); i <= n - e; ++i) {
-    s += std::log(i);
-  }
-  if (n < k - 2) {
-    return 0;
-  }
-  for (size_t i = n - (k - 2); i <= n; ++i) {
-    s -= std::log(i);
-  }
-  assert(!std::isnan(s));
-  return 1 - std::exp(s);
+  return 1 - cxy::cxy_delta(n, e, k);
 }
 
 /* Branching contraction min cut inner routine
