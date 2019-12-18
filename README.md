@@ -100,19 +100,19 @@ That is, `E[# hyperedges that contain v] * P >> weight of hyperedge that crosses
 
 ## Algorithms
 
-KW: The hypergraph min-cut algorithm described in [KW'96]. Based on vertex orderings.
+KW: The hypergraph min-cut algorithm described in [KW'96]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/order.hpp`.
 
-Q: The hypergraph min-cut algorithm described in [Q'98]. Based on vertex orderings.
+Q: The hypergraph min-cut algorithm described in [Q'98]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/order.hpp`.
 
-MW: The hypergraph min-cut algorithm described in [MW'00]. Based on vertex orderings.
+MW: The hypergraph min-cut algorithm described in [MW'00]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/order.hpp`.
 
-CXY: The hypergraph k-cut algorithm described in [CXY'18]. Based on random contractions.
+CXY: The hypergraph k-cut algorithm described in [CXY'18]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/cxy.hpp`.
 
-FPZ: The hypergraph k-cut algorithm described in [FPZ'19]. Based on random contractions.
+FPZ: The hypergraph k-cut algorithm described in [FPZ'19]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/fpz.hpp`.
 
-CX: The (2+epsilon) approximate hypergraph min-cut algorithm described in [CX'18]. Based on vertex orderings.
+CX: The (2+epsilon) approximate hypergraph min-cut algorithm described in [CX'18]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/approx.hpp`.
 
-KK: The (1+epsilon) approximate min-cut algorithm for uniform (constant rank) hypergraphs described in [KK'14]. Based on random contractions.
+KK: The (1+epsilon) approximate min-cut algorithm for uniform (constant rank) hypergraphs described in [KK'14]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/kk.hpp`.
 
 ## Input
 
