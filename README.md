@@ -119,8 +119,8 @@ be much greater than the weight of an edge crossing a component.
 That is, `E[# hyperedges that contain v] * P >> weight of hyperedge that crosses between components`.
 
 For `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, `k=3`, `P = 10` will generate a hypergraph with 100 vertices,
-20 edges lying entirely in each cluster that samples within the cluster with 0.3 weight, 10 edges that are sampled from
-all vertices with 0.4 weight, three clusters, and all edges that are entirely within a cluster have weight multiplied by 10.
+20 edges lying entirely in each cluster that samples within the cluster with probability 0.3, 10 edges that are sampled from
+all vertices with probability 0.4, three clusters, and all edges that are entirely within a cluster have weight multiplied by 10. Weights are ignored for unweighted graphs.
 
 ## Algorithms
 
