@@ -269,7 +269,9 @@ public:
 
   template<bool EdgeMayContainLoops = true>
   void contract_in_place(const int edge_id) {
+    assert(is_valid());
     if (edges_.at(edge_id).empty()) {
+      edges_.erase(edge_id);
       return;
     }
 
@@ -291,6 +293,11 @@ public:
 
     auto new_v = next_vertex_id_++;
     vertices_[new_v] = {};
+
+    for (const auto v : edge) {
+      vertices_within_[new_v].splice(std::end(vertices_within_[new_v]), std::move(vertices_within_[v]));
+      vertices_within_.erase(v);
+    }
 
     // Remove v from all edges such that v in edge
     for (auto it = std::begin(edges_); it != std::end(edges_);) {

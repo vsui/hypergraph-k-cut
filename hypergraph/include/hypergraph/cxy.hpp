@@ -101,7 +101,7 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
     size_t sampled = distribution(random_generator);
     int sampled_id = edge_ids.at(sampled);
 
-    hypergraph = hypergraph.contract(sampled_id);
+    hypergraph.contract_in_place(sampled_id);
   }
 
   // May terminate early if it finds a zero cost cut with >k partitions, so need
