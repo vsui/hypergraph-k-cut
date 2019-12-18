@@ -15,7 +15,8 @@ make
 
 To generate hypergraphs, run `./hgen <num_vertices> <num_edges> <sampling percentage>`
 
-To run the algorithm, run `./hcut <input file> <k> <algorithm>`
+To run the algorithm, run `./hcut <input file> <k> <algorithm>`. For example, if you want to run the approximate
+algorithm from [CX'18], you would run `./hcut <input file> 2 CX`.
 
 The list of algorithms is available below. Note that some algorithms only work for k = 2 and some will prompt for extra
 parameters (such as an approximation factor).
