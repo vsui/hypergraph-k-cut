@@ -60,7 +60,7 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
 
   // If no edges remain, return the answer
   if (hypergraph.num_edges() == 0) {
-    // May terminate early if it finds a perfect cut with >k partitions, so need
+    // May terminate early if it finds a zero cost cut with >k partitions, so need
     // to merge partitions.
     while (hypergraph.num_vertices() > k) {
       auto begin = std::begin(hypergraph.vertices());

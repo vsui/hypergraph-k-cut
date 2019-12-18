@@ -104,7 +104,7 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
     hypergraph = hypergraph.contract(sampled_id);
   }
 
-  // May terminate early if it finds a perfect cut with >k partitions, so need
+  // May terminate early if it finds a zero cost cut with >k partitions, so need
   // to merge partitions. At this point the sum of deltas is zero, so every
   // remaining hyperedge crosses all components, so we can merge components
   // without changing the cut value.
