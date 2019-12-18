@@ -46,7 +46,7 @@ It chooses `m` hyperedges this way. Hyperedge weights are sampled uniformly in
 [1, 100].
 
 For example, with `n = 100`, `m = 200`, and `p = 0.5` will create a hypergraph with 100 vertices and 200 hyperedges,
-where each hyperedge has a 50% chance of being in each edge.
+where each vertex has a 50% chance of being in each edge.
 
 ### Type 2
 
