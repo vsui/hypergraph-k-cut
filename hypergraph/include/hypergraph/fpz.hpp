@@ -11,23 +11,31 @@
 
 namespace fpz {
 
-/* Redo probability from the branching contraction paper. The calculations have
- * been changed a bit to make calculation efficient and to avoid overflow
+/**
+ * Redo probability from the branching contraction paper. The calculations have been changed to use log calculation to
+ * avoid overflow.
  *
- * Args:
- *   n: number of vertices in the hypergraph
- *   e: number of vertices that the hyperedge is incident on
- *   k: number of partitions
+ * @param n number of vertices in the hypergraph
+ * @param e number of vertices that the hyperedge is incident on
+ * @param k number of partitions
+ * @return the redo probability
  */
 double redo_probability(size_t n, size_t e, size_t k) {
   return 1 - cxy::cxy_delta(n, e, k);
 }
 
-/* Branching contraction min cut inner routine
+/**
+ * The randomized branching contraction algorithm from [FPZ'19] that returns the minimum-k-cut of a hypergraph with some
+ * probability.
  *
- * accumulated : a running count of k-spanning hyperedges used to calculate the
- *               min cut
- * */
+ * @tparam HypergraphType
+ * @tparam Verbose if `true` then print out stats for each leaf calculation
+ * @param hypergraph
+ * @param k
+ * @param random_generator the source of randomness
+ * @param accumulated the size of the hypergraph so far (used as context for recursive calls)
+ * @return minimum found k cut
+ */
 template<typename HypergraphType, bool Verbose = false>
 HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
                                                   size_t k,
@@ -100,6 +108,14 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
   }
 }
 
+/**
+ * Calculate the number of runs required to find the minimum k-cut with high probability.
+ *
+ * @tparam HypergraphType
+ * @param hypergraph
+ * @param k
+ * @return the number of runs required to find the minimum cut with high probability
+ */
 template<typename HypergraphType>
 size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_t k) {
   auto log_n =
@@ -107,6 +123,19 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
   return log_n * log_n;
 }
 
+/**
+ * Return the minimum cut by repeating the random branching contraction algorithm of [FPZ'19] `num_runs` times,
+ * returning the minimum of runs.
+ *
+ * @tparam HypergraphType
+ * @tparam Verbose if `true` then print out information for each run
+ * @tparam VVerbose if `true` then print out information for each found cut
+ * @param hypergraph the hypergraph to use
+ * @param k find a minimum k-cut
+ * @param num_runs number of runs. Use the `default_num_runs` for high probability of success
+ * @param default_seed random seed
+ * @return
+ */
 template<typename HypergraphType, bool Verbose = false, bool VVerbose = false>
 inline auto branching_contract(const HypergraphType &hypergraph,
                                size_t k,
