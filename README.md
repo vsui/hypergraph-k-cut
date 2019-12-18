@@ -18,6 +18,9 @@ To generate hypergraphs, run `./hgen <num_vertices> <num_edges> <sampling percen
 To run the algorithm, run `./hcut <input file> <k> <algorithm>`. For example, if you want to run the approximate
 algorithm from [CX'18], you would run `./hcut <input file> 2 CX`.
 
+To generate sparse certificates, run `./hsparsify <input file> <k>`, to generate a sparse certificate of the hypergraph in the input file
+with cuts preserved up to `k`.
+
 The list of algorithms is available below. Note that some algorithms only work for k = 2 and some will prompt for extra
 parameters (such as an approximation factor).
 
@@ -134,6 +137,8 @@ FPZ: The hypergraph k-cut algorithm described in [FPZ'19]. Based on random contr
 CX: The (2+epsilon) approximate hypergraph min-cut algorithm described in [CX'18]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/approx.hpp`.
 
 KK: The (1+epsilon) approximate min-cut algorithm for uniform (constant rank) hypergraphs described in [KK'14]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/kk.hpp`.
+
+Hypergraph min-cut on unweighted hypergraphs may use the sparse certificate detailed in [CX'18]. It is implemented in `hypergraph/include/hypergraph/certificate.hpp`.
 
 ## Input
 
