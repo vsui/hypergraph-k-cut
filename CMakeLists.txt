@@ -11,3 +11,6 @@ target_link_libraries(hcut hypergraph)
 
 add_executable(hgen gen.cpp)
 target_link_libraries(hgen hypergraph)
+
+add_executable(hsparsify sparsify.cpp)
+target_link_libraries(hsparsify hypergraph)

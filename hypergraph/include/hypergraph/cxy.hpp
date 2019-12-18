@@ -14,7 +14,8 @@
 
 namespace cxy {
 
-/* Calculates delta from CXY. The probability that an edge
+/**
+ * Calculates delta from CXY. The probability that an edge
  * will be contracted in the CXY k-cut algorithm is proportional
  * to the returned value.
  *
@@ -34,6 +35,12 @@ namespace cxy {
  *   k: number of partitions
  */
 double cxy_delta(size_t n, size_t e, size_t k) {
+  static std::map<std::tuple<size_t, size_t, size_t>, double> memo;
+
+  if (auto it = memo.find(std::make_tuple(n, e, k)); it != std::end(memo)) {
+    return it->second;
+  }
+
   double s = 0;
   if (n < e + k - 2) {
     return 0;
@@ -51,6 +58,15 @@ double cxy_delta(size_t n, size_t e, size_t k) {
   return std::exp(s);
 }
 
+/**
+ * The contraction algorithm from [CXY'18]. This returns the minimum cut with some probability.
+ *
+ * Args:
+ *   hypergraph: the hypergraph to calculate on
+ *   k: compute the k-cut
+ *   random_generator: the random generator used to induce randomness
+ *   accumulated: UNUSED
+ */
 template<typename HypergraphType>
 HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
                                             size_t k,
@@ -60,11 +76,7 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
   std::vector<int> edge_ids;
   std::vector<double> deltas;
 
-  // TODO function for sum of all edge weights
-  typename HypergraphType::EdgeWeight min_so_far = 0;
-  for (const auto &[e, vertices] : hypergraph.edges()) {
-    min_so_far += edge_weight(hypergraph, e);
-  }
+  typename HypergraphType::EdgeWeight min_so_far = total_edge_weight(hypergraph);
 
   while (true) {
     edge_ids.resize(hypergraph.edges().size());
@@ -78,7 +90,6 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
     }
 
     if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
-      // TODO function for sum of all edge weights
       auto cut = total_edge_weight(hypergraph);
       min_so_far = std::min(min_so_far, cut);
       break;
@@ -90,10 +101,10 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
     size_t sampled = distribution(random_generator);
     int sampled_id = edge_ids.at(sampled);
 
-    hypergraph = hypergraph.contract(sampled_id);
+    hypergraph.contract_in_place(sampled_id);
   }
 
-  // May terminate early if it finds a perfect cut with >k partitions, so need
+  // May terminate early if it finds a zero cost cut with >k partitions, so need
   // to merge partitions. At this point the sum of deltas is zero, so every
   // remaining hyperedge crosses all components, so we can merge components
   // without changing the cut value.
@@ -114,9 +125,10 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
   return HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), min_so_far);
 }
 
-/* n choose r
- *
- * [https://stackoverflow.com/questions/9330915/number-of-combinations-n-choose-r-in-c]
+/**
+ * @param n
+ * @param k
+ * @return n choose k
  */
 unsigned long long ncr(unsigned long long n, unsigned long long k) {
   if (k > n) {
@@ -137,6 +149,14 @@ unsigned long long ncr(unsigned long long n, unsigned long long k) {
   return result;
 }
 
+/**
+ * Calculate the number of runs required to find the minimum cut with high probability.
+ *
+ * @tparam HypergraphType the type of hypergraph
+ * @param hypergraph the hypergraph
+ * @param k the k for k-cut
+ * @return the number of runs required to find the minimum cut with high probability
+ */
 template<typename HypergraphType>
 size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
   // TODO this is likely to overflow when n is large (> 100000)
@@ -147,7 +167,18 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
   return num_runs;
 }
 
-// Algorithm for calculating hypergraph min-k-cut from CXY '18
+/**
+ * Return the minimum cut by repeating the random contraction algorithm of [CXY'18] `num_runs` times, returning the
+ * minimum cut of the runs.
+ *
+ * @tparam HypergraphType
+ * @tparam Verbose if `true` then print out information for each run
+ * @param hypergraph the hypergraph to find the minimum cut of
+ * @param k find the k-cut
+ * @param num_runs the number of times to repeat the random contraction algorithm
+ * @param default_seed random seed for the algorithms
+ * @return the cut with the minimum value across all cuts
+ */
 template<typename HypergraphType, bool Verbose = false>
 inline auto cxy_contract(const HypergraphType &hypergraph,
                          size_t k,
