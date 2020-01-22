@@ -194,10 +194,10 @@ int dispatch(Options options) {
     break;
   }
   case cut_algorithm::KK: {
-    std::cout << "Please input r" << std::endl;
-    size_t r;
-    std::cin >> r;
-    f = [epsilon, r](HypergraphType &hypergraph, size_t k) {
+    f = [epsilon](HypergraphType &hypergraph, size_t k) {
+      size_t r = hypergraph.rank();
+      std::cout << "Rank is " << r << std::endl;
+      // TODO we could push rank further down to be calculated into the contract function
       return kk::contract<HypergraphType>(hypergraph, r, epsilon);
     };
     break;
