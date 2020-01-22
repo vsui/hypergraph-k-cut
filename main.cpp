@@ -128,15 +128,15 @@ int dispatch(Options options) {
   // Check k is valid
   switch (options.algorithm) {
   case cut_algorithm::CXY:
-  case cut_algorithm::FPZ: {
+  case cut_algorithm::FPZ:
+  case cut_algorithm::KK: {
     // k is valid
     break;
   }
   case cut_algorithm::MW:
   case cut_algorithm::KW:
   case cut_algorithm::Q:
-  case cut_algorithm::CX:
-  case cut_algorithm::KK: {
+  case cut_algorithm::CX: {
     if (options.k != 2) {
       std::cout << "Only k=2 is acceptable for this algorithm" << std::endl;
       return 1;
