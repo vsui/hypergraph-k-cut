@@ -19,7 +19,7 @@ bool parse_hypergraph(const std::string &filename, Hypergraph &hypergraph) {
 
 int main(int argc, char **argv) {
   if (argc != 3) {
-    std::cerr << "Usage: " << argv[0] << " <input file> <k>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " <input file> <c>" << std::endl;
     return 1;
   }
 
