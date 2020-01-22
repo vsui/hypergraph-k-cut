@@ -45,13 +45,8 @@ int usage() {
   std::cerr << "Usage: " << binary_name
             << " <input hypergraph filename> <k> <algorithm>\n";
   std::cerr << "Algorithms:\n";
-  std::cerr << " min-cut (works for k = 2):\n";
-  for (const auto &[name, f] : registry.minimum_cut_functions) {
-    std::cerr << "  " << name << std::endl;
-  }
-  std::cerr << " min-k-cut (works for k > 1):\n";
-  for (const auto &[name, f] : registry.minimum_k_cut_functions) {
-    std::cerr << "  " << name << std::endl;
+  for (const auto &[name, _] : string_to_algorithm) {
+    std::cerr << "\t" << name << std::endl;
   }
   return 1;
 }
