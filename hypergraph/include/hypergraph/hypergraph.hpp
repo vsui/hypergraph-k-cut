@@ -267,6 +267,58 @@ public:
     return new_hypergraph;
   }
 
+  template<bool EdgeMayContainLoops = true>
+  void contract_in_place(const int edge_id) {
+    assert(is_valid());
+    if (edges_.at(edge_id).empty()) {
+      edges_.erase(edge_id);
+      return;
+    }
+
+    std::vector<int> edge = edges_.at(edge_id);
+    if constexpr (EdgeMayContainLoops) {
+      std::set<int> sorted(std::begin(edge), std::end(edge));
+      edge = {std::begin(sorted), std::end(sorted)};
+    }
+
+    for (auto v : edge) {
+      vertices_.erase(v);
+    }
+    edges_.erase(edge_id);
+
+    // Remove edge_id from incidence of all v in e
+    for (auto &[v, edges] : vertices_) {
+      edges.erase(std::remove(std::begin(edges), std::end(edges), edge_id), std::end(edges));
+    }
+
+    auto new_v = next_vertex_id_++;
+    vertices_[new_v] = {};
+
+    for (const auto v : edge) {
+      vertices_within_[new_v].splice(std::end(vertices_within_[new_v]), std::move(vertices_within_[v]));
+      vertices_within_.erase(v);
+    }
+
+    // Remove v from all edges such that v in edge
+    for (auto it = std::begin(edges_); it != std::end(edges_);) {
+      auto e = it->first;
+      auto &vertices = it->second;
+      auto old_size = vertices.size();
+      for (auto v : edge) {
+        vertices.erase(std::remove(std::begin(vertices), std::end(vertices), v), std::end(vertices));
+      }
+      if (vertices.size() == 0) {
+        it = edges_.erase(it);
+      } else {
+        if (old_size != vertices.size()) {
+          vertices.push_back(new_v);
+          vertices_[new_v].push_back(e);
+        }
+        ++it;
+      }
+    }
+  }
+
   /* Add hyperedge and return its ID.
    *
    * Time complexity: O(n), where n is the number of vertices in the hyperedge
@@ -392,6 +444,11 @@ public:
     Hypergraph contracted = hypergraph_.contract<EdgeMayContainLoops>(edge_id);
     // TODO edges to weights should still be valid
     return WeightedHypergraph(contracted, edges_to_weights_);
+  }
+
+  template<bool EdgeMayContainLoops = true>
+  void contract_in_place(int edge_id) {
+    hypergraph_.contract_in_place<EdgeMayContainLoops>(edge_id);
   }
 
   EdgeWeightType edge_weight(int edge_id) const {

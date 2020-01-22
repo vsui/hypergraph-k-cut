@@ -373,6 +373,98 @@ TEST(Hypergraph, ContractAddsNewVertex) {
   EXPECT_TRUE(contracted.is_valid());
 }
 
+TEST(Hypergraph, InplaceContractSimple) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4},
+      {
+          {0, 1, 2}
+      }
+  };
+
+  h.contract_in_place(0);
+
+  int new_vertex_id = 5;
+  EXPECT_THAT(h.vertices(), testing::UnorderedElementsAre(3, 4, new_vertex_id));
+  EXPECT_THAT(h.edges(), testing::IsEmpty());
+  EXPECT_EQ(h.num_vertices(), 3);
+  EXPECT_EQ(h.num_edges(), 0);
+  EXPECT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, InplaceContractRemovesMultipleEdges) {
+  Hypergraph h = {
+      {1, 2, 3, 4, 5},
+      {
+          {1, 2, 3},
+          {1, 2},
+          {1, 2, 3, 4},
+          {4, 5}
+      }
+  };
+  h.contract_in_place(0);
+  int new_vertex_id = 6;
+  ASSERT_THAT(h.vertices(), testing::UnorderedElementsAre(4, 5, new_vertex_id));
+  std::vector<std::pair<int, std::vector<int>>> expected_edges = {
+      {2, {4, 6}},
+      {3, {4, 5}}
+  };
+  ASSERT_THAT(h.edges(), testing::UnorderedElementsAreArray(expected_edges));
+  ASSERT_EQ(h.num_vertices(), 3);
+  ASSERT_EQ(h.num_edges(), 2);
+  ASSERT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, InplaceContractAddsNewVertex) {
+  // TODO contract returns new vertex id
+  Hypergraph h = {
+      {1, 2, 3, 4, 5},
+      {
+          {1, 2},
+          {1, 2, 3},
+          {2, 4, 5},
+          {1, 3}
+      }
+
+  };
+  int new_vertex_id = 6;
+  h.contract_in_place(0);
+  EXPECT_THAT(h.vertices(), testing::UnorderedElementsAre(3, 4, 5, new_vertex_id));
+  std::vector<std::pair<int, std::vector<int>>> expected_edges = {
+      {1, {3, new_vertex_id}},
+      {2, {4, 5, new_vertex_id}},
+      {3, {3, new_vertex_id}}
+  };
+  EXPECT_THAT(h.edges(), testing::UnorderedElementsAreArray(expected_edges));
+  EXPECT_EQ(h.num_vertices(), 4);
+  EXPECT_EQ(h.num_edges(), 3);
+  EXPECT_TRUE(h.is_valid());
+}
+
+TEST(Hypergraph, InplaceContractKeepsGraphValid) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+      {
+          {9, 2, 1}, // 0
+          {9, 3, 1},
+          {8, 5, 2, 1, 0},
+          {8, 5, 3},
+          {5, 2, 0},
+          {9, 0}, // 5
+          {10, 3, 2},
+          {10, 5},
+          {4, 1},
+          {10, 8, 4},
+          {3, 2, 1}, // 10
+          {5, 4, 3, 2, 1, 0},
+          {5, 1},
+          {8, 4},
+      }
+  };
+  h.contract_in_place(13); // {8, 4}
+
+  EXPECT_TRUE(h.is_valid());
+}
+
 TEST(Hypergraph, ContractKeepsGraphValid) {
   Hypergraph h = {
       {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
@@ -620,16 +712,74 @@ TYPED_TEST_P(MinimumCutTest, MinimumKCutWorks) {
   }
 }
 
-TYPED_TEST_P(MinimumCutTest, SparseCertificatePreservesMinimumCutValue) {
+TEST(MinimumCut, SparsifierWorks) {
+  using UnweightedTestCase = std::pair<const Hypergraph, std::map<size_t, size_t>>;
+  std::vector<UnweightedTestCase> test_cases = {
+      {
+          Hypergraph(
+              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+              {
+                  {1, 2, 9},
+                  {1, 3, 9},
+                  {1, 2, 5, 7, 8},
+                  {3, 5, 8},
+                  {2, 5, 6},
+                  {6, 7, 9},
+                  {2, 3, 10},
+                  {5, 10},
+                  {1, 4},
+                  {4, 8, 10},
+                  {1, 2, 3},
+                  {1, 2, 3, 4, 5, 6, 7},
+                  {1, 5}
+              }
+          ),
+          { // k, cut-value tuples
+              {2, 3},
+              {3, 4},
+              {4, 6},
+              {5, 7}
+          }
+      },
+      { // Hypergraph with trivial cuts
+          Hypergraph(
+              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+              {
+                  {1, 2},
+                  {3, 4},
+                  {5, 6},
+                  {7, 8},
+                  {9, 10},
+              }
+          ),
+          {
+              {2, 0},
+              {3, 0},
+              {4, 0},
+              {5, 0},
+              {6, 1},
+              {7, 2},
+          }
+      }
+  };
 
+  for (auto test_case : test_cases) {
+    auto[hypergraph, cuts] = test_case;
+    for (auto[k, cut_value] : cuts) {
+      if (k == 2) {
+        EXPECT_EQ(certificate_minimum_cut<Hypergraph>(hypergraph,
+                                                      vertex_ordering_mincut<Hypergraph, queyranne_ordering>).value,
+                  cut_value);
+      }
+    }
+  }
 }
 
 REGISTER_TYPED_TEST_SUITE_P(
     MinimumCutTest,
     MinimumCutWorks,
     VertexOrderingMinimumCutAnyStartVertexWorks,
-    MinimumKCutWorks,
-    SparseCertificatePreservesMinimumCutValue
+    MinimumKCutWorks
 );
 
 using MinimumCutTestTypes = ::testing::Types<Hypergraph, WeightedHypergraph<size_t>>;

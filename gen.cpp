@@ -53,15 +53,16 @@ private:
   size_t k_;
 };
 
-/* Generate a type 1 random hypergraph.
+/**
+ * Generate a type 1 random hypergraph.
  *
- * Samples m random hyperedges. For each random hyperedge, samples every
- * vertex with probability p.
+ * Samples m random hyperedges. For each random hyperedge, samples every vertex with probability p.
  *
- * Args:
- *   n: number of vertices
- *   m: number of hyperedges
- *   p: sampling probability
+ * @tparam HypergraphType
+ * @param n
+ * @param m
+ * @param p
+ * @return
  */
 template<typename HypergraphType>
 HypergraphType generate_type_1(size_t n, size_t m, double p) {
@@ -95,12 +96,12 @@ HypergraphType generate_type_1(size_t n, size_t m, double p) {
   }
 }
 
-/* Generate a type 2 random hypergraph.
+/** Generate a type 2 random hypergraph.
  *
  * Similar to type 1 except that in addition to sampling random hyperedges,
  * it creates k uniform clusters of points. When a hyperedge is sampled, if
  * it is completely contained within a cluster, its weight is multiplied by
- * P.
+ * P. For unweighted edges the weight multiplication is ignored.
  *
  * Args:
  *   n: number of vertices
@@ -137,19 +138,7 @@ HypergraphType generate_type_2(size_t n, size_t m, double p, size_t k, size_t P)
   }
 
   if constexpr (!is_weighted<HypergraphType>) {
-    std::vector<std::vector<int>> repeated_edges;
-    for (auto &edge : edges) {
-      bool edge_spans_clusters = std::any_of(std::begin(edge), std::end(edge), [&vertex_to_cluster, &edge](auto v) {
-        return vertex_to_cluster.at(v) != vertex_to_cluster.at(edge.front());
-      });
-      if (edge_spans_clusters) {
-        for (int i = 0; i < P - 1; ++i) {
-          repeated_edges.emplace_back(edge);
-        }
-      }
-      repeated_edges.emplace_back(edge);
-    }
-    return {vertices, repeated_edges};
+    return {vertices, edges};
   } else {
     // Get weights
     std::vector<std::pair<std::vector<int>, double>> weighted_edges;
@@ -290,7 +279,7 @@ HypergraphType generate_type_4(size_t n, size_t d, size_t k, double p, size_t P)
  *   m2: number of hyperedges that are sampled from all vertices
  *   p2: sampling probability for m2 edges
  *   k:  number of clusters
- *   P:  weight multiplier for edges that are entirely contained within a single components
+ *   P:  weight multiplier for edges that are entirely contained within a single components. Ignored for unweighted hypergraphs
  */
 template<typename HypergraphType>
 HypergraphType generate_type_5(size_t n, size_t m1, double p1, size_t m2, double p2, size_t k, size_t P) {

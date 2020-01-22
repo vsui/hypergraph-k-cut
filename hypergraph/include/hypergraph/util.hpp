@@ -48,7 +48,7 @@ HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
     auto stop = std::chrono::high_resolution_clock::now();
     min_so_far = std::min(min_so_far, min_cut);
     if (min_so_far.value == 0) {
-      // We found a perfect cut, no need to look any longer
+      // We found a zero cost cut, no need to look any longer
       break;
     }
     if constexpr (Verbose) {
