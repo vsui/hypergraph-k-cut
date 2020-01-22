@@ -49,6 +49,7 @@ int usage() {
   for (const auto &[name, f] : registry.minimum_cut_functions) {
     std::cerr << "  " << name << std::endl;
   }
+  std::cerr << "  " << "CX" << std::endl << "  KK" << std::endl;
   std::cerr << " min-k-cut (works for k > 1):\n";
   for (const auto &[name, f] : registry.minimum_k_cut_functions) {
     std::cerr << "  " << name << std::endl;
