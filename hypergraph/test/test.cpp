@@ -7,7 +7,9 @@
 #include "hypergraph/fpz.hpp"
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/order.hpp"
+#include "hypergraph/approx.hpp"
 #include "hypergraph/registry.hpp"
+#include "hypergraph/kk.hpp"
 
 namespace {
 
@@ -770,6 +772,128 @@ TEST(MinimumCut, SparsifierWorks) {
         EXPECT_EQ(certificate_minimum_cut<Hypergraph>(hypergraph,
                                                       vertex_ordering_mincut<Hypergraph, queyranne_ordering>).value,
                   cut_value);
+      }
+    }
+  }
+}
+
+TEST(ApproxMinCut, Works) {
+  using UnweightedTestCase = std::pair<Hypergraph, std::map<size_t, size_t>>;
+  std::vector<UnweightedTestCase> test_cases = {
+      {
+          Hypergraph(
+              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+              {
+                  {1, 2, 9},
+                  {1, 3, 9},
+                  {1, 2, 5, 7, 8},
+                  {3, 5, 8},
+                  {2, 5, 6},
+                  {6, 7, 9},
+                  {2, 3, 10},
+                  {5, 10},
+                  {1, 4},
+                  {4, 8, 10},
+                  {1, 2, 3},
+                  {1, 2, 3, 4, 5, 6, 7},
+                  {1, 5}
+              }
+          ),
+          { // k, cut-value tuples
+              {2, 3},
+              {3, 4},
+              {4, 6},
+              {5, 7}
+          }
+      },
+      { // Hypergraph with trivial cuts
+          Hypergraph(
+              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+              {
+                  {1, 2},
+                  {3, 4},
+                  {5, 6},
+                  {7, 8},
+                  {9, 10},
+              }
+          ),
+          {
+              {2, 0},
+              {3, 0},
+              {4, 0},
+              {5, 0},
+              {6, 1},
+              {7, 2},
+          }
+      }
+  };
+
+  for (auto test_case : test_cases) {
+    auto[hypergraph, cuts] = test_case;
+    for (auto[k, cut_value] : cuts) {
+      if (k == 2) {
+        EXPECT_LE(approximate_minimizer(hypergraph, 2).value, 2 * cut_value);
+      }
+    }
+  }
+}
+
+TEST(KKApproxMinCut, Works) {
+  using UnweightedTestCase = std::pair<Hypergraph, std::map<size_t, size_t>>;
+  std::vector<UnweightedTestCase> test_cases = {
+      {
+          Hypergraph(
+              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+              {
+                  {1, 2, 9},
+                  {1, 3, 9},
+                  {1, 2, 5, 7, 8},
+                  {3, 5, 8},
+                  {2, 5, 6},
+                  {6, 7, 9},
+                  {2, 3, 10},
+                  {5, 10},
+                  {1, 4},
+                  {4, 8, 10},
+                  {1, 2, 3},
+                  {1, 2, 3, 4, 5, 6, 7},
+                  {1, 5}
+              }
+          ),
+          { // k, cut-value tuples
+              {2, 3},
+              {3, 4},
+              {4, 6},
+              {5, 7}
+          }
+      },
+      { // Hypergraph with trivial cuts
+          Hypergraph(
+              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+              {
+                  {1, 2},
+                  {3, 4},
+                  {5, 6},
+                  {7, 8},
+                  {9, 10},
+              }
+          ),
+          {
+              {2, 0},
+              {3, 0},
+              {4, 0},
+              {5, 0},
+              {6, 1},
+              {7, 2},
+          }
+      }
+  };
+
+  for (auto test_case : test_cases) {
+    auto[hypergraph, cuts] = test_case;
+    for (auto[k, cut_value] : cuts) {
+      if (k == 2) {
+        EXPECT_LE(kk::contract(hypergraph, 7, 2).value, 2 * cut_value);
       }
     }
   }
