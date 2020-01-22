@@ -123,6 +123,19 @@ For `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, `k=3`, `P = 10` wil
 20 edges lying entirely in each cluster that samples within the cluster with probability 0.3, 10 edges that are sampled from
 all vertices with probability 0.4, three clusters, and all edges that are entirely within a cluster have weight multiplied by 10. Weights are ignored for unweighted graphs.
 
+
+### Type 6
+
+This generator lies out the vertices in a ring, and creates `n - 1` hyperedges of `r` adjacent hyperedges. This creates
+hypergraphs with predictable cuts.
+
+It takes the following parameters:
+- `n` : number of vertices
+- `r` : size of each hyperedge
+
+For `n = 100` and `r = 3`, this will create a hypergraph with 100 vertices and 99 edges, where each edge is of the form
+`{v_i, v_{i+1}, ..., v_{i+r-1}}` for vertices 1 through 99.
+
 ## Algorithms
 
 KW: The hypergraph min-cut algorithm described in [KW'96]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/order.hpp`.

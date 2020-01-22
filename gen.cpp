@@ -297,6 +297,38 @@ HypergraphType generate_type_5(size_t n, size_t m1, double p1, size_t m2, double
   return h2;
 }
 
+// TODO cite Fukunaga
+/**
+ * Generate a type 6 random hypergraph (the ring hypergraph from Fukunaga)
+ *
+ * Generate a hypergraph of a ring where each hyperedge consists of vertices adjacent in the ring. This will create a
+ * constant-rank hypergraph.
+ */
+template<typename HypergraphType>
+HypergraphType generate_type_6(size_t n, size_t r) {
+  // number vertices 0 to n-1
+  // generate hyperedges of i...i+r-1 for 0..n-2 hyperedges
+
+  std::vector<int> vertices(n);
+  std::iota(std::begin(vertices), std::end(vertices), 0);
+
+  std::vector<std::vector<int>> hyperedges;
+  for (int i = 0; i < n - 1; ++i) {
+    std::vector<int> hyperedge;
+    for (int k = 0; k < r; ++k) {
+      hyperedge.push_back((i + k) % n);
+    }
+    hyperedges.push_back(hyperedge);
+  }
+
+  Hypergraph h(vertices, hyperedges);
+  if constexpr (is_weighted<HypergraphType>) {
+    return HypergraphType(h);
+  } else {
+    return h;
+  }
+}
+
 template<typename HypergraphType>
 void prompt() {
   HypergraphType h;
@@ -309,7 +341,7 @@ void prompt() {
   }
 
   int type;
-  std::cout << "Please input instance type (1, 2, 3, 4, or 5)" << std::endl;
+  std::cout << "Please input instance type (1, 2, 3, 4, 5, or 6)" << std::endl;
   std::cin >> type;
   filename_stream << type << "_";
 
@@ -362,6 +394,14 @@ void prompt() {
     std::cin >> n >> m1 >> p1 >> m2 >> p2 >> k >> P;
     h = generate_type_5<HypergraphType>(n, m1, p1, m2, p2, k, P);
     filename_stream << n << "_" << m1 << "_" << p1 << "_" << m2 << "_" << p2 << "_" << k << "_" << P;
+    break;
+  }
+  case 6: {
+    size_t n, r;
+    std::cout << "Input n, r" << std::endl;
+    std::cin >> n >> r;
+    h = generate_type_6<HypergraphType>(n, r);
+    filename_stream << n << "_" << r;
     break;
   }
   default: {
