@@ -564,6 +564,78 @@ TEST(Hypergraph, RemoveHyperedgeKeepsGraphValidRepeated) {
 
 namespace {
 
+using UnweightedTestCase = std::pair<const Hypergraph, std::map<size_t, Hypergraph::EdgeWeight>>;
+using WeightedTestCase = std::pair<const WeightedHypergraph<size_t>, std::map<size_t, size_t>>;
+
+static const std::vector<UnweightedTestCase> kUnweightedTestCases = {
+    {
+        Hypergraph(
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+            {
+                {1, 2, 9},
+                {1, 3, 9},
+                {1, 2, 5, 7, 8},
+                {3, 5, 8},
+                {2, 5, 6},
+                {6, 7, 9},
+                {2, 3, 10},
+                {5, 10},
+                {1, 4},
+                {4, 8, 10},
+                {1, 2, 3},
+                {1, 2, 3, 4, 5, 6, 7},
+                {1, 5}
+            }
+        ),
+        { // k, cut-value tuples
+            {2, 3},
+            {3, 4},
+            {4, 6},
+            {5, 7}
+        }
+    },
+    { // Hypergraph with trivial cuts
+        Hypergraph(
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+            {
+                {1, 2},
+                {3, 4},
+                {5, 6},
+                {7, 8},
+                {9, 10},
+            }
+        ),
+        {
+            {2, 0},
+            {3, 0},
+            {4, 0},
+            {5, 0},
+            {6, 1},
+            {7, 2},
+        }
+    }
+};
+
+static const std::vector<WeightedTestCase> kWeightedTestCases = {
+    {
+        WeightedHypergraph<size_t>(
+            {0, 1, 2, 3, 4, 5},
+            {
+                {{0, 1, 2}, 3},
+                {{1, 2, 3}, 4},
+                {{3, 4, 5}, 3},
+                {{0, 3, 5}, 7},
+                {{0, 1, 2, 3, 4}, 2}
+            }
+        ),
+        {
+            {2, 5},
+            {3, 9},
+            {4, 12},
+            {5, 19}
+        }
+    },
+};
 }
 
 template<typename HypergraphType>
@@ -580,11 +652,11 @@ public:
 
   const std::vector<TestCase> test_cases() {
     if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
-      return unweighted_test_cases_;
+      return kUnweightedTestCases;
     } else {
-      std::vector<TestCase> test_cases_ = weighted_test_cases_;
+      std::vector<TestCase> test_cases_ = kWeightedTestCases;
       // We can reuse unweighted test cases by converting them to unit-weight hypergraphs
-      for (const auto &[h, pairs] : unweighted_test_cases_) {
+      for (const auto &[h, pairs] : kUnweightedTestCases) {
         HypergraphType weighted(h);
         test_cases_.emplace_back(weighted, pairs);
       }
@@ -593,78 +665,6 @@ public:
   }
 
   HypergraphMinimumCutRegistry<HypergraphType> registry;
-private:
-
-  using UnweightedTestCase = std::pair<const Hypergraph, std::map<size_t, Hypergraph::EdgeWeight>>;
-  using WeightedTestCase = std::pair<const WeightedHypergraph<size_t>, std::map<size_t, size_t>>;
-  const std::vector<UnweightedTestCase> unweighted_test_cases_ = {
-      {
-          Hypergraph(
-              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-              {
-                  {1, 2, 9},
-                  {1, 3, 9},
-                  {1, 2, 5, 7, 8},
-                  {3, 5, 8},
-                  {2, 5, 6},
-                  {6, 7, 9},
-                  {2, 3, 10},
-                  {5, 10},
-                  {1, 4},
-                  {4, 8, 10},
-                  {1, 2, 3},
-                  {1, 2, 3, 4, 5, 6, 7},
-                  {1, 5}
-              }
-          ),
-          { // k, cut-value tuples
-              {2, 3},
-              {3, 4},
-              {4, 6},
-              {5, 7}
-          }
-      },
-      { // Hypergraph with trivial cuts
-          Hypergraph(
-              {1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
-              {
-                  {1, 2},
-                  {3, 4},
-                  {5, 6},
-                  {7, 8},
-                  {9, 10},
-              }
-          ),
-          {
-              {2, 0},
-              {3, 0},
-              {4, 0},
-              {5, 0},
-              {6, 1},
-              {7, 2},
-          }
-      }
-  };
-  const std::vector<WeightedTestCase> weighted_test_cases_ = {
-      {
-          WeightedHypergraph<size_t>(
-              {0, 1, 2, 3, 4, 5},
-              {
-                  {{0, 1, 2}, 3},
-                  {{1, 2, 3}, 4},
-                  {{3, 4, 5}, 3},
-                  {{0, 3, 5}, 7},
-                  {{0, 1, 2, 3, 4}, 2}
-              }
-          ),
-          {
-              {2, 5},
-              {3, 9},
-              {4, 12},
-              {5, 19}
-          }
-      },
-  };
 };
 
 TYPED_TEST_SUITE_P(MinimumCutTest);
@@ -675,7 +675,8 @@ TYPED_TEST_P(MinimumCutTest, MinimumCutWorks) {
       TypeParam copy(hypergraph);
       const auto cut = minimum_cut(copy);
       std::string error;
-      EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2, error)) << name << " produced invalid cut: " << error << "\n" << cut;
+      EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2, error))
+              << name << " produced invalid cut: " << error << "\n" << cut;
       EXPECT_EQ(cut.value, cut_values.at(2)) << name << " produced a non-minimal cut";
     }
   }
@@ -713,7 +714,6 @@ TYPED_TEST_P(MinimumCutTest, MinimumKCutWorks) {
 }
 
 TEST(MinimumCut, SparsifierWorks) {
-  using UnweightedTestCase = std::pair<const Hypergraph, std::map<size_t, size_t>>;
   std::vector<UnweightedTestCase> test_cases = {
       {
           Hypergraph(
@@ -768,7 +768,8 @@ TEST(MinimumCut, SparsifierWorks) {
     for (auto[k, cut_value] : cuts) {
       if (k == 2) {
         EXPECT_EQ(certificate_minimum_cut<Hypergraph>(hypergraph,
-                                                      vertex_ordering_mincut<Hypergraph, queyranne_ordering>).value,
+                                                      vertex_ordering_mincut<Hypergraph,
+                                                                             queyranne_ordering>).value,
                   cut_value);
       }
     }
@@ -782,6 +783,6 @@ REGISTER_TYPED_TEST_SUITE_P(
     MinimumKCutWorks
 );
 
-using MinimumCutTestTypes = ::testing::Types<Hypergraph, WeightedHypergraph<size_t>>;
+using MinimumCutTestTypes =::testing::Types<Hypergraph, WeightedHypergraph<size_t>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(UnweightedAndWeighted, MinimumCutTest, MinimumCutTestTypes);

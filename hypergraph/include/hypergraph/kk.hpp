@@ -11,7 +11,9 @@ namespace kk {
  * The input hypergraph should be r-uniform and epsilon should be greater than 1.
  */
 template<typename HypergraphType>
-HypergraphCut<HypergraphType> contract(const HypergraphType &hypergraph, size_t r, double epsilon) {
+HypergraphCut<HypergraphType> contract(const HypergraphType &hypergraph, double epsilon) {
+  size_t r = hypergraph.rank();
+
   // Static random device for random sampling and generating random numbers
   static std::random_device rd;
   static std::mt19937 gen(rd());
