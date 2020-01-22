@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <chrono>
 
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/certificate.hpp"

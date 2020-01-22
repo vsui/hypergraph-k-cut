@@ -97,13 +97,17 @@ int dispatch(Options options) {
   // Special logic to pass in number of runs
   switch (options.algorithm) {
   case cut_algorithm::CXY:
-  case cut_algorithm::FPZ: {
-    size_t recommended_num_runs;
-    if (options.algorithm == cut_algorithm::CXY) {
-      recommended_num_runs = cxy::default_num_runs(hypergraph, options.k);
-    } else {
-      recommended_num_runs = fpz::default_num_runs(hypergraph, options.k);
-    }
+  case cut_algorithm::FPZ:
+  case cut_algorithm::KK: {
+
+    // Get number of runs function
+    const std::map<cut_algorithm, size_t> num_runs_map = {
+        {cut_algorithm::CXY, cxy::default_num_runs(hypergraph, options.k)},
+        {cut_algorithm::FPZ, fpz::default_num_runs(hypergraph, options.k)},
+        {cut_algorithm::KK, kk::default_num_runs(hypergraph, options.k)}
+    };
+    size_t recommended_num_runs = num_runs_map.at(options.algorithm);
+
     std::cout << "Input how many times you would like to run the algorithm (recommended is " << recommended_num_runs
               << " for low error probability)" << std::endl;
     std::cin >> num_runs;
@@ -114,8 +118,7 @@ int dispatch(Options options) {
 
   // Special logic to pass in epsilon
   switch (options.algorithm) {
-  case cut_algorithm::CX:
-  case cut_algorithm::KK: {
+  case cut_algorithm::CX: {
     std::cout << "Please specify epsilon" << std::endl;
     std::cin >> epsilon;
   }
@@ -125,15 +128,15 @@ int dispatch(Options options) {
   // Check k is valid
   switch (options.algorithm) {
   case cut_algorithm::CXY:
-  case cut_algorithm::FPZ: {
+  case cut_algorithm::FPZ:
+  case cut_algorithm::KK: {
     // k is valid
     break;
   }
   case cut_algorithm::MW:
   case cut_algorithm::KW:
   case cut_algorithm::Q:
-  case cut_algorithm::CX:
-  case cut_algorithm::KK: {
+  case cut_algorithm::CX: {
     if (options.k != 2) {
       std::cout << "Only k=2 is acceptable for this algorithm" << std::endl;
       return 1;
@@ -169,6 +172,12 @@ int dispatch(Options options) {
     }
     break;
   }
+  case cut_algorithm::KK: {
+    f = [num_runs](HypergraphType &hypergraph, size_t k) {
+      return kk::contract<HypergraphType, true>(hypergraph, k, num_runs);
+    };
+    break;
+  }
   case cut_algorithm::MW: {
     f = [](HypergraphType &hypergraph, size_t k) {
       return vertex_ordering_mincut<HypergraphType, tight_ordering>(hypergraph);
@@ -190,15 +199,6 @@ int dispatch(Options options) {
   case cut_algorithm::CX: {
     f = [epsilon](HypergraphType &hypergraph, size_t k) {
       return approximate_minimizer(hypergraph, epsilon);
-    };
-    break;
-  }
-  case cut_algorithm::KK: {
-    std::cout << "Please input r" << std::endl;
-    size_t r;
-    std::cin >> r;
-    f = [epsilon, r](HypergraphType &hypergraph, size_t k) {
-      return kk::contract<HypergraphType>(hypergraph, r, epsilon);
     };
     break;
   }

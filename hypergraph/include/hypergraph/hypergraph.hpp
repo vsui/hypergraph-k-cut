@@ -364,6 +364,19 @@ public:
    */
   const std::list<int> &vertices_within(const int v) const;
 
+  /**
+   * Compute the rank of the hypergraph by scanning through all hyperedges and returning the size of the hyperedge with
+   * maximum rank.
+   *
+   * @return the rank of the hypergraph
+   */
+  [[nodiscard]]
+  size_t rank() const {
+    return std::max_element(edges().begin(), edges().end(), [](const auto a, const auto b) {
+      return a.second.size() < b.second.size();
+    })->second.size();
+  }
+
 private:
   friend class KTrimmedCertificate;
 
@@ -486,6 +499,11 @@ public:
 
   const std::list<int> &vertices_within(const int v) const {
     return hypergraph_.vertices_within(v);
+  }
+
+  [[nodiscard]]
+  size_t rank() const {
+    return hypergraph_.rank();
   }
 
 private:

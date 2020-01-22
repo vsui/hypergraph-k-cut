@@ -18,8 +18,9 @@ To generate hypergraphs, run `./hgen <num_vertices> <num_edges> <sampling percen
 To run the algorithm, run `./hcut <input file> <k> <algorithm>`. For example, if you want to run the approximate
 algorithm from [CX'18], you would run `./hcut <input file> 2 CX`.
 
-To generate sparse certificates, run `./hsparsify <input file> <k>`, to generate a sparse certificate of the hypergraph in the input file
-with cuts preserved up to `k`.
+To generate sparse certificates, run `./hsparsify <input file> <c>`, to generate a sparse certificate of the hypergraph in the input file
+with cut values preserved up to `c`. The output hypergraph will be written to a file with the same name as the input file except
+with `sparse_` prefixed to it, i.e. `sparse_<input file>`.
 
 The list of algorithms is available below. Note that some algorithms only work for k = 2 and some will prompt for extra
 parameters (such as an approximation factor).
