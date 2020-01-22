@@ -5,6 +5,7 @@
 
 #include "hypergraph/cxy.hpp"
 #include "hypergraph/fpz.hpp"
+#include <hypergraph/kk.hpp>
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/order.hpp"
 #include "hypergraph/registry.hpp"
@@ -710,6 +711,24 @@ TYPED_TEST_P(MinimumCutTest, MinimumKCutWorks) {
         EXPECT_EQ(cut.value, cut_values.at(k)) << name << " " << k << "-cut produced a non-minimal cut";
       }
     }
+  }
+}
+
+TEST(KK, UnweightedWorks) {
+  for (const auto &[hypergraph, cut_values] : kUnweightedTestCases) {
+    const auto cut = kk::contract(hypergraph, 2);
+    std::string error;
+    EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2, error)) << "Invalid cut: " << error << "\n";
+    EXPECT_LE(cut.value, 2 * cut_values.at(2)) << "Non-minimal-cut\n";
+  }
+}
+
+TEST(KK, WeightedWorks) {
+  for (const auto &[hypergraph, cut_values] : kWeightedTestCases) {
+    const auto cut = kk::contract(hypergraph, 2);
+    std::string error;
+    EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2, error)) << "Invalid cut: " << error << "\n";
+    EXPECT_LE(cut.value, 2 * cut_values.at(2)) << "Non-minimal-cut\n";
   }
 }
 

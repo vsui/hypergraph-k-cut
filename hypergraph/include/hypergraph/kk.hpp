@@ -3,15 +3,31 @@
 #include <random>
 
 #include "hypergraph/hypergraph.hpp"
+#include "hypergraph/util.hpp"
 
 namespace kk {
 
-/* The approximate min-cut algorithm from KK'14.
+/**
+ * The min-cut algorithm from [KK'14].
  *
- * The input hypergraph should be r-uniform and epsilon should be greater than 1.
+ * Runtime is dependent on the rank of the hypergraph.
+ *
+ * @tparam HypergraphType
+ * @param hypergraph
+ * @param k
+ * @param random_generator
+ * @param accumulated   Unused parameter
+ * @return
  */
 template<typename HypergraphType>
-HypergraphCut<HypergraphType> contract(const HypergraphType &hypergraph, double epsilon) {
+HypergraphCut<HypergraphType> contract_(HypergraphType &hypergraph,
+                                        size_t k,
+                                        std::mt19937_64 &random_generator,
+                                        [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+
+  // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
+  double epsilon = 1.0;
+
   size_t r = hypergraph.rank();
 
   // Static random device for random sampling and generating random numbers
@@ -92,6 +108,30 @@ HypergraphCut<HypergraphType> contract(const HypergraphType &hypergraph, double 
   }
 
   return {std::begin(partitions), std::end(partitions), cut_value};
+}
+
+template<typename HypergraphType>
+size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
+  const auto r = hypergraph.rank();
+  const auto n = hypergraph.num_vertices();
+  return std::pow(2, r) * std::pow(n, k) * std::log(n);
+}
+
+template<typename HypergraphType, bool Verbose = false>
+HypergraphCut<HypergraphType> contract(const HypergraphType &hypergraph,
+                                       size_t k,
+                                       size_t num_runs = 0,
+                                       uint64_t default_seed = 0) {
+  // TODO temporary
+  assert(k == 2);
+  std::mt19937_64 random_generator;
+  if (default_seed) {
+    random_generator.seed(default_seed);
+  }
+  return hypergraph_util::minimum_of_runs<HypergraphType,
+                                          contract_<HypergraphType>,
+                                          default_num_runs<HypergraphType>,
+                                          Verbose>(hypergraph, k, num_runs, random_generator);
 }
 
 }
