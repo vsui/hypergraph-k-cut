@@ -34,7 +34,7 @@ namespace cxy {
  *   e: the size of the hyperedge
  *   k: number of partitions
  */
-double cxy_delta(size_t n, size_t e, size_t k) {
+inline double cxy_delta(size_t n, size_t e, size_t k) {
   static std::map<std::tuple<size_t, size_t, size_t>, double> memo;
 
   if (auto it = memo.find(std::make_tuple(n, e, k)); it != std::end(memo)) {
@@ -68,10 +68,10 @@ double cxy_delta(size_t n, size_t e, size_t k) {
  *   accumulated: UNUSED
  */
 template<typename HypergraphType>
-HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
-                                            size_t k,
-                                            std::mt19937_64 &random_generator,
-                                            [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+HypergraphCut<typename HypergraphType::EdgeWeight> cxy_contract_(HypergraphType &hypergraph,
+                                                                 size_t k,
+                                                                 std::mt19937_64 &random_generator,
+                                                                 [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
   std::vector<int> candidates = {};
   std::vector<int> edge_ids;
   std::vector<double> deltas;
@@ -122,7 +122,7 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
     partitions.emplace_back(std::begin(partition), std::end(partition));
   }
 
-  return HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), min_so_far);
+  return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), min_so_far);
 }
 
 /**
@@ -130,7 +130,7 @@ HypergraphCut<HypergraphType> cxy_contract_(HypergraphType &hypergraph,
  * @param k
  * @return n choose k
  */
-unsigned long long ncr(unsigned long long n, unsigned long long k) {
+inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
   if (k > n) {
     return 0;
   }

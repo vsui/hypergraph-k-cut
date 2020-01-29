@@ -12,12 +12,14 @@
 
 class KTrimmedCertificate;
 
-template<typename HypergraphType>
+template<typename EdgeWeightType>
 struct HypergraphCut {
-  explicit HypergraphCut(typename HypergraphType::EdgeWeight value) : value(value) {}
+  static_assert(std::is_arithmetic_v<EdgeWeightType>);
+
+  explicit HypergraphCut(EdgeWeightType value) : value(value) {}
 
   template<typename It>
-  HypergraphCut(It begin, It end, typename HypergraphType::EdgeWeight value): partitions(), value(value) {
+  HypergraphCut(It begin, It end, EdgeWeightType value): partitions(), value(value) {
     for (auto it = begin; it != end; ++it) {
       partitions.emplace_back(std::begin(*it), std::end(*it));
     }
@@ -28,16 +30,16 @@ struct HypergraphCut {
   }
 
   std::vector<std::vector<int>> partitions;
-  typename HypergraphType::EdgeWeight value;
+  EdgeWeightType value;
 
   // Just returns an invalid cut with maximum value for use as a placeholder value
   static HypergraphCut max() {
-    return HypergraphCut(std::numeric_limits<typename HypergraphType::EdgeWeight>::max());
+    return HypergraphCut(std::numeric_limits<EdgeWeightType>::max());
   }
 };
 
 template<typename HypergraphType>
-bool cut_is_valid(const HypergraphCut<HypergraphType> &cut,
+bool cut_is_valid(const HypergraphCut<typename HypergraphType::EdgeWeight> &cut,
                   const HypergraphType &hypergraph,
                   size_t k,
                   std::string &error) {
@@ -122,8 +124,8 @@ bool cut_is_valid(const HypergraphCut<HypergraphType> &cut,
   }
 }
 
-template<typename HypergraphType>
-std::ostream &operator<<(std::ostream &os, const HypergraphCut<HypergraphType> &cut) {
+template<typename EdgeWeight>
+std::ostream &operator<<(std::ostream &os, const HypergraphCut<EdgeWeight> &cut) {
   os << "VALUE: " << cut.value << std::endl;
   size_t i = 1;
   for (const auto &partition: cut.partitions) {
@@ -138,11 +140,13 @@ std::ostream &operator<<(std::ostream &os, const HypergraphCut<HypergraphType> &
 }
 
 template<typename HypergraphType>
-using MinimumCutFunction = std::function<HypergraphCut<HypergraphType>(HypergraphType &)>;
+using MinimumCutFunction = std::function<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &)>;
 template<typename HypergraphType>
-using MinimumCutFunctionWithVertex = std::function<HypergraphCut<HypergraphType>(HypergraphType &, int)>;
+using MinimumCutFunctionWithVertex = std::function<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &,
+                                                                                                      int)>;
 template<typename HypergraphType>
-using MinimumKCutFunction = std::function<HypergraphCut<HypergraphType>(HypergraphType &, size_t k)>;
+using MinimumKCutFunction = std::function<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &,
+                                                                                             size_t k)>;
 
 class Hypergraph {
 public:
@@ -157,6 +161,16 @@ public:
 
   Hypergraph(const std::vector<int> &vertices,
              const std::vector<std::vector<int>> &edges);
+
+  /**
+   * Determines whether two hypergraphs have the same vertices and hyperedges
+   *
+   * @param other
+   * @return
+   */
+  bool operator==(const Hypergraph &other) const {
+    return vertices_ == other.vertices_ && edges_ == other.edges_;
+  }
 
   [[nodiscard]] size_t num_vertices() const;
 
@@ -412,10 +426,21 @@ public:
 
   WeightedHypergraph() = default;
 
+  template<typename OtherEdgeWeight>
+  explicit WeightedHypergraph(const WeightedHypergraph<OtherEdgeWeight> &other): hypergraph_(other.hypergraph_) {
+    for (const auto &[edge_id, incident_on] : other.edges()) {
+      edges_to_weights_.insert({edge_id, other.edge_weight(edge_id)});
+    }
+  }
+
   explicit WeightedHypergraph(const Hypergraph &hypergraph) : hypergraph_(hypergraph) {
     for (const auto &[edge_id, incident_on] : hypergraph.edges()) {
       edges_to_weights_.insert({edge_id, 1});
     }
+  }
+
+  bool operator==(const WeightedHypergraph &other) const {
+    return hypergraph_ == other.hypergraph_ && edges_to_weights_ == other.edges_to_weights_;
   }
 
   WeightedHypergraph(const std::vector<int> &vertices,
@@ -549,7 +574,7 @@ inline typename HypergraphType::EdgeWeight total_edge_weight(const HypergraphTyp
  * Time complexity: O(m), where m is the number of edges
  */
 template<typename HypergraphType>
-HypergraphCut<HypergraphType> one_vertex_cut(const HypergraphType &hypergraph, const int v) {
+HypergraphCut<typename HypergraphType::EdgeWeight> one_vertex_cut(const HypergraphType &hypergraph, const int v) {
   // Get cut-value
   typename HypergraphType::EdgeWeight cut_value = 0;
   if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
@@ -573,9 +598,9 @@ HypergraphCut<HypergraphType> one_vertex_cut(const HypergraphType &hypergraph, c
                          std::begin(hypergraph.vertices_within(u)), std::end(hypergraph.vertices_within(u)));
   }
 
-  return HypergraphCut<HypergraphType>(std::begin(partitions),
-                                       std::end(partitions),
-                                       cut_value);
+  return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions),
+                                                            std::end(partitions),
+                                                            cut_value);
 }
 
 /* Return a new hypergraph with vertices s and t merged.
@@ -601,16 +626,17 @@ std::istream &operator>>(std::istream &is, WeightedHypergraph<EdgeWeightType> &h
   std::string line;
   std::getline(is, line); // Throw away first line
 
-  while (std::getline(is, line)) {
+  int i = 0;
+  while (i++ < num_edges && std::getline(is, line)) {
     EdgeWeightType edge_weight;
     std::vector<int> edge;
     std::stringstream sstr(line);
 
     sstr >> edge_weight;
 
-    int i;
-    while (sstr >> i) {
-      edge.push_back(i);
+    int v;
+    while (sstr >> v) {
+      edge.push_back(v);
     }
     edges.emplace_back(edge, edge_weight);
   }

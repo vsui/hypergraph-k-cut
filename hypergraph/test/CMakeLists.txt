@@ -30,7 +30,7 @@ if (CMAKE_VERSION VERSION_LESS 2.8.11)
     include_directories("${gtest_SOURCE_DIR}/include")
 endif ()
 
-add_executable(hypergraph_test test.cpp)
+add_executable(hypergraph_test test.cpp metatest.cpp test_cut.cpp)
 target_link_libraries(hypergraph_test PUBLIC gtest_main gmock_main hypergraph)
 
 # Add warnings

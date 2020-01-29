@@ -20,19 +20,15 @@ namespace kk {
  * @return
  */
 template<typename HypergraphType>
-HypergraphCut<HypergraphType> contract_(HypergraphType &hypergraph,
-                                        size_t k,
-                                        std::mt19937_64 &random_generator,
-                                        [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
+                                                             size_t k,
+                                                             std::mt19937_64 &random_generator,
+                                                             [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
 
   // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
   double epsilon = 1.0;
 
   size_t r = hypergraph.rank();
-
-  // Static random device for random sampling and generating random numbers
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
 
   HypergraphType h(hypergraph);
 
@@ -49,7 +45,7 @@ HypergraphCut<HypergraphType> contract_(HypergraphType &hypergraph,
       edge_weights.push_back(edge_weight(h, edge_id));
     }
     std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
-    const auto sampled_edge_id = edge_ids.at(distribution(gen));
+    const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
 
     h = h.template contract<true>(sampled_edge_id);
   }
@@ -58,7 +54,7 @@ HypergraphCut<HypergraphType> contract_(HypergraphType &hypergraph,
 
   // Return random k-partition
   std::vector<int> vertices(std::begin(h.vertices()), std::end(h.vertices()));
-  std::shuffle(std::begin(vertices), std::end(vertices), gen);
+  std::shuffle(std::begin(vertices), std::end(vertices), random_generator);
 
   std::uniform_int_distribution<size_t> part_dist(0, k - 1);
 
@@ -69,7 +65,7 @@ HypergraphCut<HypergraphType> contract_(HypergraphType &hypergraph,
   do {
     partitions = std::vector<std::list<int>>(k);
     for (const auto v : vertices) {
-      auto cluster = part_dist(gen);
+      auto cluster = part_dist(random_generator);
       auto &partition = partitions.at(cluster);
       partition.insert(
           std::end(partition),
@@ -120,10 +116,10 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
 }
 
 template<typename HypergraphType, bool Verbose = false>
-HypergraphCut<HypergraphType> contract(const HypergraphType &hypergraph,
-                                       size_t k,
-                                       size_t num_runs = 0,
-                                       uint64_t default_seed = 0) {
+HypergraphCut<typename HypergraphType::EdgeWeight> contract(const HypergraphType &hypergraph,
+                                                            size_t k,
+                                                            size_t num_runs = 0,
+                                                            uint64_t default_seed = 0) {
   std::mt19937_64 random_generator;
   if (default_seed) {
     random_generator.seed(default_seed);

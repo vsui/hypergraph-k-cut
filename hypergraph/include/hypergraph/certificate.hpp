@@ -49,8 +49,8 @@ private:
 * value of the minimum cut, and n is the number of vertices
 */
 template<typename HypergraphType>
-HypergraphCut<HypergraphType> certificate_minimum_cut(const HypergraphType &hypergraph,
-                                                      MinimumCutFunction<HypergraphType> min_cut) {
+HypergraphCut<typename HypergraphType::EdgeWeight> certificate_minimum_cut(const HypergraphType &hypergraph,
+                                                                           MinimumCutFunction<HypergraphType> min_cut) {
   KTrimmedCertificate gen(hypergraph);
   size_t k = 1;
   while (true) {
@@ -65,3 +65,4 @@ HypergraphCut<HypergraphType> certificate_minimum_cut(const HypergraphType &hype
     k *= 2;
   }
 }
+

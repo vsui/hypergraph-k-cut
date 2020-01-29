@@ -8,8 +8,9 @@
  * Time complexity: O(p/epsilon), p is the size of the hypergraph
  */
 template<typename HypergraphType>
-HypergraphCut<HypergraphType> approximate_minimizer(HypergraphType &hypergraph, const double epsilon) {
-  using Cut = HypergraphCut<HypergraphType>;
+HypergraphCut<typename HypergraphType::EdgeWeight> approximate_minimizer(HypergraphType &hypergraph,
+                                                                         const double epsilon) {
+  using Cut = HypergraphCut<typename HypergraphType::EdgeWeight>;
 
   if (hypergraph.num_vertices() == 1) {
     return Cut::max();
