@@ -94,6 +94,14 @@ const std::vector<int> &Hypergraph::edges_incident_on(int vertex_id) const {
   return vertices_.at(vertex_id);
 }
 
+/**
+ * This reads in a file in .hmetis format. Assumes that nodes are numbered from [0, n - 1], where n - 1 is the number of
+ * vertices in the hypergraph.
+ *
+ * @param is
+ * @param hypergraph
+ * @return
+ */
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
   size_t num_edges, num_vertices;
   is >> num_edges >> num_vertices;
@@ -103,12 +111,13 @@ std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
   std::string line;
   std::getline(is, line); // Throw away first line
 
-  while (std::getline(is, line)) {
+  int i = 0;
+  while (i++ < num_edges && std::getline(is, line)) {
     std::vector<int> edge;
     std::stringstream sstr(line);
-    int i;
-    while (sstr >> i) {
-      edge.push_back(i);
+    int node;
+    while (sstr >> node) {
+      edge.push_back(node);
     }
     edges.push_back(std::move(edge));
   }

@@ -9,10 +9,10 @@
 namespace hypergraph_util {
 
 template<typename HypergraphType>
-using contract_t = std::add_pointer_t<HypergraphCut<HypergraphType>(HypergraphType &,
-                                                                    size_t,
-                                                                    std::mt19937_64 &,
-                                                                    typename HypergraphType::EdgeWeight)>;
+using contract_t = std::add_pointer_t<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &,
+                                                                                         size_t,
+                                                                                         std::mt19937_64 &,
+                                                                                         typename HypergraphType::EdgeWeight)>;
 
 template<typename HypergraphType>
 using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, size_t)>;
@@ -31,17 +31,17 @@ template<
     default_num_runs_t<HypergraphType> DefaultNumRuns,
     bool Verbose = false
 >
-HypergraphCut<HypergraphType> minimum_of_runs(const HypergraphType &hypergraph,
-                                              size_t k,
-                                              size_t num_runs,
-                                              std::mt19937_64 &random_generator) {
+HypergraphCut<typename HypergraphType::EdgeWeight> minimum_of_runs(const HypergraphType &hypergraph,
+                                                                   size_t k,
+                                                                   size_t num_runs,
+                                                                   std::mt19937_64 &random_generator) {
   if (num_runs == 0) {
     num_runs = DefaultNumRuns(hypergraph, k);
   }
   if constexpr (Verbose) {
     std::cout << "Running algorithm " << num_runs << " times..." << std::endl;
   }
-  auto min_so_far = HypergraphCut<HypergraphType>::max();
+  auto min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
   for (size_t i = 0; i < num_runs; ++i) {
     HypergraphType copy(hypergraph);
     auto start = std::chrono::high_resolution_clock::now();

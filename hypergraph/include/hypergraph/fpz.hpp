@@ -20,7 +20,7 @@ namespace fpz {
  * @param k number of partitions
  * @return the redo probability
  */
-double redo_probability(size_t n, size_t e, size_t k) {
+inline double redo_probability(size_t n, size_t e, size_t k) {
   return 1 - cxy::cxy_delta(n, e, k);
 }
 
@@ -37,10 +37,10 @@ double redo_probability(size_t n, size_t e, size_t k) {
  * @return minimum found k cut
  */
 template<typename HypergraphType, bool Verbose = false>
-HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
-                                                  size_t k,
-                                                  std::mt19937_64 &random_generator,
-                                                  typename HypergraphType::EdgeWeight accumulated = 0) {
+HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(HypergraphType &hypergraph,
+                                                                       size_t k,
+                                                                       std::mt19937_64 &random_generator,
+                                                                       typename HypergraphType::EdgeWeight accumulated = 0) {
 #ifndef NDEBUG
   assert(hypergraph.is_valid());
 #endif
@@ -75,7 +75,8 @@ HypergraphCut<HypergraphType> branching_contract_(HypergraphType &hypergraph,
       const auto &partition = hypergraph.vertices_within(v);
       partitions.emplace_back(std::begin(partition), std::end(partition));
     }
-    const auto cut = HypergraphCut<HypergraphType>(std::begin(partitions), std::end(partitions), accumulated);
+    const auto cut =
+        HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), accumulated);
     if constexpr (Verbose) {
       std::cout << "Got cut of value " << cut.value << std::endl;
     }

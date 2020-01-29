@@ -63,6 +63,10 @@ bool parse_hypergraph(const std::string &filename, HypergraphType &hypergraph) {
   std::ifstream input;
   input.open(filename);
   input >> hypergraph;
+  if (std::filesystem::path(filename).extension() == ".htest") {
+    // If htest just ignore the rest of the file
+    return true;
+  }
   return input.eof();
 }
 
