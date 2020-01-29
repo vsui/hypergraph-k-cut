@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <functional>
+#include <filesystem>
 
 #include <hypergraph/kk.hpp>
 #include "hypergraph/approx.hpp"
