@@ -61,6 +61,8 @@ inline double cxy_delta(size_t n, size_t e, size_t k) {
 /**
  * The contraction algorithm from [CXY'18]. This returns the minimum cut with some probability.
  *
+ * Takes time O(np) where p is the size of the hypergraph
+ *
  * Args:
  *   hypergraph: the hypergraph to calculate on
  *   k: compute the k-cut
