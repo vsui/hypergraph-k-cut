@@ -3,6 +3,9 @@
 #include <vector>
 #include <functional>
 #include <filesystem>
+#include <optional>
+
+#include <tclap/CmdLine.h>
 
 #include <hypergraph/kk.hpp>
 #include "hypergraph/approx.hpp"
@@ -12,8 +15,6 @@
 #include "hypergraph/certificate.hpp"
 #include "hypergraph/order.hpp"
 #include "hypergraph/registry.hpp"
-
-std::string binary_name;
 
 enum class cut_algorithm {
   CXY,
@@ -25,13 +26,7 @@ enum class cut_algorithm {
   KK,
 };
 
-struct Options {
-  cut_algorithm algorithm;
-  std::string filename;
-  size_t k;
-};
-
-static std::map<std::string, cut_algorithm> string_to_algorithm = {
+std::map<std::string, cut_algorithm> string_to_algorithm = {
     {"CXY", cut_algorithm::CXY},
     {"FPZ", cut_algorithm::FPZ},
     {"MW", cut_algorithm::MW},
@@ -41,15 +36,98 @@ static std::map<std::string, cut_algorithm> string_to_algorithm = {
     {"KK", cut_algorithm::KK}
 };
 
-int usage() {
-  HypergraphMinimumCutRegistry<Hypergraph> registry;
-  std::cerr << "Usage: " << binary_name
-            << " <input hypergraph filename> <k> <algorithm>\n";
-  std::cerr << "Algorithms:\n";
-  for (const auto &[name, _] : string_to_algorithm) {
-    std::cerr << "\t" << name << std::endl;
+struct Options {
+  Options() : algorithm(cut_algorithm::CXY) {}
+
+  cut_algorithm algorithm;
+  std::string filename;
+  size_t k = 2; // Compute k-cut
+  std::optional<size_t> runs; // Number of runs to repeat contraction algo for
+  std::optional<double> epsilon; // Epsilon for approximation algorithms
+  bool verbose = false; // Verbose output
+};
+
+/**
+ * Parses command line arguments. Returns false on failure, true otherwise.
+ *
+ * @param argc
+ * @param argv
+ * @param options
+ * @return
+ */
+bool read_options(int argc, char **argv, Options &options) {
+  try {
+    TCLAP::CmdLine cmd("Hypergraph cut tool", ' ', "0.1");
+
+    TCLAP::UnlabeledValueArg<std::string>
+        filenameArg("filename", "Filename for the input hypergraph", true, "", "A file path", cmd);
+
+    TCLAP::UnlabeledValueArg<size_t> kArg("k", "Compute the k-cut", true, 0, "An integer greater than 1", cmd);
+
+    // Only allow names in the string_to_algorithm map
+    std::vector<std::string> allowed;
+    for (const auto &[name, _] : string_to_algorithm) {
+      allowed.emplace_back(name);
+    }
+    TCLAP::ValuesConstraint<std::string> allowedAlgorithms(allowed);
+
+    TCLAP::UnlabeledValueArg<std::string>
+        algorithmArg("algorithm", "Algorithm to use", true, "", &allowedAlgorithms, cmd);
+
+    TCLAP::ValueArg<size_t>
+        numRunsArg("r", "runs", "Number of runs to repeat contraction algorithm", false, 0, "A positive integer", cmd);
+
+    TCLAP::ValueArg<double> epsilonArg("e", "epsilon", "Approximation factor", false, 0.0, "A positive float", cmd);
+
+    TCLAP::SwitchArg verboseSwitch("v", "verbose", "Verbose output", cmd, false);
+    cmd.parse(argc, argv);
+
+    // Fill in options
+    assert(string_to_algorithm.find(algorithmArg.getValue()) != string_to_algorithm.end());
+    options.algorithm = string_to_algorithm.at(algorithmArg.getValue());
+    options.filename = filenameArg.getValue();
+    options.k = kArg.getValue();
+    if (epsilonArg.isSet()) {
+      options.epsilon = epsilonArg.getValue();
+      if (options.algorithm != cut_algorithm::CX) {
+        std::cerr << "error: Epsilon argument only valid for \"CX\" algorithm" << std::endl;
+        return false;
+      }
+    } else if (options.algorithm == cut_algorithm::CX) {
+      std::cerr << "error: \"CX\" algorithm requires epsilon to be specified" << std::endl;
+      return false;
+    }
+    if (numRunsArg.isSet()) {
+      options.runs = numRunsArg.getValue();
+      switch (options.algorithm) {
+      case cut_algorithm::CXY:
+      case cut_algorithm::FPZ:
+      case cut_algorithm::KK:
+        // Do nothing
+        break;
+      default: {
+        std::cerr << R"(error: Number of runs only valid for "CXY", "FPZ", and "KK")" << std::endl;
+        return false;
+      }
+      }
+    } else {
+      switch (options.algorithm) {
+      case cut_algorithm::CXY:
+      case cut_algorithm::FPZ:
+      case cut_algorithm::KK:
+        std::cerr << "error: Contraction algorithm requires number of runs to be specified" << std::endl;
+        return false;
+      default:
+        // Do nothing
+        break;
+      }
+    }
+    options.verbose = verboseSwitch.getValue();
+  } catch (TCLAP::ArgException &e) {
+    std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
   }
-  return 1;
+
+  return true;
 }
 
 bool hmetis_file_is_unweighted(const std::string &filename) {
@@ -64,11 +142,7 @@ bool parse_hypergraph(const std::string &filename, HypergraphType &hypergraph) {
   std::ifstream input;
   input.open(filename);
   input >> hypergraph;
-  if (std::filesystem::path(filename).extension() == ".htest") {
-    // If htest just ignore the rest of the file
-    return true;
-  }
-  return input.eof();
+  return true;
 }
 
 // Runs algorithm
@@ -113,9 +187,13 @@ int dispatch(Options options) {
     };
     size_t recommended_num_runs = num_runs_map.at(options.algorithm);
 
-    std::cout << "Input how many times you would like to run the algorithm (recommended is " << recommended_num_runs
-              << " for low error probability)" << std::endl;
-    std::cin >> num_runs;
+    if (!options.runs.has_value()) {
+      std::cout << "Input how many times you would like to run the algorithm (recommended is " << recommended_num_runs
+                << " for low error probability)" << std::endl;
+      std::cin >> num_runs;
+    } else {
+      num_runs = options.runs.value();
+    }
     break;
   }
   default:break;
@@ -124,8 +202,7 @@ int dispatch(Options options) {
   // Special logic to pass in epsilon
   switch (options.algorithm) {
   case cut_algorithm::CX: {
-    std::cout << "Please specify epsilon" << std::endl;
-    std::cin >> epsilon;
+    epsilon = options.epsilon.value();
   }
   default:break;
   }
@@ -160,20 +237,14 @@ int dispatch(Options options) {
     break;
   }
   case cut_algorithm::FPZ: {
-    std::cout << "Input 1 if you want to output the values of intermediate cuts, 0 otherwise" << std::endl;
-    int i;
-    std::cin >> i;
-    if (i == 1) {
+    if (options.verbose) {
       f = [num_runs](HypergraphType &hypergraph, size_t k) {
         return fpz::branching_contract<HypergraphType, true, true>(hypergraph, k, num_runs);
       };
-    } else if (i == 0) {
+    } else {
       f = [num_runs](HypergraphType &hypergraph, size_t k) {
         return fpz::branching_contract<HypergraphType, true, false>(hypergraph, k, num_runs);
       };
-    } else {
-      std::cout << "Bad input" << std::endl;
-      exit(1);
     }
     break;
   }
@@ -212,7 +283,7 @@ int dispatch(Options options) {
   // Weighted sparsifier only works on integral cuts
   if constexpr (!is_weighted<HypergraphType>) {
     if (options.k == 2) {
-      std::cout << "Input \"1\" if you would like to use a sparsifier, \"2\" otherwise" << std::endl;
+      std::cout << R"(Input "1" if you would like to use a sparsifier, "2" otherwise)" << std::endl;
       size_t i;
       std::cin >> i;
       if (i != 1 && i != 2) {
@@ -255,21 +326,12 @@ int dispatch(Options options) {
   return 0;
 }
 
-int main(int argc, char *argv[]) {
-  binary_name = argv[0];
-  if (argc != 4 && argc != 5 /* for epsilon */) {
-    return usage();
-  }
-
+int main(int argc, char **argv) {
   Options options;
-  options.filename = argv[1];
-  options.k = std::stoul(argv[2]);
 
-  auto algorithm = string_to_algorithm.find(argv[3]);
-  if (algorithm == std::end(string_to_algorithm)) {
-    return usage();
+  if (!read_options(argc, argv, options)) {
+    return 1;
   }
-  options.algorithm = algorithm->second;
 
   if (hmetis_file_is_unweighted(options.filename)) {
     return dispatch<Hypergraph>(options);

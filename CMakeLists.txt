@@ -7,6 +7,7 @@ project(HypergraphPartitioning)
 add_subdirectory(hypergraph)
 
 add_executable(hcut main.cpp)
+target_include_directories(hcut PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ext)
 target_link_libraries(hcut hypergraph)
 
 add_executable(hgen gen.cpp)
