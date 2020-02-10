@@ -169,6 +169,6 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
   return num_runs;
 }
 
-DECLARE_CONTRACTION_MIN_K_CUT(contract_, default_num_runs)
+DECLARE_CONTRACTION_MIN_K_CUT(contract_, default_num_runs, false)
 
 }

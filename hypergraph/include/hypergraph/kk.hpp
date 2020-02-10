@@ -115,6 +115,6 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
   return std::pow(2, r) * std::pow(n, k) * std::log(n);
 }
 
-DECLARE_CONTRACTION_MIN_K_CUT(contract_, default_num_runs)
+DECLARE_CONTRACTION_MIN_K_CUT(contract_, default_num_runs, false)
 
 }

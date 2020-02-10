@@ -29,18 +29,20 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
  * probability.
  *
  * @tparam HypergraphType
- * @tparam Verbose if `true` then print out stats for each leaf calculation
+ * @tparam Verbose  if `true` then print out stats for each leaf calculation
  * @param hypergraph
- * @param k
- * @param random_generator the source of randomness
- * @param accumulated the size of the hypergraph so far (used as context for recursive calls)
+ * @param k compute the min-`k`-cut
+ * @param random_generator  the source of randomness
+ * @param accumulated   the size of the hypergraph so far (used as context for recursive calls)
+ * @param discovery_value   this function will early-exit if a cut of this value is found.
  * @return minimum found k cut
  */
 template<typename HypergraphType, bool Verbose = false>
 HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(HypergraphType &hypergraph,
                                                                        size_t k,
                                                                        std::mt19937_64 &random_generator,
-                                                                       typename HypergraphType::EdgeWeight accumulated = 0) {
+                                                                       typename HypergraphType::EdgeWeight accumulated = 0,
+                                                                       typename HypergraphType::EdgeWeight discovery_value = 0) {
 #ifndef NDEBUG
   assert(hypergraph.is_valid());
 #endif
@@ -102,8 +104,12 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
   HypergraphType contracted = hypergraph.contract(sampled_edge_id);
 
   if (dis(random_generator) < redo) {
-    return std::min(branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated),
-                    branching_contract_<HypergraphType, Verbose>(hypergraph, k, random_generator, accumulated));
+    // Maybe we could use continuations to avoid having to pass the value up a long call stack
+    auto cut = branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated);
+    if (cut.value == discovery_value) {
+      return cut;
+    }
+    return std::min(cut, branching_contract_<HypergraphType, Verbose>(hypergraph, k, random_generator, accumulated));
   } else {
     return branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated);
   }
@@ -124,6 +130,6 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
   return log_n * log_n;
 }
 
-DECLARE_CONTRACTION_MIN_K_CUT(branching_contract_, default_num_runs)
+DECLARE_CONTRACTION_MIN_K_CUT(branching_contract_, default_num_runs, true)
 
 } // namespace fpz
