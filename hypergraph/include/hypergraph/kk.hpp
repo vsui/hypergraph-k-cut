@@ -19,7 +19,7 @@ namespace kk {
  * @param accumulated   Unused parameter
  * @return
  */
-template<typename HypergraphType>
+template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
                                                              size_t k,
                                                              std::mt19937_64 &random_generator,
@@ -115,19 +115,6 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
   return std::pow(2, r) * std::pow(n, k) * std::log(n);
 }
 
-template<typename HypergraphType, bool Verbose = false>
-HypergraphCut<typename HypergraphType::EdgeWeight> contract(const HypergraphType &hypergraph,
-                                                            size_t k,
-                                                            size_t num_runs = 0,
-                                                            uint64_t default_seed = 0) {
-  std::mt19937_64 random_generator;
-  if (default_seed) {
-    random_generator.seed(default_seed);
-  }
-  return hypergraph_util::minimum_of_runs<HypergraphType,
-                                          contract_<HypergraphType>,
-                                          default_num_runs<HypergraphType>,
-                                          Verbose>(hypergraph, k, num_runs, random_generator);
-}
+DECLARE_CONTRACTION_MIN_K_CUT(contract_, default_num_runs, false)
 
 }

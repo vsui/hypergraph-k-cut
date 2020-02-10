@@ -14,7 +14,6 @@
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/certificate.hpp"
 #include "hypergraph/order.hpp"
-#include "hypergraph/registry.hpp"
 
 enum class cut_algorithm {
   CXY,
@@ -25,6 +24,15 @@ enum class cut_algorithm {
   CX,
   KK,
 };
+
+bool is_contraction_algorithm(cut_algorithm algorithm) {
+  switch (algorithm) {
+  case cut_algorithm::CXY:
+  case cut_algorithm::FPZ:
+  case cut_algorithm::KK:return true;
+  default:return false;
+  }
+}
 
 std::map<std::string, cut_algorithm> string_to_algorithm = {
     {"CXY", cut_algorithm::CXY},
@@ -44,7 +52,8 @@ struct Options {
   size_t k = 2; // Compute k-cut
   std::optional<size_t> runs; // Number of runs to repeat contraction algo for
   std::optional<double> epsilon; // Epsilon for approximation algorithms
-  bool verbose = false; // Verbose output
+  std::optional<double> discover; // Discovery value
+  uint8_t verbosity = 2; // Verbose output
 };
 
 /**
@@ -79,7 +88,17 @@ bool read_options(int argc, char **argv, Options &options) {
 
     TCLAP::ValueArg<double> epsilonArg("e", "epsilon", "Approximation factor", false, 0.0, "A positive float", cmd);
 
-    TCLAP::SwitchArg verboseSwitch("v", "verbose", "Verbose output", cmd, false);
+    TCLAP::ValueArg<double> discoveryArg("d",
+                                         "discover",
+                                         "Measure time needed to discover a cut with this value",
+                                         false,
+                                         0.0,
+                                         "A non-negative number",
+                                         cmd);
+
+    std::vector<uint8_t> verbosityLevels = {0, 1, 2};
+    TCLAP::ValuesConstraint<uint8_t> allowedVerbosityLevels(verbosityLevels);
+    TCLAP::ValueArg<uint8_t> verbosityArg("v", "verbosity", "Verbose output", false, 2, &allowedVerbosityLevels, cmd);
     cmd.parse(argc, argv);
 
     // Fill in options
@@ -99,30 +118,26 @@ bool read_options(int argc, char **argv, Options &options) {
     }
     if (numRunsArg.isSet()) {
       options.runs = numRunsArg.getValue();
-      switch (options.algorithm) {
-      case cut_algorithm::CXY:
-      case cut_algorithm::FPZ:
-      case cut_algorithm::KK:
-        // Do nothing
-        break;
-      default: {
+      if (!is_contraction_algorithm(options.algorithm)) {
         std::cerr << R"(error: Number of runs only valid for "CXY", "FPZ", and "KK")" << std::endl;
         return false;
       }
-      }
     } else {
-      switch (options.algorithm) {
-      case cut_algorithm::CXY:
-      case cut_algorithm::FPZ:
-      case cut_algorithm::KK:
+      if (is_contraction_algorithm(options.algorithm)) {
         std::cerr << "error: Contraction algorithm requires number of runs to be specified" << std::endl;
         return false;
-      default:
-        // Do nothing
-        break;
       }
     }
-    options.verbose = verboseSwitch.getValue();
+    if (discoveryArg.isSet()) {
+      if (!is_contraction_algorithm(options.algorithm)) {
+        std::cerr << "error: --discover flag only valid for contraction algorithms" << std::endl;
+        return false;
+      }
+      options.discover = discoveryArg.getValue();
+    }
+    if (verbosityArg.isSet()) {
+      options.verbosity = verbosityArg.getValue();
+    }
   } catch (TCLAP::ArgException &e) {
     std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
   }
@@ -148,8 +163,6 @@ bool parse_hypergraph(const std::string &filename, HypergraphType &hypergraph) {
 // Runs algorithm
 template<typename HypergraphType>
 int dispatch(Options options) {
-  HypergraphMinimumCutRegistry<HypergraphType, true> registry;
-
   // Read hypergraph
   HypergraphType hypergraph;
   if (!parse_hypergraph(options.filename, hypergraph)) {
@@ -232,25 +245,25 @@ int dispatch(Options options) {
   switch (options.algorithm) {
   case cut_algorithm::CXY: {
     f = [num_runs](HypergraphType &hypergraph, size_t k) {
-      return cxy::cxy_contract<HypergraphType, true>(hypergraph, k, num_runs);
+      return cxy::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
     };
     break;
   }
   case cut_algorithm::FPZ: {
-    if (options.verbose) {
+    if (options.verbosity == 2) {
       f = [num_runs](HypergraphType &hypergraph, size_t k) {
-        return fpz::branching_contract<HypergraphType, true, true>(hypergraph, k, num_runs);
+        return fpz::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
       };
     } else {
       f = [num_runs](HypergraphType &hypergraph, size_t k) {
-        return fpz::branching_contract<HypergraphType, true, false>(hypergraph, k, num_runs);
+        return fpz::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
       };
     }
     break;
   }
   case cut_algorithm::KK: {
     f = [num_runs](HypergraphType &hypergraph, size_t k) {
-      return kk::contract<HypergraphType, true>(hypergraph, k, num_runs);
+      return kk::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
     };
     break;
   }
@@ -303,9 +316,50 @@ int dispatch(Options options) {
 
   // To check the results later we need a copy of the hypergraph since the cut function may modify it
   HypergraphType copy(hypergraph);
+  auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
 
   auto start = std::chrono::high_resolution_clock::now();
-  auto cut = f(hypergraph, options.k);
+  // There is probably a better way to do all of this switching...
+  if (options.discover.has_value()) {
+    switch (options.algorithm) {
+    case cut_algorithm::CXY:
+      switch (options.verbosity) {
+      case 0:cut = cxy::discover<HypergraphType, 0>(hypergraph, options.k, options.discover.value());
+        break;
+      case 1:cut = cxy::discover<HypergraphType, 1>(hypergraph, options.k, options.discover.value());
+        break;
+      case 2:cut = cxy::discover<HypergraphType, 2>(hypergraph, options.k, options.discover.value());
+        break;
+      default:assert(false); // Should not be reachable
+      }
+      break;
+    case cut_algorithm::FPZ:
+      switch (options.verbosity) {
+      case 0:cut = fpz::discover<HypergraphType, 0>(hypergraph, options.k, options.discover.value());
+        break;
+      case 1:cut = fpz::discover<HypergraphType, 1>(hypergraph, options.k, options.discover.value());
+        break;
+      case 2:cut = fpz::discover<HypergraphType, 2>(hypergraph, options.k, options.discover.value());
+        break;
+      default:assert(false); // Should not be reachable
+      }
+      break;
+    case cut_algorithm::KK:
+      switch (options.verbosity) {
+      case 0:cut = kk::discover<HypergraphType, 0>(hypergraph, options.k, options.discover.value());
+        break;
+      case 1:cut = kk::discover<HypergraphType, 1>(hypergraph, options.k, options.discover.value());
+        break;
+      case 2:cut = kk::discover<HypergraphType, 2>(hypergraph, options.k, options.discover.value());
+        break;
+      default:assert(false); // Should not be reachable
+      }
+      break;
+    default:assert(false); // Should not be reachable
+    }
+  } else {
+    cut = f(hypergraph, options.k);
+  }
   auto stop = std::chrono::high_resolution_clock::now();
 
   std::cout << "Algorithm took "

@@ -29,18 +29,20 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
  * probability.
  *
  * @tparam HypergraphType
- * @tparam Verbose if `true` then print out stats for each leaf calculation
+ * @tparam Verbosity
  * @param hypergraph
- * @param k
- * @param random_generator the source of randomness
- * @param accumulated the size of the hypergraph so far (used as context for recursive calls)
+ * @param k compute the min-`k`-cut
+ * @param random_generator  the source of randomness
+ * @param accumulated   the size of the hypergraph so far (used as context for recursive calls)
+ * @param discovery_value   this function will early-exit if a cut of this value is found.
  * @return minimum found k cut
  */
-template<typename HypergraphType, bool Verbose = false>
+template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(HypergraphType &hypergraph,
                                                                        size_t k,
                                                                        std::mt19937_64 &random_generator,
-                                                                       typename HypergraphType::EdgeWeight accumulated = 0) {
+                                                                       typename HypergraphType::EdgeWeight accumulated = 0,
+                                                                       typename HypergraphType::EdgeWeight discovery_value = 0) {
 #ifndef NDEBUG
   assert(hypergraph.is_valid());
 #endif
@@ -77,7 +79,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
     }
     const auto cut =
         HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), accumulated);
-    if constexpr (Verbose) {
+    if constexpr (Verbosity > 1) {
       std::cout << "Got cut of value " << cut.value << std::endl;
     }
     return cut;
@@ -102,10 +104,24 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
   HypergraphType contracted = hypergraph.contract(sampled_edge_id);
 
   if (dis(random_generator) < redo) {
-    return std::min(branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated),
-                    branching_contract_<HypergraphType, Verbose>(hypergraph, k, random_generator, accumulated));
+    // Maybe we could use continuations to avoid having to pass the value up a long call stack
+    auto cut =
+        branching_contract_<HypergraphType, Verbosity>(contracted, k, random_generator, accumulated, discovery_value);
+    if (cut.value <= discovery_value) {
+      return cut;
+    }
+    return std::min(cut,
+                    branching_contract_<HypergraphType, Verbosity>(hypergraph,
+                                                                   k,
+                                                                   random_generator,
+                                                                   accumulated,
+                                                                   discovery_value));
   } else {
-    return branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated);
+    return branching_contract_<HypergraphType, Verbosity>(contracted,
+                                                          k,
+                                                          random_generator,
+                                                          accumulated,
+                                                          discovery_value);
   }
 }
 
@@ -124,32 +140,6 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
   return log_n * log_n;
 }
 
-/**
- * Return the minimum cut by repeating the random branching contraction algorithm of [FPZ'19] `num_runs` times,
- * returning the minimum of runs.
- *
- * @tparam HypergraphType
- * @tparam Verbose if `true` then print out information for each run
- * @tparam VVerbose if `true` then print out information for each found cut
- * @param hypergraph the hypergraph to use
- * @param k find a minimum k-cut
- * @param num_runs number of runs. Use the `default_num_runs` for high probability of success
- * @param default_seed random seed
- * @return
- */
-template<typename HypergraphType, bool Verbose = false, bool VVerbose = false>
-inline auto branching_contract(const HypergraphType &hypergraph,
-                               size_t k,
-                               size_t num_runs = 0,
-                               uint64_t default_seed = 0) {
-  std::mt19937_64 random_generator;
-  if (default_seed) {
-    random_generator.seed(default_seed);
-  }
-  return hypergraph_util::minimum_of_runs<HypergraphType,
-                                          branching_contract_<HypergraphType, VVerbose>,
-                                          default_num_runs,
-                                          Verbose>(hypergraph, k, num_runs, random_generator);
-}
+DECLARE_CONTRACTION_MIN_K_CUT(branching_contract_, default_num_runs, true)
 
 } // namespace fpz

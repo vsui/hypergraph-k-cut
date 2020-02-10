@@ -41,18 +41,18 @@ struct HypergraphMinimumCutRegistry {
 
 private:
   static inline auto cxy_minimum_cut_(const HypergraphType &hypergraph) {
-    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, 2, kTestNumRuns, kTestRandomSeed);
+    return cxy::minimum_cut<HypergraphType, Verbose>(hypergraph, 2, kTestNumRuns, kTestRandomSeed);
   };
 
   static inline auto fpz_minimum_cut_(const HypergraphType &hypergraph) {
-    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, 2, kTestNumRuns, kTestRandomSeed);
+    return fpz::minimum_cut<HypergraphType, Verbose>(hypergraph, 2, kTestNumRuns, kTestRandomSeed);
   };
 
   static inline auto cxy_k_cut_(const HypergraphType &hypergraph, size_t k) {
-    return cxy::cxy_contract<HypergraphType, Verbose>(hypergraph, k, kTestNumRuns, kTestRandomSeed);
+    return cxy::minimum_cut<HypergraphType, Verbose>(hypergraph, k, kTestNumRuns, kTestRandomSeed);
   }
 
   static inline auto fpz_k_cut_(const HypergraphType &hypergraph, size_t k) {
-    return fpz::branching_contract<HypergraphType, Verbose>(hypergraph, k, kTestNumRuns, kTestRandomSeed);
+    return fpz::minimum_cut<HypergraphType, Verbose>(hypergraph, k, kTestNumRuns, kTestRandomSeed);
   }
 };

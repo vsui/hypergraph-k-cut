@@ -2,22 +2,25 @@
 // Created by Victor on 1/27/20.
 //
 
-#define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(name, func) \
+#define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(name, mincut, discover) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
   name##Unweighted, \
-  func, \
+  mincut, \
   Hypergraph, \
   small_unweighted_tests()) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
   name##WeightedIntegral, \
-  func, \
+  mincut, \
   WeightedHypergraph<size_t>, \
   small_weighted_tests<size_t>()) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
   name##WeightedFloating, \
-  func, \
+  mincut, \
   WeightedHypergraph<double>, \
-  small_weighted_tests<double>())
+  small_weighted_tests<double>()) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##Unweighted, discover, Hypergraph, small_unweighted_tests()) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedIntegral, discover, WeightedHypergraph<size_t>, small_weighted_tests<size_t>()) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedFloating, discover, WeightedHypergraph<double>, small_weighted_tests<double>())
 
 #define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(name, func, unweighted, weighted1, weighted2) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
@@ -36,13 +39,31 @@ CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
   WeightedHypergraph<double>, \
   weighted2)
 
-#define CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name, func, HypergraphType, values) \
+#define CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name, mincut, HypergraphType, values) \
 class name##Test : public testing::TestWithParam<TestCaseInstance<HypergraphType>> {}; \
 TEST_P(name##Test, Works) { \
   const auto &[hypergraph, cut_pair, filename] = GetParam(); \
   const auto [k, cut_value] = cut_pair; \
   const HypergraphType copy(hypergraph); \
-  const auto cut = func(copy, k); \
+  const auto cut = mincut(copy, k); \
+  std::string error; \
+  EXPECT_TRUE(cut_is_valid(cut, hypergraph, k, error)) << error; \
+  EXPECT_EQ(cut.value, cut_value); \
+} \
+INSTANTIATE_TEST_SUITE_P( \
+  name##Test, name##Test, testing::ValuesIn(values), \
+  [](const testing::TestParamInfo<name##Test::ParamType>& info) { \
+    return std::get<2>(info.param) + std::to_string(std::get<0>(std::get<1>(info.param))); \
+  } \
+);
+
+#define CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name, discover, HypergraphType, values) \
+class name##Test : public testing::TestWithParam<TestCaseInstance<HypergraphType>> {}; \
+TEST_P(name##Test, Works) { \
+  const auto &[hypergraph, cut_pair, filename] = GetParam(); \
+  const auto [k, cut_value] = cut_pair; \
+  const HypergraphType copy(hypergraph); \
+  const auto cut = discover(copy, k, cut_value); \
   std::string error; \
   EXPECT_TRUE(cut_is_valid(cut, hypergraph, k, error)) << error; \
   EXPECT_EQ(cut.value, cut_value); \
