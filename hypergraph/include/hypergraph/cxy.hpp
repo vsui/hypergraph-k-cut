@@ -69,7 +69,7 @@ inline double cxy_delta(size_t n, size_t e, size_t k) {
  *   random_generator: the random generator used to induce randomness
  *   accumulated: UNUSED
  */
-template<typename HypergraphType>
+template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
                                                              size_t k,
                                                              std::mt19937_64 &random_generator,
