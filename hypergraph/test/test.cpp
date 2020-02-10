@@ -8,7 +8,6 @@
 #include <hypergraph/kk.hpp>
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/order.hpp"
-#include "hypergraph/registry.hpp"
 
 namespace {
 
