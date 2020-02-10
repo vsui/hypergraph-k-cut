@@ -29,7 +29,7 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
  * probability.
  *
  * @tparam HypergraphType
- * @tparam Verbose  if `true` then print out stats for each leaf calculation
+ * @tparam Verbosity
  * @param hypergraph
  * @param k compute the min-`k`-cut
  * @param random_generator  the source of randomness
@@ -37,7 +37,7 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
  * @param discovery_value   this function will early-exit if a cut of this value is found.
  * @return minimum found k cut
  */
-template<typename HypergraphType, bool Verbose = false>
+template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(HypergraphType &hypergraph,
                                                                        size_t k,
                                                                        std::mt19937_64 &random_generator,
@@ -79,7 +79,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
     }
     const auto cut =
         HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), accumulated);
-    if constexpr (Verbose) {
+    if constexpr (Verbosity > 1) {
       std::cout << "Got cut of value " << cut.value << std::endl;
     }
     return cut;
@@ -105,13 +105,23 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
 
   if (dis(random_generator) < redo) {
     // Maybe we could use continuations to avoid having to pass the value up a long call stack
-    auto cut = branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated);
-    if (cut.value == discovery_value) {
+    auto cut =
+        branching_contract_<HypergraphType, Verbosity>(contracted, k, random_generator, accumulated, discovery_value);
+    if (cut.value <= discovery_value) {
       return cut;
     }
-    return std::min(cut, branching_contract_<HypergraphType, Verbose>(hypergraph, k, random_generator, accumulated));
+    return std::min(cut,
+                    branching_contract_<HypergraphType, Verbosity>(hypergraph,
+                                                                   k,
+                                                                   random_generator,
+                                                                   accumulated,
+                                                                   discovery_value));
   } else {
-    return branching_contract_<HypergraphType, Verbose>(contracted, k, random_generator, accumulated);
+    return branching_contract_<HypergraphType, Verbosity>(contracted,
+                                                          k,
+                                                          random_generator,
+                                                          accumulated,
+                                                          discovery_value);
   }
 }
 

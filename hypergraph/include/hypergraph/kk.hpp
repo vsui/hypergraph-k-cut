@@ -19,7 +19,7 @@ namespace kk {
  * @param accumulated   Unused parameter
  * @return
  */
-template<typename HypergraphType>
+template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
                                                              size_t k,
                                                              std::mt19937_64 &random_generator,
