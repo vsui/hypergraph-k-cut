@@ -26,6 +26,15 @@ enum class cut_algorithm {
   KK,
 };
 
+bool is_contraction_algorithm(cut_algorithm algorithm) {
+  switch (algorithm) {
+  case cut_algorithm::CXY:
+  case cut_algorithm::FPZ:
+  case cut_algorithm::KK:return true;
+  default:return false;
+  }
+}
+
 std::map<std::string, cut_algorithm> string_to_algorithm = {
     {"CXY", cut_algorithm::CXY},
     {"FPZ", cut_algorithm::FPZ},
@@ -44,6 +53,7 @@ struct Options {
   size_t k = 2; // Compute k-cut
   std::optional<size_t> runs; // Number of runs to repeat contraction algo for
   std::optional<double> epsilon; // Epsilon for approximation algorithms
+  std::optional<double> discover; // Discovery value
   bool verbose = false; // Verbose output
 };
 
@@ -79,6 +89,14 @@ bool read_options(int argc, char **argv, Options &options) {
 
     TCLAP::ValueArg<double> epsilonArg("e", "epsilon", "Approximation factor", false, 0.0, "A positive float", cmd);
 
+    TCLAP::ValueArg<double> discoveryArg("d",
+                                         "discover",
+                                         "Measure time needed to discover a cut with this value",
+                                         false,
+                                         0.0,
+                                         "A non-negative number",
+                                         cmd);
+
     TCLAP::SwitchArg verboseSwitch("v", "verbose", "Verbose output", cmd, false);
     cmd.parse(argc, argv);
 
@@ -99,28 +117,22 @@ bool read_options(int argc, char **argv, Options &options) {
     }
     if (numRunsArg.isSet()) {
       options.runs = numRunsArg.getValue();
-      switch (options.algorithm) {
-      case cut_algorithm::CXY:
-      case cut_algorithm::FPZ:
-      case cut_algorithm::KK:
-        // Do nothing
-        break;
-      default: {
+      if (!is_contraction_algorithm(options.algorithm)) {
         std::cerr << R"(error: Number of runs only valid for "CXY", "FPZ", and "KK")" << std::endl;
         return false;
       }
-      }
     } else {
-      switch (options.algorithm) {
-      case cut_algorithm::CXY:
-      case cut_algorithm::FPZ:
-      case cut_algorithm::KK:
+      if (is_contraction_algorithm(options.algorithm)) {
         std::cerr << "error: Contraction algorithm requires number of runs to be specified" << std::endl;
         return false;
-      default:
-        // Do nothing
-        break;
       }
+    }
+    if (discoveryArg.isSet()) {
+      if (!is_contraction_algorithm(options.algorithm)) {
+        std::cerr << "error: --discover flag only valid for contraction algorithms" << std::endl;
+        return false;
+      }
+      options.discover = discoveryArg.getValue();
     }
     options.verbose = verboseSwitch.getValue();
   } catch (TCLAP::ArgException &e) {
@@ -303,9 +315,22 @@ int dispatch(Options options) {
 
   // To check the results later we need a copy of the hypergraph since the cut function may modify it
   HypergraphType copy(hypergraph);
+  auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
 
   auto start = std::chrono::high_resolution_clock::now();
-  auto cut = f(hypergraph, options.k);
+  if (options.discover.has_value()) {
+    switch (options.algorithm) {
+    case cut_algorithm::CXY:cut = cxy::discover<HypergraphType, true>(hypergraph, options.k, options.discover.value());
+      break;
+    case cut_algorithm::FPZ:cut = fpz::discover<HypergraphType, true>(hypergraph, options.k, options.discover.value());
+      break;
+    case cut_algorithm::KK:cut = kk::discover<HypergraphType, true>(hypergraph, options.k, options.discover.value());
+      break;
+    default:assert(false); // Should not be reachable
+    }
+  } else {
+    cut = f(hypergraph, options.k);
+  }
   auto stop = std::chrono::high_resolution_clock::now();
 
   std::cout << "Algorithm took "
