@@ -124,32 +124,6 @@ size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_
   return log_n * log_n;
 }
 
-/**
- * Return the minimum cut by repeating the random branching contraction algorithm of [FPZ'19] `num_runs` times,
- * returning the minimum of runs.
- *
- * @tparam HypergraphType
- * @tparam Verbose if `true` then print out information for each run
- * @tparam VVerbose if `true` then print out information for each found cut
- * @param hypergraph the hypergraph to use
- * @param k find a minimum k-cut
- * @param num_runs number of runs. Use the `default_num_runs` for high probability of success
- * @param default_seed random seed
- * @return
- */
-template<typename HypergraphType, bool Verbose = false, bool VVerbose = false>
-inline auto branching_contract(const HypergraphType &hypergraph,
-                               size_t k,
-                               size_t num_runs = 0,
-                               uint64_t default_seed = 0) {
-  std::mt19937_64 random_generator;
-  if (default_seed) {
-    random_generator.seed(default_seed);
-  }
-  return hypergraph_util::minimum_of_runs<HypergraphType,
-                                          branching_contract_<HypergraphType, VVerbose>,
-                                          default_num_runs,
-                                          Verbose>(hypergraph, k, num_runs, random_generator);
-}
+DECLARE_CONTRACTION_MIN_K_CUT(branching_contract_, default_num_runs)
 
 } // namespace fpz

@@ -232,25 +232,25 @@ int dispatch(Options options) {
   switch (options.algorithm) {
   case cut_algorithm::CXY: {
     f = [num_runs](HypergraphType &hypergraph, size_t k) {
-      return cxy::cxy_contract<HypergraphType, true>(hypergraph, k, num_runs);
+      return cxy::minimum_cut<HypergraphType, true>(hypergraph, k, num_runs);
     };
     break;
   }
   case cut_algorithm::FPZ: {
     if (options.verbose) {
       f = [num_runs](HypergraphType &hypergraph, size_t k) {
-        return fpz::branching_contract<HypergraphType, true, true>(hypergraph, k, num_runs);
+        return fpz::minimum_cut<HypergraphType, true, true>(hypergraph, k, num_runs);
       };
     } else {
       f = [num_runs](HypergraphType &hypergraph, size_t k) {
-        return fpz::branching_contract<HypergraphType, true, false>(hypergraph, k, num_runs);
+        return fpz::minimum_cut<HypergraphType, true, false>(hypergraph, k, num_runs);
       };
     }
     break;
   }
   case cut_algorithm::KK: {
     f = [num_runs](HypergraphType &hypergraph, size_t k) {
-      return kk::contract<HypergraphType, true>(hypergraph, k, num_runs);
+      return kk::minimum_cut<HypergraphType, true>(hypergraph, k, num_runs);
     };
     break;
   }

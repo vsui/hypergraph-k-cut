@@ -70,10 +70,10 @@ inline double cxy_delta(size_t n, size_t e, size_t k) {
  *   accumulated: UNUSED
  */
 template<typename HypergraphType>
-HypergraphCut<typename HypergraphType::EdgeWeight> cxy_contract_(HypergraphType &hypergraph,
-                                                                 size_t k,
-                                                                 std::mt19937_64 &random_generator,
-                                                                 [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
+                                                             size_t k,
+                                                             std::mt19937_64 &random_generator,
+                                                             [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
   std::vector<int> candidates = {};
   std::vector<int> edge_ids;
   std::vector<double> deltas;
@@ -169,31 +169,6 @@ size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
   return num_runs;
 }
 
-/**
- * Return the minimum cut by repeating the random contraction algorithm of [CXY'18] `num_runs` times, returning the
- * minimum cut of the runs.
- *
- * @tparam HypergraphType
- * @tparam Verbose if `true` then print out information for each run
- * @param hypergraph the hypergraph to find the minimum cut of
- * @param k find the k-cut
- * @param num_runs the number of times to repeat the random contraction algorithm
- * @param default_seed random seed for the algorithms
- * @return the cut with the minimum value across all cuts
- */
-template<typename HypergraphType, bool Verbose = false>
-inline auto cxy_contract(const HypergraphType &hypergraph,
-                         size_t k,
-                         size_t num_runs = 0,
-                         uint64_t default_seed = 0) {
-  std::mt19937_64 random_generator;
-  if (default_seed) {
-    random_generator.seed(default_seed);
-  }
-  return hypergraph_util::minimum_of_runs<HypergraphType,
-                                          cxy_contract_<HypergraphType>,
-                                          default_num_runs,
-                                          Verbose>(hypergraph, k, num_runs, random_generator);
-}
+DECLARE_CONTRACTION_MIN_K_CUT(contract_, default_num_runs)
 
 }

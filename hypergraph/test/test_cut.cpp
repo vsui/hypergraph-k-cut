@@ -11,8 +11,8 @@
 #include "hypergraph/kk.hpp"
 #include "hypergraph/certificate.hpp"
 
-CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(CXY, cxy::cxy_contract);
-CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(FPZ, fpz::branching_contract);
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(CXY, cxy::minimum_cut, cxy::discover);
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(FPZ, fpz::minimum_cut, fpz::discover);
 
 CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(MW, MW_min_cut);
 CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(Q, Q_min_cut);
@@ -20,7 +20,7 @@ CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(KW, KW_min_cut);
 
 template<typename HypergraphType>
 HypergraphCut<typename HypergraphType::EdgeWeight> KK_min_cut(const HypergraphType &hypergraph) {
-  return kk::contract(hypergraph, 2);
+  return kk::minimum_cut(hypergraph, 2);
 }
 
 // KK needs a special suite since it takes very long for high-rank hypergraphs
