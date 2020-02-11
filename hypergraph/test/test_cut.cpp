@@ -11,12 +11,12 @@
 #include "hypergraph/kk.hpp"
 #include "hypergraph/certificate.hpp"
 
-CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(CXY, cxy::minimum_cut, cxy::discover);
-CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(FPZ, fpz::minimum_cut, fpz::discover);
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(CXY, cxy::minimum_cut, cxy::discover)
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(FPZ, fpz::minimum_cut, fpz::discover)
 
-CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(MW, MW_min_cut);
-CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(Q, Q_min_cut);
-CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(KW, KW_min_cut);
+CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(MW, MW_min_cut)
+CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(Q, Q_min_cut)
+CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(KW, KW_min_cut)
 
 template<typename HypergraphType>
 HypergraphCut<typename HypergraphType::EdgeWeight> KK_min_cut(const HypergraphType &hypergraph) {
@@ -24,10 +24,12 @@ HypergraphCut<typename HypergraphType::EdgeWeight> KK_min_cut(const HypergraphTy
 }
 
 // KK needs a special suite since it takes very long for high-rank hypergraphs
-CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE2(KK, KK_min_cut,
-                                      tests_in_folder<Hypergraph>("instances/misc/smallrank/unweighted"),
-                                      tests_in_folder<WeightedHypergraph<size_t>>("instances/misc/smallrank/weighted"),
-                                      tests_in_folder<WeightedHypergraph<double>>("instances/misc/smallrank/weighted"));
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(KK, kk::minimum_cut, kk::discover,
+                                    up_to_k(tests_in_folder<Hypergraph>("instances/misc/smallrank/unweighted"), 5),
+                                    up_to_k(tests_in_folder<WeightedHypergraph<size_t>>(
+                                        "instances/misc/smallrank/weighted"), 5),
+                                    up_to_k(tests_in_folder<WeightedHypergraph<double>>(
+                                        "instances/misc/smallrank/weighted"), 5));
 
 // Test approximate tests for several approximation factors
 CREATE_HYPERGRAPH_APPROX_MIN_CUT_TEST_SUITE(CX1_1, approximate_minimizer, 1.1);
