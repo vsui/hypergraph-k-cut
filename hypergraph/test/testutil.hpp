@@ -116,6 +116,18 @@ inline std::vector<TestCaseInstance<HypergraphType>> tests_in_folders(std::vecto
   return tests;
 }
 
+template<typename HypergraphType>
+inline std::vector<TestCaseInstance<HypergraphType>> up_to_k(const std::vector<TestCaseInstance<HypergraphType>> &tests,
+                                                             size_t k) {
+  std::vector<TestCaseInstance<HypergraphType>> ret;
+  std::copy_if(tests.begin(), tests.end(), std::back_inserter(ret), [k](auto &test) {
+    const auto &[tmp0, cut_value, tmp1] = test;
+    const auto &[k_, tmp2] = cut_value;
+    return k_ < k;
+  });
+  return ret;
+}
+
 inline std::vector<TestCaseInstance<>> small_unweighted_tests() {
   return tests_in_folders<Hypergraph>({"instances/misc/small/unweighted", "instances/misc/smallrank/unweighted"});
 }

@@ -33,7 +33,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hyp
   HypergraphType h(hypergraph);
 
   // TODO abstract sampling an edge with some weight function and use with fpz and cxy
-  while (h.num_vertices() > epsilon * r) {
+  while (h.num_vertices() > epsilon * k * r) {
     if (h.num_edges() == 0) {
       break;
     }

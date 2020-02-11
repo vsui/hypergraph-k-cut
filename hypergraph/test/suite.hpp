@@ -22,22 +22,25 @@ CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##Unweighted, disc
 CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedIntegral, discover, WeightedHypergraph<size_t>, small_weighted_tests<size_t>()) \
 CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedFloating, discover, WeightedHypergraph<double>, small_weighted_tests<double>())
 
-#define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(name, func, unweighted, weighted1, weighted2) \
+#define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(name, mincut, discover, unweighted, weighted1, weighted2) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
   name##Unweighted, \
-  func, \
+  mincut, \
   Hypergraph, \
   unweighted) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
   name##WeightedIntegral, \
-  func, \
+  mincut, \
   WeightedHypergraph<size_t>, \
   weighted1) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE( \
   name##WeightedFloating, \
-  func, \
+  mincut, \
   WeightedHypergraph<double>, \
-  weighted2)
+  weighted2) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##Unweighted, discover, Hypergraph, unweighted) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedIntegral, discover, WeightedHypergraph<size_t>, weighted1) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedFloating, discover, WeightedHypergraph<double>, weighted2)
 
 #define CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name, mincut, HypergraphType, values) \
 class name##Test : public testing::TestWithParam<TestCaseInstance<HypergraphType>> {}; \
