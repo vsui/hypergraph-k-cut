@@ -8,31 +8,14 @@
 #include <tclap/CmdLine.h>
 
 #include <hypergraph/kk.hpp>
-#include "hypergraph/approx.hpp"
-#include "hypergraph/cxy.hpp"
-#include "hypergraph/fpz.hpp"
-#include "hypergraph/hypergraph.hpp"
-#include "hypergraph/certificate.hpp"
-#include "hypergraph/order.hpp"
+#include <hypergraph/approx.hpp>
+#include <hypergraph/cxy.hpp>
+#include <hypergraph/fpz.hpp>
+#include <hypergraph/hypergraph.hpp>
+#include <hypergraph/certificate.hpp>
+#include <hypergraph/order.hpp>
 
-enum class cut_algorithm {
-  CXY,
-  FPZ,
-  MW,
-  KW,
-  Q,
-  CX,
-  KK,
-};
-
-bool is_contraction_algorithm(cut_algorithm algorithm) {
-  switch (algorithm) {
-  case cut_algorithm::CXY:
-  case cut_algorithm::FPZ:
-  case cut_algorithm::KK:return true;
-  default:return false;
-  }
-}
+#include "switch.hpp"
 
 std::map<std::string, cut_algorithm> string_to_algorithm = {
     {"CXY", cut_algorithm::CXY},
@@ -96,9 +79,9 @@ bool read_options(int argc, char **argv, Options &options) {
                                          "A non-negative number",
                                          cmd);
 
-    std::vector<uint8_t> verbosityLevels = {0, 1, 2};
-    TCLAP::ValuesConstraint<uint8_t> allowedVerbosityLevels(verbosityLevels);
-    TCLAP::ValueArg<uint8_t> verbosityArg("v", "verbosity", "Verbose output", false, 2, &allowedVerbosityLevels, cmd);
+    std::vector<size_t> verbosityLevels = {0, 1, 2};
+    TCLAP::ValuesConstraint<size_t> allowedVerbosityLevels(verbosityLevels);
+    TCLAP::ValueArg<size_t> verbosityArg("v", "verbosity", "Verbose output", false, 2, &allowedVerbosityLevels, cmd);
     cmd.parse(argc, argv);
 
     // Fill in options
@@ -142,6 +125,32 @@ bool read_options(int argc, char **argv, Options &options) {
     std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
   }
 
+  /* Check that k is valid */
+  if (options.k < 2) {
+    std::cerr << "k < 2 is not supported" << std::endl;
+    return false;
+  }
+  switch (options.algorithm) {
+  case cut_algorithm::CXY:
+  case cut_algorithm::FPZ:
+  case cut_algorithm::KK: {
+    // k is valid
+    break;
+  }
+  case cut_algorithm::MW:
+  case cut_algorithm::KW:
+  case cut_algorithm::Q:
+  case cut_algorithm::CX: {
+    if (options.k != 2) {
+      std::cout << "Only k=2 is acceptable for this algorithm" << std::endl;
+      return false;
+    }
+    break;
+  }
+  }
+  /* Done checking that k is valid */
+
+
   return true;
 }
 
@@ -178,21 +187,17 @@ int dispatch(Options options) {
   std::cout << hypergraph.num_vertices() << " vertices and "
             << hypergraph.num_edges() << " edges" << std::endl;
 
-  if (options.k < 2) {
-    std::cerr << "k < 2 is not supported" << std::endl;
-    return 1;
-  }
-
   size_t num_runs;
-  double epsilon;
 
-  // Special logic to pass in number of runs
-  switch (options.algorithm) {
-  case cut_algorithm::CXY:
-  case cut_algorithm::FPZ:
-  case cut_algorithm::KK: {
-
-    // Get number of runs function
+  /* Check if need to get default number of runs
+   *
+   * This is done in dispatch instead of read_options because we need to have access to the hypergraph since the default
+   * number of runs is a function of the hypergraph size.
+   *
+   * In the future we could move this into read_options by potentially just reading the number of vertices in the header
+   * of the .hmetis file.
+   */
+  if (is_contraction_algorithm(options.algorithm)) {
     const std::map<cut_algorithm, size_t> num_runs_map = {
         {cut_algorithm::CXY, cxy::default_num_runs(hypergraph, options.k)},
         {cut_algorithm::FPZ, fpz::default_num_runs(hypergraph, options.k)},
@@ -207,66 +212,17 @@ int dispatch(Options options) {
     } else {
       num_runs = options.runs.value();
     }
-    break;
   }
-  default:break;
-  }
-
-  // Special logic to pass in epsilon
-  switch (options.algorithm) {
-  case cut_algorithm::CX: {
-    epsilon = options.epsilon.value();
-  }
-  default:break;
-  }
-
-  // Check k is valid
-  switch (options.algorithm) {
-  case cut_algorithm::CXY:
-  case cut_algorithm::FPZ:
-  case cut_algorithm::KK: {
-    // k is valid
-    break;
-  }
-  case cut_algorithm::MW:
-  case cut_algorithm::KW:
-  case cut_algorithm::Q:
-  case cut_algorithm::CX: {
-    if (options.k != 2) {
-      std::cout << "Only k=2 is acceptable for this algorithm" << std::endl;
-      return 1;
-    }
-    break;
-  }
-  }
+  /* Done checking if need to get default number of runs */
 
   // Set f
   MinimumKCutFunction<HypergraphType> f;
+  if (is_contraction_algorithm(options.algorithm)) {
+    f = [num_runs, &options](HypergraphType &hypergraph, size_t k) {
+      return mincut_switch<HypergraphType>(options.algorithm, options.verbosity, hypergraph, k, num_runs);
+    };
+  }
   switch (options.algorithm) {
-  case cut_algorithm::CXY: {
-    f = [num_runs](HypergraphType &hypergraph, size_t k) {
-      return cxy::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
-    };
-    break;
-  }
-  case cut_algorithm::FPZ: {
-    if (options.verbosity == 2) {
-      f = [num_runs](HypergraphType &hypergraph, size_t k) {
-        return fpz::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
-      };
-    } else {
-      f = [num_runs](HypergraphType &hypergraph, size_t k) {
-        return fpz::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
-      };
-    }
-    break;
-  }
-  case cut_algorithm::KK: {
-    f = [num_runs](HypergraphType &hypergraph, size_t k) {
-      return kk::minimum_cut<HypergraphType, 2>(hypergraph, k, num_runs);
-    };
-    break;
-  }
   case cut_algorithm::MW: {
     f = [](HypergraphType &hypergraph, size_t k) {
       return vertex_ordering_mincut<HypergraphType, tight_ordering>(hypergraph);
@@ -286,11 +242,16 @@ int dispatch(Options options) {
     break;
   }
   case cut_algorithm::CX: {
-    f = [epsilon](HypergraphType &hypergraph, size_t k) {
-      return approximate_minimizer(hypergraph, epsilon);
+    f = [&options](HypergraphType &hypergraph, size_t k) {
+      return approximate_minimizer(hypergraph, options.epsilon.value());
     };
     break;
   }
+  case cut_algorithm::CXY:
+  case cut_algorithm::FPZ:
+  case cut_algorithm::KK:
+    // Handled earlier
+    break;
   }
 
   // Weighted sparsifier only works on integral cuts
@@ -321,42 +282,11 @@ int dispatch(Options options) {
   auto start = std::chrono::high_resolution_clock::now();
   // There is probably a better way to do all of this switching...
   if (options.discover.has_value()) {
-    switch (options.algorithm) {
-    case cut_algorithm::CXY:
-      switch (options.verbosity) {
-      case 0:cut = cxy::discover<HypergraphType, 0>(hypergraph, options.k, options.discover.value());
-        break;
-      case 1:cut = cxy::discover<HypergraphType, 1>(hypergraph, options.k, options.discover.value());
-        break;
-      case 2:cut = cxy::discover<HypergraphType, 2>(hypergraph, options.k, options.discover.value());
-        break;
-      default:assert(false); // Should not be reachable
-      }
-      break;
-    case cut_algorithm::FPZ:
-      switch (options.verbosity) {
-      case 0:cut = fpz::discover<HypergraphType, 0>(hypergraph, options.k, options.discover.value());
-        break;
-      case 1:cut = fpz::discover<HypergraphType, 1>(hypergraph, options.k, options.discover.value());
-        break;
-      case 2:cut = fpz::discover<HypergraphType, 2>(hypergraph, options.k, options.discover.value());
-        break;
-      default:assert(false); // Should not be reachable
-      }
-      break;
-    case cut_algorithm::KK:
-      switch (options.verbosity) {
-      case 0:cut = kk::discover<HypergraphType, 0>(hypergraph, options.k, options.discover.value());
-        break;
-      case 1:cut = kk::discover<HypergraphType, 1>(hypergraph, options.k, options.discover.value());
-        break;
-      case 2:cut = kk::discover<HypergraphType, 2>(hypergraph, options.k, options.discover.value());
-        break;
-      default:assert(false); // Should not be reachable
-      }
-      break;
-    default:assert(false); // Should not be reachable
-    }
+    cut = discovery_switch<HypergraphType>(options.algorithm,
+                                           options.verbosity,
+                                           hypergraph,
+                                           options.k,
+                                           options.discover.value());
   } else {
     cut = f(hypergraph, options.k);
   }
