@@ -111,7 +111,7 @@ bool read_options(int argc, char **argv, Options &options) {
         return false;
       }
     } else {
-      if (is_contraction_algorithm(options.algorithm)) {
+      if (is_contraction_algorithm(options.algorithm) && !discoveryArg.isSet()) {
         std::cerr << "error: Contraction algorithm requires number of runs to be specified" << std::endl;
         return false;
       }
@@ -213,12 +213,14 @@ int dispatch(Options options) {
     };
     size_t recommended_num_runs = num_runs_map.at(options.algorithm);
 
-    if (!options.runs.has_value()) {
-      std::cout << "Input how many times you would like to run the algorithm (recommended is " << recommended_num_runs
-                << " for low error probability)" << std::endl;
-      std::cin >> num_runs;
-    } else {
-      num_runs = options.runs.value();
+    if (!options.discover.has_value()) {
+      if (!options.runs.has_value()) {
+        std::cout << "Input how many times you would like to run the algorithm (recommended is " << recommended_num_runs
+                  << " for low error probability)" << std::endl;
+        std::cin >> num_runs;
+      } else {
+        num_runs = options.runs.value();
+      }
     }
   }
   /* Done checking if need to get default number of runs */
