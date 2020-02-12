@@ -36,6 +36,7 @@ struct Options {
   std::optional<size_t> runs; // Number of runs to repeat contraction algo for
   std::optional<double> epsilon; // Epsilon for approximation algorithms
   std::optional<double> discover; // Discovery value
+  uint32_t random_seed = 0;
   uint8_t verbosity = 2; // Verbose output
 };
 
@@ -82,6 +83,10 @@ bool read_options(int argc, char **argv, Options &options) {
     std::vector<size_t> verbosityLevels = {0, 1, 2};
     TCLAP::ValuesConstraint<size_t> allowedVerbosityLevels(verbosityLevels);
     TCLAP::ValueArg<size_t> verbosityArg("v", "verbosity", "Verbose output", false, 2, &allowedVerbosityLevels, cmd);
+
+    TCLAP::ValueArg<uint32_t>
+        randomSeedArg("s", "seed", "Random seed", false, 0, "Random seed for randomized algorithms", cmd);
+
     cmd.parse(argc, argv);
 
     // Fill in options
@@ -120,6 +125,9 @@ bool read_options(int argc, char **argv, Options &options) {
     }
     if (verbosityArg.isSet()) {
       options.verbosity = verbosityArg.getValue();
+    }
+    if (randomSeedArg.isSet()) {
+      options.random_seed = randomSeedArg.getValue();
     }
   } catch (TCLAP::ArgException &e) {
     std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl;
@@ -219,7 +227,12 @@ int dispatch(Options options) {
   MinimumKCutFunction<HypergraphType> f;
   if (is_contraction_algorithm(options.algorithm)) {
     f = [num_runs, &options](HypergraphType &hypergraph, size_t k) {
-      return mincut_switch<HypergraphType>(options.algorithm, options.verbosity, hypergraph, k, num_runs);
+      return mincut_switch<HypergraphType>(options.algorithm,
+                                           options.verbosity,
+                                           hypergraph,
+                                           k,
+                                           num_runs,
+                                           options.random_seed);
     };
   }
   switch (options.algorithm) {
@@ -286,7 +299,8 @@ int dispatch(Options options) {
                                            options.verbosity,
                                            hypergraph,
                                            options.k,
-                                           options.discover.value());
+                                           options.discover.value(),
+                                           options.random_seed);
   } else {
     cut = f(hypergraph, options.k);
   }
