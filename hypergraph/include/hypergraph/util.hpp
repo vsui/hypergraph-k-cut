@@ -3,8 +3,8 @@
 #include <iostream>
 #include <chrono>
 
-#include "hypergraph/hypergraph.hpp"
-#include "hypergraph/certificate.hpp"
+#include "hypergraph.hpp"
+#include "certificate.hpp"
 
 namespace hypergraph_util {
 
