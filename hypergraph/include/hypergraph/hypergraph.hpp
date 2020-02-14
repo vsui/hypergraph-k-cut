@@ -148,19 +148,20 @@ template<typename HypergraphType>
 using MinimumKCutFunction = std::function<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &,
                                                                                              size_t k)>;
 
-class Hypergraph {
+class HypergraphBase {
 public:
   using Heap = BucketHeap;
   using EdgeWeight = size_t;
+  using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
 
-  Hypergraph &operator=(const Hypergraph &other);
+  HypergraphBase &operator=(const HypergraphBase &other);
 
-  Hypergraph();
+  HypergraphBase();
 
-  Hypergraph(const Hypergraph &other);
+  HypergraphBase(const HypergraphBase &other);
 
-  Hypergraph(const std::vector<int> &vertices,
-             const std::vector<std::vector<int>> &edges);
+  HypergraphBase(const std::vector<int> &vertices,
+                 const std::vector<std::vector<int>> &edges);
 
   /**
    * Determines whether two hypergraphs have the same vertices and hyperedges
@@ -168,15 +169,13 @@ public:
    * @param other
    * @return
    */
-  bool operator==(const Hypergraph &other) const {
+  bool operator==(const HypergraphBase &other) const {
     return vertices_ == other.vertices_ && edges_ == other.edges_;
   }
 
   [[nodiscard]] size_t num_vertices() const;
 
   [[nodiscard]] size_t num_edges() const;
-
-  using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
 
   [[nodiscard]] vertex_range vertices() const;
 
@@ -196,7 +195,7 @@ public:
    */
   template<bool EdgeMayContainLoops = true> // TODO check rank and set as necessary
   [[nodiscard]]
-  Hypergraph contract(const int edge_id) const {
+  HypergraphBase contract(const int edge_id) const {
     std::vector<int> old_edge = edges_.at(edge_id);
 
     if (old_edge.empty()) {
@@ -204,7 +203,7 @@ public:
       auto new_vertices = vertices_;
       auto new_edges = edges_;
       new_edges.erase(edge_id);
-      return Hypergraph(std::move(new_vertices), std::move(new_edges), *this);
+      return HypergraphBase(std::move(new_vertices), std::move(new_edges), *this);
     }
 
     if constexpr (EdgeMayContainLoops) {
@@ -267,7 +266,7 @@ public:
       }
     }
 
-    Hypergraph new_hypergraph(std::move(new_vertices), std::move(new_edges), *this);
+    HypergraphBase new_hypergraph(std::move(new_vertices), std::move(new_edges), *this);
     new_hypergraph.next_vertex_id_++;
 
     // Update vertices_within_ of new hypergraph
@@ -364,11 +363,11 @@ public:
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
   template<typename InputIt>
-  [[nodiscard]] Hypergraph contract(InputIt begin, InputIt end) const {
+  [[nodiscard]] HypergraphBase contract(InputIt begin, InputIt end) const {
     // TODO if we have a non-const contract then this copy is unnecessary. Right
     // now we copy twice (once to avoid modifying the input hypergraph and the
     // second time to contract)
-    Hypergraph copy(*this);
+    HypergraphBase copy(*this);
     auto new_e = copy.add_hyperedge(begin, end);
     return copy.contract(new_e);
   }
@@ -393,12 +392,10 @@ public:
   }
 
 private:
-  friend class KTrimmedCertificate;
-
   // Constructor that directly sets adjacency lists and next vertex ID (assuming that you just contracted an edge)
-  Hypergraph(std::unordered_map<int, std::vector<int>> &&vertices,
-             std::unordered_map<int, std::vector<int>> &&edges,
-             const Hypergraph &old);
+  HypergraphBase(std::unordered_map<int, std::vector<int>> &&vertices,
+                 std::unordered_map<int, std::vector<int>> &&edges,
+                 const HypergraphBase &old);
 
   // Map of vertex IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> vertices_;
@@ -414,32 +411,58 @@ private:
   int next_edge_id_;
 };
 
+// To restrict dynamic polymorphism with Hypergraphs and WeightedHypergraphs
+class Hypergraph : public HypergraphBase {
+
+  Hypergraph(const HypergraphBase &h) : HypergraphBase(h) {}
+
+  // Needs access to private constructor inherited from HypergraphBase
+  friend class KTrimmedCertificate;
+
+public:
+  static constexpr bool weighted = false;
+
+  using HypergraphBase::HypergraphBase;
+
+  template<bool EdgeMayContainLoops = true>
+  Hypergraph contract(const int edge_id) const {
+    return HypergraphBase::contract<EdgeMayContainLoops>(edge_id);
+  }
+
+  template<typename InputIt>
+  Hypergraph contract(InputIt begin, InputIt end) const {
+    return HypergraphBase::contract(begin, end);
+  }
+};
+
 /* A hypergraph with weighted edges. The time complexities of all operations are the same as with the unweighted
  * hypergraph.
  */
 template<typename EdgeWeightType>
-class WeightedHypergraph : public Hypergraph {
+class WeightedHypergraph : public HypergraphBase {
 public:
+  static constexpr bool weighted = true;
+
   using Heap = FibonacciHeap<EdgeWeightType>;
   using EdgeWeight = EdgeWeightType;
 
   WeightedHypergraph() = default;
 
   template<typename OtherEdgeWeight>
-  explicit WeightedHypergraph(const WeightedHypergraph<OtherEdgeWeight> &other): Hypergraph(other.hypergraph_) {
+  explicit WeightedHypergraph(const WeightedHypergraph<OtherEdgeWeight> &other): HypergraphBase(other.hypergraph_) {
     for (const auto &[edge_id, incident_on] : other.edges()) {
       edges_to_weights_.insert({edge_id, other.edge_weight(edge_id)});
     }
   }
 
-  explicit WeightedHypergraph(const Hypergraph &hypergraph) : Hypergraph(hypergraph) {
+  explicit WeightedHypergraph(const HypergraphBase &hypergraph) : HypergraphBase(hypergraph) {
     for (const auto &[edge_id, incident_on] : hypergraph.edges()) {
       edges_to_weights_.insert({edge_id, 1});
     }
   }
 
   bool operator==(const WeightedHypergraph &other) const {
-    return Hypergraph::operator==(other) && edges_to_weights_ == other.edges_to_weights_;
+    return HypergraphBase::operator==(other) && edges_to_weights_ == other.edges_to_weights_;
   }
 
   std::vector<std::vector<int>> edges_weights_removed(const std::vector<std::pair<std::vector<int>,
@@ -452,7 +475,7 @@ public:
   }
   WeightedHypergraph(const std::vector<int> &vertices,
                      const std::vector<std::pair<std::vector<int>, EdgeWeightType>> edges) :
-      Hypergraph(vertices, edges_weights_removed(edges)) {
+      HypergraphBase(vertices, edges_weights_removed(edges)) {
     for (size_t i = 0; i < edges.size(); ++i) {
       const auto[it, inserted] = edges_to_weights_.insert({i, edges.at(i).second});
 #ifndef NDEBUG
@@ -461,12 +484,12 @@ public:
     }
   }
 
-  using vertex_range = Hypergraph::vertex_range;
+  using vertex_range = HypergraphBase::vertex_range;
 
   template<bool EdgeMayContainLoops = true>
   [[nodiscard]]
   WeightedHypergraph contract(int edge_id) const {
-    Hypergraph contracted = Hypergraph::contract<EdgeMayContainLoops>(edge_id);
+    HypergraphBase contracted = HypergraphBase::contract<EdgeMayContainLoops>(edge_id);
     // TODO edges to weights should still be valid
     return WeightedHypergraph(contracted, edges_to_weights_);
   }
@@ -483,7 +506,7 @@ public:
 
   template<typename InputIt>
   int add_hyperedge(InputIt begin, InputIt end, EdgeWeightType weight) {
-    auto id = Hypergraph::add_hyperedge(begin, end);
+    auto id = HypergraphBase::add_hyperedge(begin, end);
     const auto[it, inserted] = edges_to_weights_.insert({id, weight});
 #ifndef NDEBUG
     assert(inserted);
@@ -493,7 +516,7 @@ public:
 
   void remove_hyperedge(int edge_id) {
     // Edge weights from edges that were subsets of the removed edge are not removed
-    Hypergraph::remove_hyperedge(edge_id);
+    HypergraphBase::remove_hyperedge(edge_id);
     edges_to_weights_.erase(edge_id);
   }
 
@@ -505,15 +528,21 @@ public:
   }
 
 private:
-  WeightedHypergraph(const Hypergraph &hypergraph, const std::unordered_map<int, EdgeWeightType> edge_weights) :
-      Hypergraph(hypergraph), edges_to_weights_(edge_weights) {}
+  WeightedHypergraph(const HypergraphBase &hypergraph, const std::unordered_map<int, EdgeWeightType> edge_weights) :
+      HypergraphBase(hypergraph), edges_to_weights_(edge_weights) {}
 
   std::unordered_map<int, EdgeWeightType> edges_to_weights_;
 };
 
 template<typename HypergraphType>
+constexpr bool is_weighted = HypergraphType::weighted;
+
+template<typename HypergraphType>
+constexpr bool is_unweighted = !HypergraphType::weighted;
+
+template<typename HypergraphType>
 inline typename HypergraphType::EdgeWeight edge_weight(const HypergraphType &hypergraph, int edge_id) {
-  if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+  if constexpr (is_unweighted<HypergraphType>) {
     return 1;
   } else {
     return hypergraph.edge_weight(edge_id);
@@ -548,7 +577,7 @@ template<typename HypergraphType>
 HypergraphCut<typename HypergraphType::EdgeWeight> one_vertex_cut(const HypergraphType &hypergraph, const int v) {
   // Get cut-value
   typename HypergraphType::EdgeWeight cut_value = 0;
-  if constexpr (std::is_same_v<HypergraphType, Hypergraph>) {
+  if constexpr (is_unweighted<HypergraphType>) {
     cut_value = hypergraph.edges_incident_on(v).size();
   } else {
     for (const auto e : hypergraph.edges_incident_on(v)) {
@@ -584,9 +613,9 @@ HypergraphType merge_vertices(const HypergraphType &hypergraph, const int s, con
   return hypergraph.contract(std::begin(vs), std::end(vs));
 }
 
-std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);
+std::istream &operator>>(std::istream &is, HypergraphBase &hypergraph);
 
-std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph);
+std::ostream &operator<<(std::ostream &os, const HypergraphBase &hypergraph);
 
 template<typename EdgeWeightType>
 std::istream &operator>>(std::istream &is, WeightedHypergraph<EdgeWeightType> &hypergraph) {
@@ -631,9 +660,6 @@ std::ostream &operator<<(std::ostream &os, const WeightedHypergraph<EdgeWeightTy
   }
   return os;
 }
-
-template<typename HypergraphType>
-constexpr bool is_weighted = !std::is_same_v<HypergraphType, Hypergraph>;
 
 // Return true if the header of the output stream appears to be an hmetis file
 bool is_unweighted_hmetis_file(std::istream &is);
