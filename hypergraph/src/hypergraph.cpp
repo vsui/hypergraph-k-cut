@@ -6,93 +6,6 @@
 #include <numeric>
 #include <cassert>
 
-HypergraphBase::HypergraphBase() = default;
-
-HypergraphBase::HypergraphBase(const HypergraphBase &other) = default;
-
-HypergraphBase &HypergraphBase::operator=(const HypergraphBase &other) = default;
-
-HypergraphBase::HypergraphBase(const std::vector<int> &vertices,
-                               const std::vector<std::vector<int>> &edges) :
-    next_vertex_id_(*std::max_element(std::begin(vertices), std::end(vertices)) + 1),
-    next_edge_id_(static_cast<int>(edges.size())) {
-  assert(vertices.size() > 0);
-  for (const int v : vertices) {
-    vertices_[v] = {};
-    vertices_within_[v] = {v};
-  }
-  int e_i = -1;
-  for (const auto &incident_vertices : edges) {
-    edges_[++e_i] = incident_vertices;
-    for (const int u : incident_vertices) {
-      vertices_[u].push_back(e_i);
-    }
-  }
-}
-
-// TODO needing to copy vertices_within_ may be concerning from a performance standpoint
-HypergraphBase::HypergraphBase(std::unordered_map<int, std::vector<int>> &&vertices,
-                               std::unordered_map<int, std::vector<int>> &&edges,
-                               const HypergraphBase &old)
-    : vertices_(vertices), edges_(edges), next_vertex_id_(old.next_vertex_id_),
-      next_edge_id_(old.next_edge_id_), vertices_within_(old.vertices_within_) {}
-
-size_t HypergraphBase::num_vertices() const { return vertices_.size(); }
-
-size_t HypergraphBase::num_edges() const { return edges_.size(); }
-
-HypergraphBase::vertex_range HypergraphBase::vertices() const {
-  return boost::adaptors::keys(vertices_);
-}
-
-const std::unordered_map<int, std::vector<int>> &HypergraphBase::edges() const {
-  return edges_;
-}
-
-bool HypergraphBase::is_valid() const {
-  for (const auto &[v, incidence] : vertices_) {
-    for (const int e : incidence) {
-      const auto &vertices_incident_on = edges_.at(e);
-      if (std::find(vertices_incident_on.begin(), vertices_incident_on.end(),
-                    v) == std::end(vertices_incident_on)) {
-        std::cerr << "ERROR: edge " << e << " should contain vertex " << v
-                  << std::endl;
-        return false;
-      }
-    }
-  }
-
-  for (const auto &[e, incidence] : edges_) {
-    for (const int v : incidence) {
-      const auto &edges_incident_on = vertices_.at(v);
-      if (std::find(edges_incident_on.begin(), edges_incident_on.end(), e) ==
-          std::end(edges_incident_on)) {
-        std::cerr << "ERROR: vertex " << v << " should contain edge " << e
-                  << std::endl;
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-void HypergraphBase::remove_hyperedge(int edge_id) {
-  for (const auto v : edges_.at(edge_id)) {
-    auto &vertex_incidence_list = vertices_.at(v);
-    auto it = std::find(std::begin(vertex_incidence_list),
-                        std::end(vertex_incidence_list), edge_id);
-    // Swap it with the last element and pop it off to remove in O(1) time
-    std::iter_swap(it, std::end(vertex_incidence_list) - 1);
-    vertex_incidence_list.pop_back();
-  }
-  edges_.erase(edge_id);
-}
-
-const std::vector<int> &HypergraphBase::edges_incident_on(int vertex_id) const {
-  return vertices_.at(vertex_id);
-}
-
 /**
  * This reads in a file in .hmetis format. Assumes that nodes are numbered from [0, n - 1], where n - 1 is the number of
  * vertices in the hypergraph.
@@ -101,7 +14,7 @@ const std::vector<int> &HypergraphBase::edges_incident_on(int vertex_id) const {
  * @param hypergraph
  * @return
  */
-std::istream &operator>>(std::istream &is, HypergraphBase &hypergraph) {
+std::istream &operator>>(std::istream &is, Hypergraph &hypergraph) {
   size_t num_edges, num_vertices;
   is >> num_edges >> num_vertices;
 
@@ -124,11 +37,11 @@ std::istream &operator>>(std::istream &is, HypergraphBase &hypergraph) {
   std::vector<int> vertices(num_vertices);
   std::iota(std::begin(vertices), std::end(vertices), 0);
 
-  hypergraph = HypergraphBase(vertices, edges);
+  hypergraph = Hypergraph(vertices, edges);
   return is;
 }
 
-std::ostream &operator<<(std::ostream &os, const HypergraphBase &hypergraph) {
+std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
   os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
 
   for (const auto &[id, vertices] : hypergraph.edges()) {
@@ -138,33 +51,6 @@ std::ostream &operator<<(std::ostream &os, const HypergraphBase &hypergraph) {
     os << std::endl;
   }
   return os;
-}
-
-//std::ostream &operator<<(std::ostream &os, const Hypergraph &hypergraph) {
-//  os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << std::endl;
-//  os << "VERTICES\n";
-//
-//  for (const auto v : hypergraph.vertices()) {
-//    os << v << ": ";
-//    for (const int e : hypergraph.edges_incident_on(v)) {
-//      os << e << " ";
-//    }
-//    os << std::endl;
-//  }
-//
-//  os << "EDGES\n";
-//  for (const auto &[id, vertices] : hypergraph.edges()) {
-//    os << id << ": ";
-//    for (const int v : vertices) {
-//      os << v << " ";
-//    }
-//    os << std::endl;
-//  }
-//  return os;
-//}
-
-const std::list<int> &HypergraphBase::vertices_within(const int v) const {
-  return vertices_within_.at(v);
 }
 
 bool is_unweighted_hmetis_file(std::istream &is) {

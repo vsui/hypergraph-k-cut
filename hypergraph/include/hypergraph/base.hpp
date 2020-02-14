@@ -1,19 +1,40 @@
 #pragma once
 
+#include <iostream>
+#include <vector>
+#include <map>
+
+template<typename T>
 class HypergraphBase {
+  friend T;
 public:
+  HypergraphBase() = default;
+
+  HypergraphBase(const HypergraphBase &other) = default;
+
+  HypergraphBase(const std::vector<int> &vertices,
+                 const std::vector<std::vector<int>> &edges) :
+      next_vertex_id_(*std::max_element(std::begin(vertices), std::end(vertices)) + 1),
+      next_edge_id_(static_cast<int>(edges.size())) {
+    assert(vertices.size() > 0);
+    for (const int v : vertices) {
+      vertices_[v] = {};
+      vertices_within_[v] = {v};
+    }
+    int e_i = -1;
+    for (const auto &incident_vertices : edges) {
+      edges_[++e_i] = incident_vertices;
+      for (const int u : incident_vertices) {
+        vertices_[u].push_back(e_i);
+      }
+    }
+  }
+
+  HypergraphBase &operator=(const HypergraphBase &other) = default;
+
   using Heap = BucketHeap;
   using EdgeWeight = size_t;
   using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
-
-  HypergraphBase &operator=(const HypergraphBase &other);
-
-  HypergraphBase();
-
-  HypergraphBase(const HypergraphBase &other);
-
-  HypergraphBase(const std::vector<int> &vertices,
-                 const std::vector<std::vector<int>> &edges);
 
   /**
    * Determines whether two hypergraphs have the same vertices and hyperedges
@@ -25,20 +46,53 @@ public:
     return vertices_ == other.vertices_ && edges_ == other.edges_;
   }
 
-  [[nodiscard]] size_t num_vertices() const;
+  [[nodiscard]] size_t num_vertices() const { return vertices_.size(); };
 
-  [[nodiscard]] size_t num_edges() const;
+  [[nodiscard]] size_t num_edges() const { return edges_.size(); }
 
-  [[nodiscard]] vertex_range vertices() const;
+  [[nodiscard]] vertex_range vertices() const {
+    return boost::adaptors::keys(vertices_);
+  };
 
-  [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const;
+  [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const {
+    return vertices_.at(vertex_id);
+  }
 
-  [[nodiscard]] const std::unordered_map<int, std::vector<int>> &edges() const;
+  [[nodiscard]] const std::unordered_map<int, std::vector<int>> &edges() const {
+    return edges_;
+  }
 
   /* Checks that the internal state of the hypergraph is consistent. Mainly for
    * debugging.
    */
-  [[nodiscard]] bool is_valid() const;
+  [[nodiscard]] bool is_valid() const {
+
+    for (const auto &[v, incidence] : vertices_) {
+      for (const int e : incidence) {
+        const auto &vertices_incident_on = edges_.at(e);
+        if (std::find(vertices_incident_on.begin(), vertices_incident_on.end(),
+                      v) == std::end(vertices_incident_on)) {
+          std::cerr << "ERROR: edge " << e << " should contain vertex " << v
+                    << std::endl;
+          return false;
+        }
+      }
+    }
+
+    for (const auto &[e, incidence] : edges_) {
+      for (const int v : incidence) {
+        const auto &edges_incident_on = vertices_.at(v);
+        if (std::find(edges_incident_on.begin(), edges_incident_on.end(), e) ==
+            std::end(edges_incident_on)) {
+          std::cerr << "ERROR: vertex " << v << " should contain edge " << e
+                    << std::endl;
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
 
   /* Returns a new hypergraph with the edge contracted. Assumes that there is
    * an edge in the hypergraph with the given edge ID.
@@ -47,7 +101,7 @@ public:
    */
   template<bool EdgeMayContainLoops = true> // TODO check rank and set as necessary
   [[nodiscard]]
-  HypergraphBase contract(const int edge_id) const {
+  T contract(const int edge_id) const {
     std::vector<int> old_edge = edges_.at(edge_id);
 
     if (old_edge.empty()) {
@@ -55,7 +109,7 @@ public:
       auto new_vertices = vertices_;
       auto new_edges = edges_;
       new_edges.erase(edge_id);
-      return HypergraphBase(std::move(new_vertices), std::move(new_edges), *this);
+      return T(std::move(new_vertices), std::move(new_edges), static_cast<const T &>(*this));
     }
 
     if constexpr (EdgeMayContainLoops) {
@@ -118,7 +172,7 @@ public:
       }
     }
 
-    HypergraphBase new_hypergraph(std::move(new_vertices), std::move(new_edges), *this);
+    T new_hypergraph(std::move(new_vertices), std::move(new_edges), static_cast<const T &>(*this));
     new_hypergraph.next_vertex_id_++;
 
     // Update vertices_within_ of new hypergraph
@@ -208,14 +262,24 @@ public:
    *
    * Time complexity: linear with the size of all vertices contained by the hyperedge
    */
-  void remove_hyperedge(int edge_id);
+  void remove_hyperedge(int edge_id) {
+    for (const auto v : edges_.at(edge_id)) {
+      auto &vertex_incidence_list = vertices_.at(v);
+      auto it = std::find(std::begin(vertex_incidence_list),
+                          std::end(vertex_incidence_list), edge_id);
+      // Swap it with the last element and pop it off to remove in O(1) time
+      std::iter_swap(it, std::end(vertex_incidence_list) - 1);
+      vertex_incidence_list.pop_back();
+    }
+    edges_.erase(edge_id);
+  }
 
   /* Contracts the vertices in the range into one vertex.
    *
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
   template<typename InputIt>
-  [[nodiscard]] HypergraphBase contract(InputIt begin, InputIt end) const {
+  [[nodiscard]] T contract(InputIt begin, InputIt end) const {
     // TODO if we have a non-const contract then this copy is unnecessary. Right
     // now we copy twice (once to avoid modifying the input hypergraph and the
     // second time to contract)
@@ -228,7 +292,9 @@ public:
    * later using this method. This is useful for calculating the actual partitions that make up the cuts.
    */
   [[nodiscard]]
-  const std::list<int> &vertices_within(const int v) const;
+  const std::list<int> &vertices_within(const int v) const {
+    return vertices_within_.at(v);
+  }
 
   /**
    * Compute the rank of the hypergraph by scanning through all hyperedges and returning the size of the hyperedge with
@@ -247,7 +313,9 @@ private:
   // Constructor that directly sets adjacency lists and next vertex ID (assuming that you just contracted an edge)
   HypergraphBase(std::unordered_map<int, std::vector<int>> &&vertices,
                  std::unordered_map<int, std::vector<int>> &&edges,
-                 const HypergraphBase &old);
+                 const HypergraphBase &old)
+      : vertices_(vertices), edges_(edges), next_vertex_id_(old.next_vertex_id_), next_edge_id_(old.next_edge_id_),
+        vertices_within_(old.vertices_within_) {}
 
   // Map of vertex IDs -> incidence lists
   std::unordered_map<int, std::vector<int>> vertices_;
