@@ -9,6 +9,7 @@
 
 #include "hypergraph/heap.hpp"
 #include "hypergraph/hypergraph.hpp"
+#include "hypergraph/cut.hpp"
 
 // A context for vertex ordering calculations
 template<typename Heap>
