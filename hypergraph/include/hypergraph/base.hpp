@@ -7,6 +7,7 @@
 template<typename T>
 class HypergraphBase {
   friend T;
+  friend class KTrimmedCertificate;
 public:
   HypergraphBase() = default;
 
