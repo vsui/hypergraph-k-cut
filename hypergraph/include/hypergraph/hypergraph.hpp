@@ -418,9 +418,7 @@ private:
  * hypergraph.
  */
 template<typename EdgeWeightType>
-class WeightedHypergraph {
-  // The reason this is implemented with composition instead of inheritance is that many algorithms need to be aware of
-  // exhibit significantly different behavior in the weighted vs. unweighted case.
+class WeightedHypergraph : public Hypergraph {
 public:
   using Heap = FibonacciHeap<EdgeWeightType>;
   using EdgeWeight = EdgeWeightType;
@@ -428,29 +426,33 @@ public:
   WeightedHypergraph() = default;
 
   template<typename OtherEdgeWeight>
-  explicit WeightedHypergraph(const WeightedHypergraph<OtherEdgeWeight> &other): hypergraph_(other.hypergraph_) {
+  explicit WeightedHypergraph(const WeightedHypergraph<OtherEdgeWeight> &other): Hypergraph(other.hypergraph_) {
     for (const auto &[edge_id, incident_on] : other.edges()) {
       edges_to_weights_.insert({edge_id, other.edge_weight(edge_id)});
     }
   }
 
-  explicit WeightedHypergraph(const Hypergraph &hypergraph) : hypergraph_(hypergraph) {
+  explicit WeightedHypergraph(const Hypergraph &hypergraph) : Hypergraph(hypergraph) {
     for (const auto &[edge_id, incident_on] : hypergraph.edges()) {
       edges_to_weights_.insert({edge_id, 1});
     }
   }
 
   bool operator==(const WeightedHypergraph &other) const {
-    return hypergraph_ == other.hypergraph_ && edges_to_weights_ == other.edges_to_weights_;
+    return Hypergraph::operator==(other) && edges_to_weights_ == other.edges_to_weights_;
   }
 
-  WeightedHypergraph(const std::vector<int> &vertices,
-                     const std::vector<std::pair<std::vector<int>, EdgeWeightType>> edges) {
+  std::vector<std::vector<int>> edges_weights_removed(const std::vector<std::pair<std::vector<int>,
+                                                                                  EdgeWeightType>> &edges) const {
     std::vector<std::vector<int>> edges_without_weights;
     std::transform(std::begin(edges), std::end(edges), std::back_inserter(edges_without_weights), [](const auto &pair) {
       return pair.first;
     });
-    hypergraph_ = Hypergraph(vertices, edges_without_weights);
+    return edges_without_weights;
+  }
+  WeightedHypergraph(const std::vector<int> &vertices,
+                     const std::vector<std::pair<std::vector<int>, EdgeWeightType>> edges) :
+      Hypergraph(vertices, edges_weights_removed(edges)) {
     for (size_t i = 0; i < edges.size(); ++i) {
       const auto[it, inserted] = edges_to_weights_.insert({i, edges.at(i).second});
 #ifndef NDEBUG
@@ -459,35 +461,14 @@ public:
     }
   }
 
-  [[nodiscard]] size_t num_vertices() const { return hypergraph_.num_vertices(); }
-  [[nodiscard]] size_t num_edges() const { return hypergraph_.num_edges(); }
-
   using vertex_range = Hypergraph::vertex_range;
-
-  [[nodiscard]] vertex_range vertices() const { return hypergraph_.vertices(); }
-  [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const {
-    return hypergraph_.edges_incident_on(vertex_id);
-  }
-
-  [[nodiscard]] const std::unordered_map<int, std::vector<int>> &edges() const {
-    return hypergraph_.edges();
-  }
-
-  [[nodiscard]] bool is_valid() const {
-    return hypergraph_.is_valid();
-  }
 
   template<bool EdgeMayContainLoops = true>
   [[nodiscard]]
   WeightedHypergraph contract(int edge_id) const {
-    Hypergraph contracted = hypergraph_.contract<EdgeMayContainLoops>(edge_id);
+    Hypergraph contracted = Hypergraph::contract<EdgeMayContainLoops>(edge_id);
     // TODO edges to weights should still be valid
     return WeightedHypergraph(contracted, edges_to_weights_);
-  }
-
-  template<bool EdgeMayContainLoops = true>
-  void contract_in_place(int edge_id) {
-    hypergraph_.contract_in_place<EdgeMayContainLoops>(edge_id);
   }
 
   EdgeWeightType edge_weight(int edge_id) const {
@@ -502,7 +483,7 @@ public:
 
   template<typename InputIt>
   int add_hyperedge(InputIt begin, InputIt end, EdgeWeightType weight) {
-    auto id = hypergraph_.add_hyperedge(begin, end);
+    auto id = Hypergraph::add_hyperedge(begin, end);
     const auto[it, inserted] = edges_to_weights_.insert({id, weight});
 #ifndef NDEBUG
     assert(inserted);
@@ -512,7 +493,7 @@ public:
 
   void remove_hyperedge(int edge_id) {
     // Edge weights from edges that were subsets of the removed edge are not removed
-    hypergraph_.remove_hyperedge(edge_id);
+    Hypergraph::remove_hyperedge(edge_id);
     edges_to_weights_.erase(edge_id);
   }
 
@@ -523,20 +504,9 @@ public:
     return copy.contract(new_e);
   }
 
-  [[nodiscard]] const std::list<int> &vertices_within(const int v) const {
-    return hypergraph_.vertices_within(v);
-  }
-
-  [[nodiscard]]
-  size_t rank() const {
-    return hypergraph_.rank();
-  }
-
 private:
   WeightedHypergraph(const Hypergraph &hypergraph, const std::unordered_map<int, EdgeWeightType> edge_weights) :
-      hypergraph_(hypergraph), edges_to_weights_(edge_weights) {}
-
-  Hypergraph hypergraph_;
+      Hypergraph(hypergraph), edges_to_weights_(edge_weights) {}
 
   std::unordered_map<int, EdgeWeightType> edges_to_weights_;
 };
