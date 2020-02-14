@@ -321,7 +321,7 @@ public:
       for (auto v : edge) {
         vertices.erase(std::remove(std::begin(vertices), std::end(vertices), v), std::end(vertices));
       }
-      if (vertices.size() == 0) {
+      if (vertices.empty()) {
         it = edges_.erase(it);
       } else {
         if (old_size != vertices.size()) {
@@ -376,6 +376,7 @@ public:
   /* When an edge is contracted into a single vertex the original vertices in the edge can be stored and referred to
    * later using this method. This is useful for calculating the actual partitions that make up the cuts.
    */
+  [[nodiscard]]
   const std::list<int> &vertices_within(const int v) const;
 
   /**
@@ -463,7 +464,7 @@ public:
 
   using vertex_range = Hypergraph::vertex_range;
 
-  vertex_range vertices() const { return hypergraph_.vertices(); }
+  [[nodiscard]] vertex_range vertices() const { return hypergraph_.vertices(); }
   [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const {
     return hypergraph_.edges_incident_on(vertex_id);
   }
@@ -522,7 +523,7 @@ public:
     return copy.contract(new_e);
   }
 
-  const std::list<int> &vertices_within(const int v) const {
+  [[nodiscard]] const std::list<int> &vertices_within(const int v) const {
     return hypergraph_.vertices_within(v);
   }
 
