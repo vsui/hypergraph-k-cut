@@ -9,6 +9,10 @@ class HypergraphBase {
   friend T;
   friend class KTrimmedCertificate;
 public:
+  using Heap = BucketHeap;
+  using EdgeWeight = size_t;
+  using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
+
   HypergraphBase() = default;
 
   HypergraphBase(const HypergraphBase &other) = default;
@@ -33,10 +37,6 @@ public:
 
   HypergraphBase &operator=(const HypergraphBase &other) = default;
 
-  using Heap = BucketHeap;
-  using EdgeWeight = size_t;
-  using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
-
   /**
    * Determines whether two hypergraphs have the same vertices and hyperedges
    *
@@ -47,26 +47,39 @@ public:
     return vertices_ == other.vertices_ && edges_ == other.edges_;
   }
 
-  [[nodiscard]] size_t num_vertices() const { return vertices_.size(); };
+  [[nodiscard]]
+  size_t num_vertices() const { return vertices_.size(); };
 
-  [[nodiscard]] size_t num_edges() const { return edges_.size(); }
+  [[nodiscard]]
+  size_t num_edges() const { return edges_.size(); }
 
-  [[nodiscard]] vertex_range vertices() const {
+  [[nodiscard]]
+  vertex_range vertices() const {
     return boost::adaptors::keys(vertices_);
   };
 
-  [[nodiscard]] const std::vector<int> &edges_incident_on(int vertex_id) const {
+  [[nodiscard]]
+  const std::vector<int> &edges_incident_on(int vertex_id) const {
     return vertices_.at(vertex_id);
   }
 
-  [[nodiscard]] const std::unordered_map<int, std::vector<int>> &edges() const {
+  [[nodiscard]]
+  const std::unordered_map<int, std::vector<int>> &edges() const {
     return edges_;
+  }
+
+  [[nodiscard]]
+  size_t rank() const {
+    return std::max_element(edges().begin(), edges().end(), [](const auto a, const auto b) {
+      return a.second.size() < b.second.size();
+    })->second.size();
   }
 
   /* Checks that the internal state of the hypergraph is consistent. Mainly for
    * debugging.
    */
-  [[nodiscard]] bool is_valid() const {
+  [[nodiscard]]
+  bool is_valid() const {
 
     for (const auto &[v, incidence] : vertices_) {
       for (const int e : incidence) {
@@ -280,7 +293,8 @@ public:
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
   template<typename InputIt>
-  [[nodiscard]] T contract(InputIt begin, InputIt end) const {
+  [[nodiscard]]
+  T contract(InputIt begin, InputIt end) const {
     // TODO if we have a non-const contract then this copy is unnecessary. Right
     // now we copy twice (once to avoid modifying the input hypergraph and the
     // second time to contract)
@@ -297,18 +311,6 @@ public:
     return vertices_within_.at(v);
   }
 
-  /**
-   * Compute the rank of the hypergraph by scanning through all hyperedges and returning the size of the hyperedge with
-   * maximum rank.
-   *
-   * @return the rank of the hypergraph
-   */
-  [[nodiscard]]
-  size_t rank() const {
-    return std::max_element(edges().begin(), edges().end(), [](const auto a, const auto b) {
-      return a.second.size() < b.second.size();
-    })->second.size();
-  }
 
 private:
   // Constructor that directly sets adjacency lists and next vertex ID (assuming that you just contracted an edge)
