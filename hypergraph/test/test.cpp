@@ -551,6 +551,109 @@ TEST(Hypergraph, RemoveHyperedgeKeepsGraphValidRepeated) {
   }
 }
 
+TEST(Hypergraph, RemoveVertexSimple) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4},
+      {
+          {0, 1, 2},
+          {2, 3, 4}
+      }
+  };
+  h.remove_vertex(0);
+
+  Hypergraph expected = {{1, 2, 3, 4}, {{1, 2}, {2, 3, 4}}};
+
+  EXPECT_EQ(h, expected);
+}
+
+TEST(Hypergraph, RemoveVertexMultiple) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4},
+      {
+          {0, 1, 2},
+          {0, 2, 3},
+          {0, 3, 4},
+          {2, 3, 4}
+      }
+  };
+  h.remove_vertex(0);
+
+  Hypergraph expected = {
+      {1, 2, 3, 4},
+      {
+          {1, 2},
+          {2, 3},
+          {3, 4},
+          {2, 3, 4}
+      }
+  };
+
+  EXPECT_EQ(h, expected);
+}
+
+TEST(Hypergraph, RemoveVertexInvalidatesEdge) {
+  // Note that ordering of edges here is important since the edge IDs need to match up, otherwise the equality operator
+  // would need to be able to compute isomorphisms...
+  Hypergraph h = {
+      {0, 1, 2, 3, 4},
+      {
+          {2, 3, 4},
+          {0, 1},
+      }
+  };
+
+  h.remove_vertex(0);
+
+  Hypergraph expected = {
+      {1, 2, 3, 4},
+      {
+          {2, 3, 4}
+      }
+  };
+
+  EXPECT_EQ(h, expected);
+}
+
+TEST(Hypergraph, RemoveVertexInvalidatesEdgeMultipleEdges) {
+  Hypergraph h = {
+      {0, 1, 2, 3, 4},
+      {
+          {2, 3, 4},
+          {0, 1, 2},
+          {0, 1},
+          {0, 2},
+          {0, 3},
+      }
+  };
+
+  h.remove_vertex(0);
+
+  Hypergraph expected = {
+      {1, 2, 3, 4},
+      {
+          {2, 3, 4},
+          {1, 2},
+      }
+  };
+
+  EXPECT_EQ(h, expected);
+}
+
+TEST(Hypergraph, DegreeWorks) {
+  Hypergraph h = {
+      {0, 1, 2},
+      {
+          {0, 1, 2},
+          {0, 1},
+          {2, 0}
+      }
+  };
+
+  EXPECT_EQ(h.degree(0), 3);
+  EXPECT_EQ(h.degree(1), 2);
+  EXPECT_EQ(h.degree(2), 2);
+}
+
 namespace {
 
 using UnweightedTestCase = std::pair<const Hypergraph, std::map<size_t, Hypergraph::EdgeWeight>>;

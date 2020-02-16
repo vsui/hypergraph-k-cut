@@ -38,7 +38,8 @@ public:
   HypergraphBase &operator=(const HypergraphBase &other) = default;
 
   /**
-   * Determines whether two hypergraphs have the same vertices and hyperedges
+   * Determines whether two hypergraphs have the same vertices and hyperedges with the same labels. Does NOT determine
+   * whether they are isomorphic.
    *
    * @param other
    * @return
@@ -73,6 +74,13 @@ public:
     return std::max_element(edges().begin(), edges().end(), [](const auto a, const auto b) {
       return a.second.size() < b.second.size();
     })->second.size();
+  }
+
+  [[nodiscard]]
+  size_t degree(const int vertex_id) const {
+    auto it = vertices_.find(vertex_id);
+    assert(it != vertices_.end());
+    return it->second.size();
   }
 
   /* Checks that the internal state of the hypergraph is consistent. Mainly for
@@ -288,6 +296,27 @@ public:
     edges_.erase(edge_id);
   }
 
+  void remove_vertex(int vertex_id) {
+    std::vector<int> invalid_edges;
+    auto remove_vertex_from_edge = [vertex_id, &invalid_edges, this](const int edge_id) {
+      auto &edge = edges_.at(edge_id);
+      edge.erase(std::remove(std::begin(edge), std::end(edge), vertex_id));
+      if (edge.size() < 2) {
+        invalid_edges.push_back(edge_id);
+      }
+    };
+
+    auto it = vertices_.find(vertex_id);
+    assert(it != vertices_.end());
+
+    auto &edges = it->second;
+
+    std::for_each(std::begin(edges), std::end(edges), remove_vertex_from_edge);
+    std::for_each(std::begin(invalid_edges), std::end(invalid_edges), [this](const int id) { remove_hyperedge(id); });
+
+    vertices_.erase(vertex_id);
+  }
+
   /* Contracts the vertices in the range into one vertex.
    *
    * Time complexity: O(p), where p is the size of the hypergraph.
@@ -310,7 +339,6 @@ public:
   const std::list<int> &vertices_within(const int v) const {
     return vertices_within_.at(v);
   }
-
 
 private:
   // Constructor that directly sets adjacency lists and next vertex ID (assuming that you just contracted an edge)
