@@ -323,7 +323,7 @@ HypergraphType generate_type_6(size_t n, size_t r) {
 
   Hypergraph h(vertices, hyperedges);
   if constexpr (is_weighted<HypergraphType>) {
-    return HypergraphType(h);
+    return HypergraphType{h};
   } else {
     return h;
   }

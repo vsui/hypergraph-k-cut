@@ -9,8 +9,8 @@
 #include <vector>
 #include <cassert>
 
-#include "hypergraph/hypergraph.hpp"
-#include "hypergraph/util.hpp"
+#include "hypergraph.hpp"
+#include "util.hpp"
 
 namespace cxy {
 

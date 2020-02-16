@@ -7,8 +7,9 @@
 
 #include <boost/heap/fibonacci_heap.hpp>
 
-#include "hypergraph/heap.hpp"
-#include "hypergraph/hypergraph.hpp"
+#include "heap.hpp"
+#include "hypergraph.hpp"
+#include "cut.hpp"
 
 // A context for vertex ordering calculations
 template<typename Heap>

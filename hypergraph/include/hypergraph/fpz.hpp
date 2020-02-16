@@ -6,8 +6,8 @@
 #include <random>
 #include <cassert>
 
-#include "hypergraph/hypergraph.hpp"
-#include "hypergraph/cxy.hpp"
+#include "hypergraph.hpp"
+#include "cxy.hpp"
 
 namespace fpz {
 
