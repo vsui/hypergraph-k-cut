@@ -15,3 +15,6 @@ target_link_libraries(hgen hypergraph)
 
 add_executable(hsparsify sparsify.cpp)
 target_link_libraries(hsparsify hypergraph)
+
+add_executable(hkcore kcore.cpp)
+target_link_libraries(hkcore hypergraph)

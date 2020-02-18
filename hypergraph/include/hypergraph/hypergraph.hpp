@@ -226,6 +226,70 @@ std::istream &operator>>(std::istream &is, WeightedHypergraph<EdgeWeightType> &h
   return is;
 }
 
+/**
+ * Renames the vertices in the graph so that they are contiguous
+ *
+ * @param is
+ * @return
+ */
+inline Hypergraph normalize(const Hypergraph &h) {
+  std::vector<int> vertices(std::begin(h.vertices()), std::end(h.vertices()));
+  std::sort(std::begin(vertices), std::end(vertices));
+
+  std::vector<int> new_vertices(vertices.size());
+  std::iota(std::begin(new_vertices), std::end(new_vertices), 0);
+
+  auto normalize_vertex = [&vertices](auto v) -> decltype(v) {
+    auto it = std::lower_bound(std::cbegin(vertices), std::cend(vertices), v);
+    assert(it != std::cend(vertices));
+    return std::distance(std::cbegin(vertices), it);
+  };
+
+  auto normalize_edge = [normalize_vertex](const auto &edge) -> std::vector<int> {
+    std::vector<int> new_edge{};
+    std::transform(std::begin(edge), std::end(edge), std::back_inserter(new_edge), normalize_vertex);
+    return new_edge;
+  };
+
+  // This takes a pair {edge_id, edge} since that is what is returned by edges() right now
+  auto normalize_edge2 = [normalize_edge](const auto &edge) {
+    const auto &vertices = edge.second;
+    return normalize_edge(vertices);
+  };
+
+  std::vector<std::vector<int>> new_edges;
+  std::transform(std::begin(h.edges()), std::end(h.edges()), std::back_inserter(new_edges), normalize_edge2);
+
+  return Hypergraph{new_vertices, new_edges};
+}
+
+template<typename HypergraphType>
+HypergraphType kCoreDecomposition(const HypergraphType &h, size_t k) {
+  HypergraphType copy{h};
+
+  auto removeVertexWithDegreeLessThanK = [k, &copy]() -> bool {
+    const auto &vertices = copy.vertices();
+
+    auto degreeLessThanK = [&copy, k](const int v) {
+      return copy.degree(v) < k;
+    };
+
+    auto it = std::find_if(std::begin(vertices), std::end(vertices), degreeLessThanK);
+
+    if (it == std::end(vertices)) {
+      return false;
+    }
+
+    copy.remove_vertex(*it);
+    return true;
+  };
+
+  while (removeVertexWithDegreeLessThanK()) {
+  }
+
+  return normalize(copy);
+}
+
 template<typename EdgeWeightType>
 std::ostream &operator<<(std::ostream &os, const WeightedHypergraph<EdgeWeightType> &hypergraph) {
   os << hypergraph.num_edges() << " " << hypergraph.num_vertices() << " 1" << std::endl;
