@@ -18,3 +18,6 @@ target_link_libraries(hsparsify hypergraph)
 
 add_executable(hkcore kcore.cpp)
 target_link_libraries(hkcore hypergraph)
+
+add_executable(hsearch search.cpp)
+target_link_libraries(hsearch hypergraph)

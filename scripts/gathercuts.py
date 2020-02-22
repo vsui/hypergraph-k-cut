@@ -30,7 +30,7 @@ cut_filenames = [f for f in os.listdir(INPUT_DIR) if f.endswith(CUT_EXTENSION)]
 
 print('skewedness = # in larger partition / # vertices')
 print('name', '# vertices', '# edges', 'cut value', 'skewedness',
-      '# in smaller partition', '# in larger partition')
+      '# in smaller partition', '# in larger partition', split=',')
 for cut_filename in cut_filenames:
     hypergraph_name = cut_filename[:-(len(CUT_EXTENSION) + 1)]
     hypergraph_filename = os.path.join(INPUT_DIR, hypergraph_name + '.hgr')
