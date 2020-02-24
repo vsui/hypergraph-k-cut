@@ -53,6 +53,14 @@ void MinimumCutFinder::evaluate() {
   HypergraphCut<size_t> cut = std::visit(mincut, h.h);
   auto stop = std::chrono::high_resolution_clock::now();
 
+  std::cout << "Done: took " << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()
+            << " milliseconds" << std::endl;
+  if (cut.value > 0 && std::none_of(begin(cut.partitions), end(cut.partitions), [](const auto &p) {
+    return p.size() == 1;
+  })) {
+    std::cout << "Found interesting cut for " << h.name << std::endl;
+  }
+
   CutInfo info;
 
   info.hypergraph = h.name;

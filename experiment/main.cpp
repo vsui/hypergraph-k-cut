@@ -8,32 +8,23 @@
 int main() {
   using namespace std::string_literals;
 
-  std::vector<RandomRingHypergraph::ConstructorArgs> args = {
+  std::vector<RandomRingConstantEdgeHypergraph::ConstructorArgs> args = {
       {10, 10, 10, 777},
       {100, 100, 10, 777},
-      {1000, 1000, 10, 777},
-      {1000, 1000, 20, 777},
-      {1000, 1000, 30, 777},
-      {1000, 1000, 40, 777},
-      {1000, 1000, 50, 777},
-      {1000, 1000, 60, 777},
-      {1000, 1000, 70, 777},
-      {1000, 5000, 10, 777},
-      {1000, 5000, 20, 777},
-      {1000, 5000, 30, 777},
-      {1000, 5000, 40, 777},
-      {1000, 5000, 50, 777},
-      {1000, 5000, 60, 777},
-      {1000, 5000, 70, 777},
+      {1000, 10000, 10, 777},
       {1000, 10000, 20, 777},
       {1000, 10000, 30, 777},
       {1000, 10000, 40, 777},
-      {1000, 10000, 50, 777},
-      {1000, 10000, 60, 777},
-      {1000, 10000, 70, 777},
+      {1000, 50000, 10, 777},
+      {1000, 50000, 20, 777},
+      {1000, 50000, 30, 777},
+      {1000, 50000, 40, 777},
+      {1000, 50000, 50, 777},
+      {1000, 50000, 60, 777},
+      {1000, 50000, 70, 777},
   };
 
-  auto source = std::make_unique<GeneratorSource<RandomRingHypergraph>>(args);
+  auto source = std::make_unique<GeneratorSource<RandomRingConstantEdgeHypergraph>>(args);
   auto store = std::make_unique<FilesystemStore>("store"s);
 
   if (!store->initialize()) {
