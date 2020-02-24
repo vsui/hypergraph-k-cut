@@ -8,21 +8,15 @@
 int main() {
   using namespace std::string_literals;
 
-  std::vector<RandomRingConstantEdgeHypergraph::ConstructorArgs> args = {
-      {10, 10, 10, 777},
-      {100, 100, 10, 777},
-      {1000, 10000, 10, 777},
-      {1000, 10000, 20, 777},
-      {1000, 10000, 30, 777},
-      {1000, 10000, 40, 777},
-      {1000, 50000, 10, 777},
-      {1000, 50000, 20, 777},
-      {1000, 50000, 30, 777},
-      {1000, 50000, 40, 777},
-      {1000, 50000, 50, 777},
-      {1000, 50000, 60, 777},
-      {1000, 50000, 70, 777},
-  };
+  std::vector<RandomRingConstantEdgeHypergraph::ConstructorArgs> args;
+
+  for (size_t num_vertices : {100, 1000}) {
+    for (size_t num_edges : {100, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000}) {
+      for (size_t radius = 1; radius <= 30; radius += 2) {
+        args.emplace_back(num_vertices, num_edges, radius, 777);
+      }
+    }
+  }
 
   auto source = std::make_unique<GeneratorSource<RandomRingConstantEdgeHypergraph>>(args);
   auto store = std::make_unique<FilesystemStore>("store"s);
