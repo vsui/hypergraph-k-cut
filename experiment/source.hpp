@@ -14,6 +14,15 @@ public:
   virtual ~HypergraphSource() = default;
 };
 
+class AggregateSource : public HypergraphSource {
+  AggregateSource(std::vector<std::unique_ptr<HypergraphSource>> &&sources);
+  bool has_next() override;
+  HypergraphWrapper generate() override;
+private:
+  std::vector<std::unique_ptr<HypergraphSource>> sources_;
+  decltype(sources_.begin()) it_;
+};
+
 template<typename Generator>
 class GeneratorSource : public HypergraphSource {
   using Args = std::vector<typename Generator::ConstructorArgs>;
