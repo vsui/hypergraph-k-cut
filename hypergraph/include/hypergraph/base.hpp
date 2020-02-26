@@ -317,6 +317,17 @@ public:
     vertices_.erase(vertex_id);
   }
 
+  /**
+   * Return the combined size of all hyperedges
+   */
+  size_t size() const {
+    size_t ret = 0;
+    for (const auto &[id, edge] : edges()) {
+      ret += edge.size();
+    }
+    return ret;
+  }
+
   /* Contracts the vertices in the range into one vertex.
    *
    * Time complexity: O(p), where p is the size of the hypergraph.

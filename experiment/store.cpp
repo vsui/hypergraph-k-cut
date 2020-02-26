@@ -7,32 +7,10 @@
 #include <iostream>
 #include <fstream>
 
+#include <sqlite3.h>
+
 FilesystemStore::FilesystemStore(std::filesystem::path path)
     : root_path_(path), cuts_path_(path / "cuts"), runs_path_(path / "runs"), hgrs_path_(path / "hypergraphs") {}
-
-/*
- * This stores all data in a directory at `path_`.
- *
- * The directory has this structure:
- *
- * root/
- * - cuts/
- *   - <name>/
- *     - <ID>.2cut
- *   - <name2>/
- *     - <ID>.3cut
- * - runs/
- *   - name.2cut.runs
- * - hypergraphs/
- *   - name.hgr
- *
- * A 'hypergraphs/<name>.hgr' file is just a hypergraph in .hMETIS format.
- *
- * A 'cuts/<name>/<ID>.<k>cut' file holds a k-cut for the <name> hypergraph. A hypergraph may have multiple
- * cuts, hence the need for a cut ID.
- *
- * A runs/<name>.2cut.runs holds information about individual runs of a cut algorithm in a CSV format.
- */
 
 namespace fs = std::filesystem;
 using std::begin, std::end;
@@ -173,4 +151,173 @@ CutIterator FilesystemStore::cuts() {
   return CutIterator(cuts_path_);
 }
 
+namespace {
 
+static int null_callback([[maybe_unused]] void *not_used,
+                         [[maybe_unused]] int argc,
+                         [[maybe_unused]] char **argv,
+                         [[maybe_unused]] char **col_names) {
+  return 0;
+}
+
+}
+
+bool SqliteStore::open(std::filesystem::path db_path) {
+  if (db_ != nullptr) {
+    std::cerr << "Database already open" << std::endl;
+    return false;
+  }
+
+  int err = sqlite3_open(db_path.c_str(), &db_);
+
+  if (err) {
+    std::cerr << "Cannot open database: " << db_path << std::endl;
+    return false;
+  }
+
+  static constexpr char kInitialize[] = R"(
+CREATE TABLE IF NOT EXISTS hypergraphs (
+  id TEXT PRIMARY KEY,
+  num_vertices INTEGER NOT NULL,
+  num_hyperedges INTEGER NOT NULL,
+  size INTEGER NOT NULL,
+  blob BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ring_hypergraphs (
+  id INTEGER PRIMARY KEY,
+  FOREIGN KEY(id)
+  REFERENCES hypergraphs (id)
+);
+
+CREATE TABLE IF NOT EXISTS cuts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hypergraph_id TEXT,
+  k INTEGER NOT NULL,
+  val INTEGER NOT NULL,
+  planted INTEGER NOT NULL,
+  skewed INTEGER NOT NULL,
+  partitions BLOB,
+  FOREIGN KEY (hypergraph_id)
+  REFERENCES hypergraphs (id)
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  algo TEXT NOT NULL,
+  k INTEGER NOT NULL,
+  hypergraph_id TEXT NOT NULL,
+  cut_id INTEGER NOT NULL,
+  time_elapsed_ms INTEGER NOT NULL,
+  machine TEXT NOT NULL,
+  commit_hash TEXT,
+  time_taken INT NOT NULL,
+  FOREIGN KEY (hypergraph_id)
+    REFERENCES hypergraphs (id),
+  FOREIGN KEY (cut_id)
+    REFERENCES cuts (id)
+);
+)";
+
+  char *zErrMsg{};
+  err = sqlite3_exec(db_, kInitialize, null_callback, 0, &zErrMsg);
+  if (err != SQLITE_OK) {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+  }
+
+  return true;
+}
+
+ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
+  size_t num_vertices = std::visit([](auto &&h) { return h.num_vertices(); }, hypergraph.h);
+  size_t num_hyperedges = std::visit([](auto &&h) { return h.num_edges(); }, hypergraph.h);
+  size_t size = std::visit([](auto &&h) { return h.size(); }, hypergraph.h);
+  std::stringstream blob;
+  std::visit([&blob](auto &&h) { blob << h; }, hypergraph.h);
+
+  // Make statement
+  std::stringstream stream;
+  stream << "INSERT INTO hypergraphs (id, num_vertices, num_hyperedges, size, blob) VALUES ("
+         << "'" << hypergraph.name << "'"
+         << ", " << num_vertices
+         << ", " << num_hyperedges
+         << ", " << size
+         << ", " << "'" << blob.str() << "'" << ");";
+
+  char *zErrMsg{};
+  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, 0, &zErrMsg);
+  if (err != SQLITE_OK) {
+    // May not be the best way to do this..
+    if (std::string(zErrMsg) == "UNIQUE constraint failed: hypergraphs.id") {
+      return ReportStatus::ALREADY_THERE;
+    }
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return ReportStatus::ERROR;
+  }
+
+  return ReportStatus::OK;
+}
+
+ReportStatus SqliteStore::report(const CutInfo &info, [[maybe_unused]] uint64_t &id) {
+  std::stringstream stream;
+  size_t planted = 0; // TODO
+  std::stringstream blob;
+  int skewed = std::any_of(begin(info.partitions), end(info.partitions), [](auto &&part) {
+    return part.size() == 1;
+  });
+
+  blob << info;
+
+  stream << "INSERT INTO cuts (hypergraph_id, k, val, planted, partitions, skewed) VALUES ("
+         << "'" << info.hypergraph << "'"
+         << ", " << info.k << ", "
+         << info.cut_value
+         << ", " << 1337
+         << ", " << "'" << blob.str() << "'"
+         << ", " << skewed << ");";
+
+  char *zErrMsg{};
+  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, 0, &zErrMsg);
+  if (err != SQLITE_OK) {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return ReportStatus::ERROR;
+  }
+  sqlite3_int64 rowid = sqlite3_last_insert_rowid(db_);
+  id = rowid;
+
+  return ReportStatus::OK;
+}
+
+ReportStatus SqliteStore::report(const CutRunInfo &info) {
+  std::stringstream stream;
+  std::string hypergraph_id = info.info.hypergraph;
+  size_t cut_id = info.info.id;
+
+  // TODO git hash
+  stream
+      << "INSERT INTO runs (algo, k, hypergraph_id, cut_id, time_elapsed_ms, machine, time_taken) VALUES ("
+      << "'" << info.algorithm << "'"
+      << ", " << info.info.k
+      << ", " << "'" << hypergraph_id << "'"
+      << ", " << cut_id
+      << ", " << info.time
+      << ", " << "'" << info.machine << "'"
+      << ", time(\"now\"))";
+
+  char *zErrMsg{};
+  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, 0, &zErrMsg);
+  if (err != SQLITE_OK) {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return ReportStatus::ERROR;
+  }
+
+  return ReportStatus::OK;
+}
+
+SqliteStore::~SqliteStore() {
+  sqlite3_close(db_);
+}

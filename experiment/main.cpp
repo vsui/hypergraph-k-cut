@@ -8,7 +8,6 @@
 int main() {
   using namespace std::string_literals;
 
-
   std::vector<MXNHypergraph::ConstructorArgs> mxn_args = {
       {100, 1000, 0.1, 777},
       {100, 2000, 0.1, 777},
@@ -24,11 +23,8 @@ int main() {
 
   auto source = std::make_unique<KCoreSource>(std::make_unique<GeneratorSource<MXNHypergraph>>(mxn_args));
 
-  auto store = std::make_unique<FilesystemStore>("store"s);
-
-  if (!store->initialize()) {
-    std::cerr << "Failed to initialize store" << std::endl;
-  }
+  auto store = std::make_unique<SqliteStore>();
+  store->open("my.db");
 
   MinimumCutFinder finder(std::move(source), std::move(store));
 
