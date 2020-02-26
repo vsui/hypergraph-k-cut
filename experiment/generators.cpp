@@ -118,3 +118,33 @@ std::string RandomRingVariableEdgeHypergraph::name() {
          << hyperedge_variance << "_" << seed;
   return stream.str();
 }
+
+MXNHypergraph::MXNHypergraph(size_t n, size_t m, double p, uint64_t seed) : n(n), m(m), p(p), seed(seed) {}
+
+Hypergraph MXNHypergraph::generate() {
+  std::mt19937_64 rand(seed);
+
+  std::uniform_real_distribution<> distribution(0, 1);
+
+  std::vector<std::vector<int>> edges;
+  for (int i = 0; i < m; ++i) {
+    std::vector<int> edge;
+    for (int v = 0; v < n; ++v) {
+      if (distribution(rand) < p) {
+        edge.push_back(v);
+      }
+    }
+    edges.emplace_back(std::move(edge));
+  }
+
+  std::vector<int> vertices(n);
+  std::iota(std::begin(vertices), std::end(vertices), 0);
+
+  return Hypergraph{vertices, edges};
+}
+
+std::string MXNHypergraph::name() {
+  std::stringstream ss;
+  ss << "mxn_" << m << "_" << n << "_" << p << "_" << seed;
+  return ss.str();
+}

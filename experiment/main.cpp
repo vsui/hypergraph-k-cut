@@ -8,17 +8,22 @@
 int main() {
   using namespace std::string_literals;
 
-  std::vector<RandomRingConstantEdgeHypergraph::ConstructorArgs> args;
 
-  for (size_t num_vertices : {100, 1000}) {
-    for (size_t num_edges : {100, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000}) {
-      for (size_t radius = 1; radius <= 30; radius += 2) {
-        args.emplace_back(num_vertices, num_edges, radius, 777);
-      }
-    }
-  }
+  std::vector<MXNHypergraph::ConstructorArgs> mxn_args = {
+      {100, 1000, 0.1, 777},
+      {100, 2000, 0.1, 777},
+      {100, 3000, 0.1, 777},
+      {100, 4000, 0.1, 777},
+      {1000, 10000, 0.05, 777},
+      {1000, 10000, 0.1, 777},
+      {1000, 10000, 0.15, 777},
+      {1000, 10000, 0.20, 777},
+  };
 
-  auto source = std::make_unique<GeneratorSource<RandomRingConstantEdgeHypergraph>>(args);
+  using Ptr = std::unique_ptr<HypergraphSource>;
+
+  auto source = std::make_unique<KCoreSource>(std::make_unique<GeneratorSource<MXNHypergraph>>(mxn_args));
+
   auto store = std::make_unique<FilesystemStore>("store"s);
 
   if (!store->initialize()) {

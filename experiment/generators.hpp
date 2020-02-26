@@ -53,4 +53,22 @@ struct RandomRingVariableEdgeHypergraph : public RandomRingHypergraph {
   std::string name() override;
 };
 
+/**
+ * Samples m random hypperedges. For each random hyperedge, sample every vertex with probability p
+ */
+struct MXNHypergraph {
+  using ConstructorArgs = std::tuple<size_t, size_t, double, uint64_t>;
+
+  MXNHypergraph(size_t n, size_t m, double p, uint64_t seed);
+
+  size_t n;
+  size_t m;
+  double p;
+  uint64_t seed;
+
+  Hypergraph generate();
+
+  std::string name();
+};
+
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_GENERATORS_HPP

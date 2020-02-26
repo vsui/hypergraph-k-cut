@@ -15,6 +15,7 @@ public:
 };
 
 class AggregateSource : public HypergraphSource {
+public:
   AggregateSource(std::vector<std::unique_ptr<HypergraphSource>> &&sources);
   bool has_next() override;
   HypergraphWrapper generate() override;
@@ -47,6 +48,23 @@ public:
 private:
   Args args_;
   decltype(args_.begin()) it_;
+};
+
+/**
+ * Takes the KCores of another generator
+ */
+class KCoreSource : public HypergraphSource {
+public:
+  explicit KCoreSource(std::unique_ptr<HypergraphSource> &&src);
+
+  bool has_next() override;
+
+  HypergraphWrapper generate() override;
+
+private:
+  std::unique_ptr<HypergraphSource> src_;
+  size_t k = 2;
+  HypergraphWrapper hypergraph_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_SOURCE_HPP

@@ -67,14 +67,14 @@ private:
 template<typename HypergraphType>
 HypergraphType generate_type_1(size_t n, size_t m, double p) {
   std::random_device rd;
-  std::mt19937 e2(rd());
+  std::mt19937 rand(rd());
   std::uniform_real_distribution<> distribution(0, 1);
 
   std::vector<std::vector<int>> edges;
   for (int i = 0; i < m; ++i) {
     std::vector<int> edge;
     for (int v = 0; v < n; ++v) {
-      if (distribution(e2) < p) {
+      if (distribution(rand) < p) {
         edge.push_back(v);
       }
     }
@@ -89,7 +89,7 @@ HypergraphType generate_type_1(size_t n, size_t m, double p) {
   } else {
     std::vector<std::pair<std::vector<int>, typename HypergraphType::EdgeWeight>> weighted_edges;
     for (std::vector<int> &edge : edges) {
-      typename HypergraphType::EdgeWeight sampled_weight = distribution(e2) * 100 + 1;
+      typename HypergraphType::EdgeWeight sampled_weight = distribution(rand) * 100 + 1;
       weighted_edges.emplace_back(std::move(edge), sampled_weight);
     }
     return HypergraphType{vertices, weighted_edges};
