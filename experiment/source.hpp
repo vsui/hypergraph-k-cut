@@ -15,6 +15,7 @@ public:
 };
 
 class AggregateSource : public HypergraphSource {
+public:
   AggregateSource(std::vector<std::unique_ptr<HypergraphSource>> &&sources);
   bool has_next() override;
   HypergraphWrapper generate() override;

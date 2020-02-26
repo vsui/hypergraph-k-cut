@@ -15,6 +15,29 @@ enum class ReportStatus {
   ALREADY_THERE,
 };
 
+class CutIterator {
+public:
+  CutIterator(std::filesystem::path path);
+
+  CutInfo operator*();
+
+  CutIterator &operator++();
+
+  CutIterator begin();
+
+  CutIterator end();
+
+  bool operator!=(const CutIterator &it);
+
+private:
+  CutIterator();
+  CutIterator(std::filesystem::directory_iterator hgrs, std::filesystem::directory_iterator cuts);
+
+  bool end_ = false;
+  std::filesystem::directory_iterator hgrs_;
+  std::filesystem::directory_iterator cuts_;
+};
+
 class CutInfoStore {
 public:
   virtual ReportStatus report(const HypergraphWrapper &hypergraph) = 0;
@@ -32,6 +55,8 @@ public:
   ReportStatus report(const HypergraphWrapper &hypergraph) override;
   ReportStatus report(const CutInfo &info, uint64_t &id) override;
   ReportStatus report(const CutRunInfo &info) override;
+
+  CutIterator cuts();
 
 private:
   std::filesystem::path root_path_;

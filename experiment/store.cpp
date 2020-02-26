@@ -37,6 +37,44 @@ FilesystemStore::FilesystemStore(std::filesystem::path path)
 namespace fs = std::filesystem;
 using std::begin, std::end;
 
+CutIterator::CutIterator(fs::path path) : hgrs_(path), cuts_(hgrs_->path()), end_(false) {}
+
+CutInfo CutIterator::operator*() {
+  CutInfo info;
+  std::cout << hgrs_->path() / cuts_->path() << std::endl;
+
+  std::ifstream in(cuts_->path(), std::ios_base::in);
+  in >> info;
+  info.id = std::stoul(cuts_->path().filename());
+  return info;
+}
+
+CutIterator &CutIterator::operator++() {
+  ++cuts_;
+  if (cuts_ == fs::end(cuts_)) {
+    ++hgrs_;
+    if (hgrs_ == fs::end(hgrs_)) {
+      end_ = true;
+    } else {
+      cuts_ = fs::directory_iterator(hgrs_->path());
+    }
+  }
+  return *this;
+}
+
+CutIterator::CutIterator() : end_(true) {}
+
+CutIterator CutIterator::begin() { return *this; }
+
+CutIterator CutIterator::end() { return CutIterator(); }
+
+bool CutIterator::operator!=(const CutIterator &it) {
+  if (end_) {
+    return !it.end_;
+  }
+  return hgrs_ != it.hgrs_ || cuts_ != it.cuts_;
+}
+
 namespace {
 
 /**
@@ -131,4 +169,9 @@ ReportStatus FilesystemStore::report(const CutRunInfo &info) {
 
   return ReportStatus::OK;
 }
+
+CutIterator FilesystemStore::cuts() {
+  return CutIterator(cuts_path_);
+}
+
 

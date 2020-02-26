@@ -1,5 +1,8 @@
-add_executable(hexperiment main.cpp source.cpp generators.cpp generators.hpp store.cpp evaluator.cpp)
+add_executable(hexperiment main.cpp source.cpp generators.cpp generators.hpp store.cpp evaluator.cpp gather.cpp)
 target_link_libraries(hexperiment hypergraph)
 
 add_executable(hgenerate generate.cpp generators.cpp)
 target_link_libraries(hgenerate hypergraph)
+
+add_executable(hgather gather.cpp store.cpp)
+target_link_libraries(hgather hypergraph)
