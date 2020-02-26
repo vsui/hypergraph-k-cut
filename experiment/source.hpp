@@ -50,4 +50,21 @@ private:
   decltype(args_.begin()) it_;
 };
 
+/**
+ * Takes the KCores of another generator
+ */
+class KCoreSource : public HypergraphSource {
+public:
+  explicit KCoreSource(std::unique_ptr<HypergraphSource> &&src);
+
+  bool has_next() override;
+
+  HypergraphWrapper generate() override;
+
+private:
+  std::unique_ptr<HypergraphSource> src_;
+  size_t k = 2;
+  HypergraphWrapper hypergraph_;
+};
+
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_SOURCE_HPP

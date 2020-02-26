@@ -41,7 +41,6 @@ CutIterator::CutIterator(fs::path path) : hgrs_(path), cuts_(hgrs_->path()), end
 
 CutInfo CutIterator::operator*() {
   CutInfo info;
-  std::cout << hgrs_->path() / cuts_->path() << std::endl;
 
   std::ifstream in(cuts_->path(), std::ios_base::in);
   in >> info;

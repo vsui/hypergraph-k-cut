@@ -57,7 +57,7 @@ struct RandomRingVariableEdgeHypergraph : public RandomRingHypergraph {
  * Samples m random hypperedges. For each random hyperedge, sample every vertex with probability p
  */
 struct MXNHypergraph {
-  using ConstructorArgs = std::tuple<size_t, size_t, double, double>;
+  using ConstructorArgs = std::tuple<size_t, size_t, double, uint64_t>;
 
   MXNHypergraph(size_t n, size_t m, double p, uint64_t seed);
 
