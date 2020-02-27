@@ -190,14 +190,30 @@ CREATE TABLE IF NOT EXISTS ring_hypergraphs (
   REFERENCES hypergraphs (id)
 );
 
-CREATE TABLE IF NOT EXISTS cuts (
+CREATE TABLE IF NOT EXISTS cuts2 (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   hypergraph_id TEXT,
-  k INTEGER NOT NULL,
   val INTEGER NOT NULL,
   planted INTEGER NOT NULL,
-  skewed INTEGER NOT NULL,
-  partitions BLOB,
+  size_p1 INTEGER,
+  size_p2 INTEGER,
+  blob_p1 BLOB,
+  blob_p2 BLOB,
+  FOREIGN KEY (hypergraph_id)
+  REFERENCES hypergraphs (id)
+);
+
+CREATE TABLE IF NOT EXISTS cuts3 (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hypergraph_id TEXT,
+  val INTEGER NOT NULL,
+  planted INTEGER NOT NULL,
+  size_p1 INTEGER,
+  size_p2 INTEGER,
+  size_p3 INTEGER,
+  blob_p1 BLOB,
+  blob_p2 BLOB,
+  blob_p3 BLOB,
   FOREIGN KEY (hypergraph_id)
   REFERENCES hypergraphs (id)
 );
@@ -263,20 +279,55 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
 ReportStatus SqliteStore::report(const CutInfo &info, [[maybe_unused]] uint64_t &id) {
   std::stringstream stream;
   size_t planted = 0; // TODO
-  std::stringstream blob;
-  int skewed = std::any_of(begin(info.partitions), end(info.partitions), [](auto &&part) {
-    return part.size() == 1;
+
+  using namespace std::string_literals;
+
+  // Make sure partitions are sorted
+  std::vector<std::vector<int>> partitions = info.partitions;
+  for (auto &partition : partitions) {
+    std::sort(begin(partition), end(partition));
+  }
+  std::sort(begin(partitions), end(partitions), [](std::vector<int> &a, std::vector<int> &b) {
+    if (a.size() == b.size()) {
+      return a < b;
+    }
+    return a.size() < b.size();
   });
 
-  blob << info;
+  auto partition_to_str = [](const std::vector<int> &v) -> std::string {
+    std::stringstream s;
+    for (auto e : v) {
+      s << e << " ";
+    }
+    std::string ret = s.str();
 
-  stream << "INSERT INTO cuts (hypergraph_id, k, val, planted, partitions, skewed) VALUES ("
+    return ret.substr(0, ret.size() - 1);
+  };
+
+  std::string table_name = "cuts"s + std::to_string(info.k);
+  std::string columns = "(hypergraph_id, val, planted";
+  for (int i = 0; i < info.k; ++i) {
+    columns += ", size_p"s + std::to_string(i + 1);
+  }
+  for (int i = 0; i < info.k; ++i) {
+    columns += ", blob_p"s + std::to_string(i + 1);
+  }
+  columns += ")";
+  std::string partition_sizes_string;
+  for (const auto &p : partitions) {
+    partition_sizes_string += ", "s + std::to_string(p.size());
+  }
+  std::string partition_blobs_string;
+  for (const auto &p : partitions) {
+    partition_blobs_string += ", "s + "\'" + partition_to_str(p) + "\'";
+  }
+  stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
          << "'" << info.hypergraph << "'"
-         << ", " << info.k << ", "
-         << info.cut_value
-         << ", " << 1337
-         << ", " << "'" << blob.str() << "'"
-         << ", " << skewed << ");";
+         << ", " << info.cut_value
+         << ", " << 0 /* NOT PLANTED */
+         << partition_sizes_string
+         << partition_blobs_string
+         << ");";
 
   char *zErrMsg{};
   int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, 0, &zErrMsg);
