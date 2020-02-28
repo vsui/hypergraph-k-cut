@@ -217,7 +217,6 @@ std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
     if (edge.size() > 2) {
       Cluster c = get_cluster(edge.at(0));
       if (std::any_of(begin(edge), end(edge), [&c, get_cluster](const int v) {
-        std::cout << v << std::endl;
         return get_cluster(v) != c;
       })) {
         // Span different clusters
