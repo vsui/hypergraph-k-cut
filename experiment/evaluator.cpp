@@ -36,11 +36,11 @@ struct DiscoverVisitor {
   std::function<HypergraphCut<size_t>(const Hypergraph &, size_t, size_t, uint64_t)> f;
   std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &, size_t, size_t, uint64_t)> wf;
 
-  HypergraphCut<size_t> operator()(const Hypergraph &h) {
+  HypergraphCut<size_t> operator()(const Hypergraph &h) const {
     return f(h, k, discovery_val, seed);
   }
 
-  HypergraphCut<size_t> operator()(const WeightedHypergraph<size_t> &h) {
+  HypergraphCut<size_t> operator()(const WeightedHypergraph<size_t> &h) const {
     return wf(h, k, discovery_val, seed);
   }
 };
@@ -151,42 +151,54 @@ void KDiscoveryRunner::run() {
          fpz::discover<Hypergraph, 1>,
          fpz::discover<WeightedHypergraph<size_t>, 1>);
 
-    // Now take the times
-    auto start = std::chrono::high_resolution_clock::now();
-    HypergraphCut<size_t> cxy_cut = std::visit(cxy_visit, hypergraph.h);
-    auto stop = std::chrono::high_resolution_clock::now();
+    auto compute_run =
+        [this, planted_cut_id](const DiscoverVisitor &visitor,
+                               std::string func_name,
+                               const CutInfo &planted_cut,
+                               const HypergraphWrapper &hypergraph) -> void {
+          // Now take the times
+          auto start = std::chrono::high_resolution_clock::now();
+          HypergraphCut<size_t> cxy_cut = std::visit(visitor, hypergraph.h);
+          auto stop = std::chrono::high_resolution_clock::now();
 
-    CutInfo found_cut_info(planted_cut.k, cxy_cut);
+          CutInfo found_cut_info(planted_cut.k, cxy_cut);
 
-    CutRunInfo run_info(found_cut_info);
-    run_info.algorithm = "CXY";
-    run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-    run_info.machine = hostname();
-    run_info.commit = "n/a";
+          CutRunInfo run_info(found_cut_info);
+          run_info.algorithm = func_name;
+          run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+          run_info.machine = hostname();
+          run_info.commit = "n/a";
 
-    // Check if found cut was the planted cut
-    uint64_t found_cut_id;
-    if (found_cut_info == planted_cut) {
-      std::cout << "Found the planted cut" << std::endl;
-      found_cut_id = planted_cut_id;
-    } else {
-      // Otherwise we need to report this cut to the DB to get its ID
-      if (found_cut_info.cut_value == planted_cut.cut_value) {
-        std::cout << "Found cut has same value as planted cut but different partitions" << std::endl;
-      } else {
-        std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value " << planted_cut.cut_value
-                  << std::endl;
-      }
-      std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info);
-      if (status == ReportStatus::ERROR) {
-        std::cout << "Failed to report found cut" << std::endl;
-        continue;
-      }
-    }
+          // Check if found cut was the planted cut
+          uint64_t found_cut_id;
+          if (found_cut_info == planted_cut) {
+            std::cout << "Found the planted cut" << std::endl;
+            found_cut_id = planted_cut_id;
+          } else {
+            // Otherwise we need to report this cut to the DB to get its ID
+            if (found_cut_info.cut_value == planted_cut.cut_value) {
+              std::cout << "Found cut has same value as planted cut but different partitions" << std::endl;
+            } else {
+              std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value "
+                        << planted_cut.cut_value
+                        << std::endl;
+            }
+            ReportStatus status;
+            std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info);
+            if (status == ReportStatus::ERROR) {
+              std::cout << "Failed to report found cut" << std::endl;
+              return;
+            }
+          }
 
-    if (store_->report(hypergraph.name, found_cut_id, run_info) == ReportStatus::ERROR) {
-      std::cout << "Failed to report run" << std::endl;
-    }
+          if (store_->report(hypergraph.name, found_cut_id, run_info) == ReportStatus::ERROR) {
+            std::cout << "Failed to report run" << std::endl;
+          }
+        };
+
+    compute_run(cxy_visit, "cxy", planted_cut, hypergraph);
+    compute_run(fpz_visit, "fpz", planted_cut, hypergraph);
+
   }
 }
 
