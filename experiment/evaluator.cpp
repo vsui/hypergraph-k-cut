@@ -65,7 +65,6 @@ void MinimumCutFinder::evaluate() {
 
   CutInfo info;
 
-  info.hypergraph = h.name;
   info.k = 2;
   info.cut_value = cut.value;
   info.partitions = cut.partitions;
@@ -171,7 +170,6 @@ void KDiscoveryRunner::run() {
     gethostname(hostname.data(), 49);
 
     CutInfo info;
-    info.hypergraph = hypergraph.name;
     info.k = cut.k;
     info.cut_value = cxy_cut.value;
     info.partitions = cxy_cut.partitions;

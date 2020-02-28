@@ -177,7 +177,6 @@ std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
   }
 
   CutInfo info;
-  info.hypergraph = name();
   info.k = k;
   info.cut_value = 0;
   for (int i = 0; i < k; ++i) {

@@ -12,14 +12,12 @@
 #include <hypergraph/hypergraph.hpp>
 
 struct CutInfo {
-  uint64_t id; // Identifier for the cut, since there may be multiple for a hypergraph
-  std::string hypergraph; // A unique ID for the hypergraph
   size_t k;
   size_t cut_value;
   std::vector<std::vector<int>> partitions;
 
   inline bool operator==(const CutInfo &info) const {
-    return hypergraph == info.hypergraph && k == info.k && cut_value == info.cut_value && partitions == info.partitions;
+    return k == info.k && cut_value == info.cut_value && partitions == info.partitions;
   };
 };
 
@@ -31,7 +29,7 @@ struct CutInfo {
 /// ....
 
 inline std::ostream &operator<<(std::ostream &out, const CutInfo &info) {
-  out << info.hypergraph << std::endl << info.k << std::endl << info.cut_value << std::endl;
+  out << info.k << std::endl << info.cut_value << std::endl;
   for (const auto &part : info.partitions) {
     for (const auto v : part) {
       out << v << " ";
@@ -43,7 +41,6 @@ inline std::ostream &operator<<(std::ostream &out, const CutInfo &info) {
 }
 
 inline std::istream &operator>>(std::istream &in, CutInfo &info) {
-  std::getline(in, info.hypergraph);
   in >> info.k >> info.cut_value;
   std::string line;
   std::getline(in, line);
@@ -76,7 +73,7 @@ struct CutRunInfo {
 };
 
 inline std::ostream &operator<<(std::ostream &out, const CutRunInfo &info) {
-  return out << info.algorithm << "," << info.info.id << "," << info.info.k << "," << info.info.cut_value << ","
+  return out << info.algorithm << "," << info.info.k << "," << info.info.cut_value << ","
              << info.machine << "," << info.time << "," << info.commit << std::endl;
 }
 
