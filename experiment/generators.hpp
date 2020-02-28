@@ -11,6 +11,8 @@
 
 #include <hypergraph/hypergraph.hpp>
 
+#include "common.hpp"
+
 struct RandomRingHypergraph {
 
   RandomRingHypergraph(size_t num_vertices,
@@ -84,9 +86,7 @@ struct PlantedHypergraph {
   size_t k;
   uint64_t seed;
 
-  Hypergraph generate();
-
-  // Planted cut...
+  std::tuple<Hypergraph, CutInfo> generate();
 
   std::string name();
 };

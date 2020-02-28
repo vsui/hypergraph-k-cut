@@ -4,8 +4,6 @@
 
 #include "generators.hpp"
 
-#include "common.hpp"
-
 using std::begin, std::end;
 
 namespace {
@@ -156,11 +154,11 @@ std::string MXNHypergraph::name() {
 PlantedHypergraph::PlantedHypergraph(size_t n, size_t m1, double p1, size_t m2, double p2, size_t k, uint64_t seed) :
     n(n), m1(m1), p1(p1), m2(m2), p2(p2), k(k), seed(seed) {}
 
-Hypergraph PlantedHypergraph::generate() {
+std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
   std::mt19937_64 gen(seed);
   std::uniform_real_distribution dis;
 
-  std::vector<int> vertices;
+  std::vector<int> vertices(n, 0);
   std::iota(begin(vertices), end(vertices), 0);
   std::vector<std::vector<int>> edges;
 
@@ -198,7 +196,8 @@ Hypergraph PlantedHypergraph::generate() {
   auto get_cluster = [this](const int v) -> Cluster {
     for (int i = 0; i < k; ++i) {
       Cluster cluster(n, k, i);
-      if (std::find(begin(cluster), end(cluster), i) != end(cluster)) {
+      auto it = std::find(begin(cluster), end(cluster), v);
+      if (it != end(cluster)) {
         return cluster;
       }
     }
@@ -218,6 +217,7 @@ Hypergraph PlantedHypergraph::generate() {
     if (edge.size() > 2) {
       Cluster c = get_cluster(edge.at(0));
       if (std::any_of(begin(edge), end(edge), [&c, get_cluster](const int v) {
+        std::cout << v << std::endl;
         return get_cluster(v) != c;
       })) {
         // Span different clusters
@@ -228,7 +228,7 @@ Hypergraph PlantedHypergraph::generate() {
     edges.emplace_back(std::move(edge));
   }
 
-  return Hypergraph{vertices, edges};
+  return { { Hypergraph{vertices, edges} }, info };
 }
 
 std::string PlantedHypergraph::name() {
