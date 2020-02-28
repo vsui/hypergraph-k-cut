@@ -57,14 +57,17 @@ class sqlite3;
  */
 class SqliteStore : public CutInfoStore {
 public:
-  bool open(const std::filesystem::path& db_path);
+  bool open(const std::filesystem::path &db_path);
 
   ReportStatus report(const HypergraphWrapper &hypergraph) override;
   std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id, const CutInfo &info) override;
   ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) override;
 
-  ~SqliteStore();
+  ~SqliteStore() override;
 private:
+
+  std::optional<std::tuple<bool, uint64_t>> has_cut(const std::string &hypergraph_id, const CutInfo &info);
+
   sqlite3 *db_;
 };
 

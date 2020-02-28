@@ -12,16 +12,16 @@ using std::begin, std::end;
 
 namespace {
 
-static int null_callback([[maybe_unused]] void *not_used,
-                         [[maybe_unused]] int argc,
-                         [[maybe_unused]] char **argv,
-                         [[maybe_unused]] char **col_names) {
+int null_callback(void *,
+                  int,
+                  char **,
+                  char **) {
   return 0;
 }
 
 }
 
-bool SqliteStore::open(const std::filesystem::path& db_path) {
+bool SqliteStore::open(const std::filesystem::path &db_path) {
   if (db_ != nullptr) {
     std::cerr << "Database already open" << std::endl;
     return false;
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS runs (
 )";
 
   char *zErrMsg{};
-  err = sqlite3_exec(db_, kInitialize, null_callback, 0, &zErrMsg);
+  err = sqlite3_exec(db_, kInitialize, null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
@@ -121,7 +121,7 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
          << ", " << "'" << blob.str() << "'" << ");";
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, 0, &zErrMsg);
+  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     // May not be the best way to do this..
     if (std::string(zErrMsg) == "UNIQUE constraint failed: hypergraphs.id") {
@@ -136,6 +136,20 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
 }
 
 std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hypergraph_id, const CutInfo &info) {
+  // First check if the cut is already present
+  std::optional<std::tuple<bool, uint64_t>> cut_already_present = has_cut(hypergraph_id, info);
+
+  if (!cut_already_present.has_value()) {
+    // Failed to query value
+    return {ReportStatus::ERROR, {}};
+  }
+
+  const auto[already_present, cut_id] = cut_already_present.value();
+  if (already_present) {
+    return {ReportStatus::ALREADY_THERE, cut_id};
+  }
+
+  // Cut not in store, need to add it
   std::stringstream stream;
   size_t planted = 0; // TODO
 
@@ -189,15 +203,15 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
          << ");";
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, 0, &zErrMsg);
+  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
-    return { ReportStatus::ERROR, {} };
+    return {ReportStatus::ERROR, {}};
   }
   sqlite3_int64 rowid = sqlite3_last_insert_rowid(db_);
 
-  return { ReportStatus::OK, { static_cast<unsigned long long>(rowid) } };
+  return {ReportStatus::OK, {static_cast<unsigned long long>(rowid)}};
 }
 
 ReportStatus SqliteStore::report(const std::string &hypergraph_id, const uint64_t cut_id, const CutRunInfo &info) {
@@ -215,7 +229,7 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id, const uint64_
       << ", time(\"now\"))";
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, 0, &zErrMsg);
+  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
@@ -227,4 +241,59 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id, const uint64_
 
 SqliteStore::~SqliteStore() {
   sqlite3_close(db_);
+}
+
+// Returns (has info, ID if has info). Optional is empty on failure
+std::optional<std::tuple<bool, uint64_t>> SqliteStore::has_cut(const std::string &hypergraph_id, const CutInfo &info) {
+  using namespace std::string_literals;
+
+  std::string table_name = "cuts"s + std::to_string(info.k);
+
+
+  // TODO make function
+  auto partition_to_str = [](const std::vector<int> &v) -> std::string {
+    std::stringstream s;
+    for (auto e : v) {
+      s << e << " ";
+    }
+    std::string ret = s.str();
+
+    return ret.substr(0, ret.size() - 1);
+  };
+
+  std::stringstream query;
+  query << "SELECT id FROM " << table_name << " WHERE hypergraph_id = '" << hypergraph_id << "'";
+  for (int i = 0; i < info.partitions.size(); ++i) {
+    const auto &partition = info.partitions[i];
+    query << " AND " << "size_p" << std::to_string(i + 1) << " = " << partition.size()
+          << " AND " << "blob_p" << std::to_string(i + 1) << " = '" << partition_to_str(partition) << "'";
+  }
+  query << " LIMIT 1;";
+
+  std::optional<std::tuple<bool, uint64_t>> result;
+
+  char *zErrMsg{};
+  int err = sqlite3_exec(db_, query.str().c_str(), [](void *input, int argc, char **argv, char **col_names) {
+    using RetT = std::optional<std::tuple<bool, uint64_t>>;
+    RetT &result = *reinterpret_cast<RetT *>(input);
+    if (argc == 0) {
+      result = {{false, 0}};
+    }
+
+    // Otherwise parse ID
+    std::stringstream ss;
+    ss << argv[0];
+    uint64_t id;
+    ss >> id;
+
+    result = {{true, id}};
+    return 0;
+  }, &result, &zErrMsg);
+  if (err != SQLITE_OK) {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return {};
+  }
+
+  return {result};
 }
