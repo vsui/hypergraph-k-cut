@@ -137,13 +137,16 @@ void KDiscoveryRunner::run() {
       continue;
     }
 
+    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &, size_t, size_t, uint64_t);
+    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &, size_t, size_t, uint64_t);
+
     // TODO Random seed
     DiscoverVisitor cxy_visit
         (planted_cut.k,
          planted_cut.cut_value,
          1337,
-         static_cast<DiscoverVisitor::F>(cxy::discover<Hypergraph, 1>),
-         static_cast<DiscoverVisitor::WF>(cxy::discover<WeightedHypergraph<size_t>, 1>));
+         static_cast<FPtr>(cxy::discover<Hypergraph, 1>),
+         static_cast<WFPtr>(cxy::discover<WeightedHypergraph<size_t>, 1>));
     DiscoverVisitor fpz_visit
         (planted_cut.k,
          planted_cut.cut_value,
