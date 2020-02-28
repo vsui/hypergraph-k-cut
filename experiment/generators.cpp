@@ -58,6 +58,11 @@ bool angle_between(double angle, double a, double b) {
 
 }
 
+template<>
+struct std::iterator_traits<Cluster> {
+  using iterator_category = std::input_iterator_tag;
+};
+
 RandomRingHypergraph::RandomRingHypergraph(size_t num_vertices,
                                            size_t num_hyperedges,
                                            double hyperedge_mean,
