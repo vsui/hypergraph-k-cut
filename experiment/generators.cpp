@@ -59,7 +59,7 @@ bool angle_between(double angle, double a, double b) {
 }
 
 template<>
-struct std::iterator_traits<Cluster> {
+struct std::iterator_traits<Cluster::ClusterIt> {
   using iterator_category = std::input_iterator_tag;
 };
 
