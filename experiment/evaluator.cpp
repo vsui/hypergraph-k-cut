@@ -14,6 +14,16 @@
 #include <hypergraph/cxy.hpp>
 #include <hypergraph/fpz.hpp>
 
+namespace {
+
+std::string hostname() {
+  std::vector<char> hostname(50, '0');
+  gethostname(hostname.data(), 49);
+  return {hostname};
+}
+
+}
+
 CutEvaluator::CutEvaluator(std::unique_ptr<HypergraphSource> &&source, std::unique_ptr<CutInfoStore> &&store) : source_(
     std::move(source)), store_(std::move(store)) {}
 
@@ -69,13 +79,10 @@ void MinimumCutFinder::evaluate() {
   info.cut_value = cut.value;
   info.partitions = cut.partitions;
 
-  std::vector<char> hostname(50, '0');
-  gethostname(hostname.data(), 49);
-
   CutRunInfo run_info;
   run_info.algorithm = "MW";
   run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-  run_info.machine = std::string(hostname.data());
+  run_info.machine = hostname();
   run_info.commit = "n/a";
   run_info.info = info;
 
@@ -165,10 +172,6 @@ void KDiscoveryRunner::run() {
     HypergraphCut<size_t> cxy_cut = std::visit(cxy_visit, hypergraph.h);
     auto stop = std::chrono::high_resolution_clock::now();
 
-    // TODO put this in its own function
-    std::vector<char> hostname(50, '0');
-    gethostname(hostname.data(), 49);
-
     CutInfo info;
     info.k = cut.k;
     info.cut_value = cxy_cut.value;
@@ -177,7 +180,7 @@ void KDiscoveryRunner::run() {
     CutRunInfo run_info;
     run_info.algorithm = "CXY";
     run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-    run_info.machine = std::string(hostname.data());
+    run_info.machine = hostname();
     run_info.commit = "n/a";
     run_info.info = info;
 
