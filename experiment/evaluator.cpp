@@ -142,14 +142,14 @@ void KDiscoveryRunner::run() {
         (planted_cut.k,
          planted_cut.cut_value,
          1337,
-         cxy::discover<Hypergraph, 1>,
-         cxy::discover<WeightedHypergraph<size_t>, 1>);
+         static_cast<DiscoverVisitor::F>(cxy::discover<Hypergraph, 1>),
+         static_cast<DiscoverVisitor::WF>(cxy::discover<WeightedHypergraph<size_t>, 1>));
     DiscoverVisitor fpz_visit
         (planted_cut.k,
          planted_cut.cut_value,
          1337,
-         fpz::discover<Hypergraph, 1>,
-         fpz::discover<WeightedHypergraph<size_t>, 1>);
+         static_cast<DiscoverVisitor::F>(fpz::discover<Hypergraph, 1>),
+         static_cast<DiscoverVisitor::WF>(fpz::discover<WeightedHypergraph<size_t>, 1>));
 
     auto compute_run =
         [this, planted_cut_id](const DiscoverVisitor &visitor,
