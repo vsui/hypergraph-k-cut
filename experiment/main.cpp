@@ -20,9 +20,9 @@ int main() {
   };
 
   std::vector<PlantedHypergraph::ConstructorArgs> planted_args = {
-      {100, 100, 0.5, 100, 0.1, 2, 777},
-      {100, 300, 0.5, 100, 0.1, 2, 777},
-      {100, 500, 0.5, 100, 0.1, 2, 777}
+      {100, 100, 0.5, 100, 0.1, 3, 777},
+      {100, 300, 0.5, 100, 0.1, 3, 777},
+      {100, 500, 0.5, 100, 0.1, 3, 777}
   };
 
   using Ptr = std::unique_ptr<HypergraphSource>;

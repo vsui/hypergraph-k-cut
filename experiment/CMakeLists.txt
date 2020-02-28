@@ -5,6 +5,3 @@ target_link_libraries(hexperiment hypergraph sqlite3)
 
 add_executable(hgenerate generate.cpp generators.cpp)
 target_link_libraries(hgenerate hypergraph)
-
-add_executable(hgather gather.cpp store.cpp)
-target_link_libraries(hgather hypergraph)
