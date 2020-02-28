@@ -21,7 +21,7 @@ static int null_callback([[maybe_unused]] void *not_used,
 
 }
 
-bool SqliteStore::open(std::filesystem::path db_path) {
+bool SqliteStore::open(const std::filesystem::path& db_path) {
   if (db_ != nullptr) {
     std::cerr << "Database already open" << std::endl;
     return false;
@@ -135,7 +135,7 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
   return ReportStatus::OK;
 }
 
-ReportStatus SqliteStore::report(const CutInfo &info, [[maybe_unused]] uint64_t &id) {
+std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hypergraph_id, const CutInfo &info) {
   std::stringstream stream;
   size_t planted = 0; // TODO
 
@@ -181,7 +181,7 @@ ReportStatus SqliteStore::report(const CutInfo &info, [[maybe_unused]] uint64_t 
     partition_blobs_string += ", "s + "\'" + partition_to_str(p) + "\'";
   }
   stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
-         << "'" << info.hypergraph << "'"
+         << "'" << hypergraph_id << "'"
          << ", " << info.cut_value
          << ", " << 0 /* NOT PLANTED */
          << partition_sizes_string
@@ -193,18 +193,15 @@ ReportStatus SqliteStore::report(const CutInfo &info, [[maybe_unused]] uint64_t 
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
-    return ReportStatus::ERROR;
+    return { ReportStatus::ERROR, {} };
   }
   sqlite3_int64 rowid = sqlite3_last_insert_rowid(db_);
-  id = rowid;
 
-  return ReportStatus::OK;
+  return { ReportStatus::OK, { static_cast<unsigned long long>(rowid) } };
 }
 
-ReportStatus SqliteStore::report(const CutRunInfo &info) {
+ReportStatus SqliteStore::report(const std::string &hypergraph_id, const uint64_t cut_id, const CutRunInfo &info) {
   std::stringstream stream;
-  std::string hypergraph_id = info.info.hypergraph;
-  size_t cut_id = info.info.id;
 
   // TODO git hash
   stream

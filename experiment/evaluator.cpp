@@ -80,13 +80,13 @@ void MinimumCutFinder::evaluate() {
   run_info.commit = "n/a";
   run_info.info = info;
 
-  uint64_t cut_id;
-  if (store_->report(info, cut_id) == ReportStatus::ERROR) {
+  const auto [status, cut_id] = store_->report(h.name, info);
+  if (status == ReportStatus::ERROR) {
     std::cerr << "Error when reporting cut" << std::endl;
+    return;
   }
-  run_info.info.id = cut_id;
 
-  if (store_->report(run_info) == ReportStatus::ERROR) {
+  if (store_->report(h.name, cut_id, run_info) == ReportStatus::ERROR) {
     std::cerr << "Error when reporting run" << std::endl;
   }
 }
@@ -116,11 +116,14 @@ void KDiscoveryRunner::run() {
     }
     }
 
-    uint64_t cut_info_id;
-    switch (store_->report(cut, cut_info_id)) {
+    ReportStatus status;
+    uint64_t cut_id;
+
+    std::tie(status, cut_id) = store_->report(hypergraph.name, cut);
+    switch (status) {
     case ReportStatus::ALREADY_THERE: {
       std::cout << "Cut info already in DB" << std::endl;
-      break;
+      return;
     }
     case ReportStatus::ERROR: {
       std::cout << "Failed to put cut info in DB" << std::endl;
@@ -184,10 +187,8 @@ void KDiscoveryRunner::run() {
     // (Alternatively we can just compare them in memory because we already have both in memory
     // If they are not the same then we need to do something about it...
     // Report run
-    uint64_t cut_id;
-    store_->report(info, cut_id);
-    info.id = cut_id;
-    store_->report(run_info);
+    std::tie(status, cut_id) = store_->report(hypergraph.name, info);
+    store_->report(hypergraph.name, cut_id, run_info);
   }
 }
 
