@@ -10,11 +10,34 @@
 #include <iostream>
 
 #include <hypergraph/hypergraph.hpp>
+#include <hypergraph/cut.hpp>
+
+/**
+ * Return partitions so that they are sorted by size and lexographic order (and each partition is sorted)
+ * @param partitions
+ * @return
+ */
+inline std::vector<std::vector<int>> normalize_partitions(const std::vector<std::vector<int>> &partitions) {
+  std::vector<std::vector<int>> normalized(std::begin(partitions), std::end(partitions));
+  for (auto &p : normalized) {
+    std::sort(std::begin(p), std::end(p));
+  }
+  std::sort(begin(normalized), end(normalized), [](std::vector<int> &a, std::vector<int> &b) {
+    if (a.size() == b.size()) {
+      return a < b;
+    }
+    return a.size() < b.size();
+  });
+  return normalized;
+}
 
 struct CutInfo {
   size_t k;
   size_t cut_value;
   std::vector<std::vector<int>> partitions;
+
+  CutInfo(size_t k, const HypergraphCut<size_t> cut)
+      : k(k), cut_value(cut.value), partitions(normalize_partitions(cut.partitions)) {}
 
   inline bool operator==(const CutInfo &info) const {
     return k == info.k && cut_value == info.cut_value && partitions == info.partitions;
@@ -60,6 +83,8 @@ inline std::istream &operator>>(std::istream &in, CutInfo &info) {
 }
 
 struct CutRunInfo {
+  CutRunInfo(const CutInfo &cut_info) : info(cut_info) {}
+
   CutInfo info;
   std::string algorithm; // A unique ID for the algorithm used
   std::string machine; // ID for machine this was run on

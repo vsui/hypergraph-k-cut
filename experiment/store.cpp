@@ -136,11 +136,14 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
 }
 
 std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hypergraph_id, const CutInfo &info) {
+  using namespace std::string_literals;
+
   // First check if the cut is already present
   std::optional<std::tuple<bool, uint64_t>> cut_already_present = has_cut(hypergraph_id, info);
 
   if (!cut_already_present.has_value()) {
     // Failed to query value
+    std::cout << "Failed to check if cut was already present in database" << std::endl;
     return {ReportStatus::ERROR, {}};
   }
 
@@ -152,20 +155,6 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   // Cut not in store, need to add it
   std::stringstream stream;
   size_t planted = 0; // TODO
-
-  using namespace std::string_literals;
-
-  // Make sure partitions are sorted
-  std::vector<std::vector<int>> partitions = info.partitions;
-  for (auto &partition : partitions) {
-    std::sort(begin(partition), end(partition));
-  }
-  std::sort(begin(partitions), end(partitions), [](std::vector<int> &a, std::vector<int> &b) {
-    if (a.size() == b.size()) {
-      return a < b;
-    }
-    return a.size() < b.size();
-  });
 
   auto partition_to_str = [](const std::vector<int> &v) -> std::string {
     std::stringstream s;
@@ -187,11 +176,11 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   }
   columns += ")";
   std::string partition_sizes_string;
-  for (const auto &p : partitions) {
+  for (const auto &p : info.partitions) {
     partition_sizes_string += ", "s + std::to_string(p.size());
   }
   std::string partition_blobs_string;
-  for (const auto &p : partitions) {
+  for (const auto &p : info.partitions) {
     partition_blobs_string += ", "s + "\'" + partition_to_str(p) + "\'";
   }
   stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
@@ -270,14 +259,14 @@ std::optional<std::tuple<bool, uint64_t>> SqliteStore::has_cut(const std::string
   }
   query << " LIMIT 1;";
 
-  std::optional<std::tuple<bool, uint64_t>> result;
+  std::tuple<bool, uint64_t> result;
 
   char *zErrMsg{};
   int err = sqlite3_exec(db_, query.str().c_str(), [](void *input, int argc, char **argv, char **col_names) {
-    using RetT = std::optional<std::tuple<bool, uint64_t>>;
+    using RetT = std::tuple<bool, uint64_t>;
     RetT &result = *reinterpret_cast<RetT *>(input);
     if (argc == 0) {
-      result = {{false, 0}};
+      result = {false, 0};
     }
 
     // Otherwise parse ID
@@ -286,7 +275,7 @@ std::optional<std::tuple<bool, uint64_t>> SqliteStore::has_cut(const std::string
     uint64_t id;
     ss >> id;
 
-    result = {{true, id}};
+    result = {true, id};
     return 0;
   }, &result, &zErrMsg);
   if (err != SQLITE_OK) {

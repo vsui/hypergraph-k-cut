@@ -96,18 +96,13 @@ void MinimumCutFinder::evaluate() {
     std::cout << "Found interesting cut for " << h.name << std::endl;
   }
 
-  CutInfo info;
+  CutInfo info(2, cut);
 
-  info.k = 2;
-  info.cut_value = cut.value;
-  info.partitions = cut.partitions;
-
-  CutRunInfo run_info;
+  CutRunInfo run_info(info);
   run_info.algorithm = "MW";
   run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
   run_info.machine = hostname();
   run_info.commit = "n/a";
-  run_info.info = info;
 
   const auto[status, cut_id] = store_->report(h.name, info);
   if (status == ReportStatus::ERROR) {
@@ -126,72 +121,72 @@ KDiscoveryRunner::KDiscoveryRunner(std::unique_ptr<PlantedHypergraphSource> &&so
 
 void KDiscoveryRunner::run() {
   while (src_->has_next()) {
-    auto[hypergraph, cut] = src_->generate();
+    auto[hypergraph, planted_cut] = src_->generate();
     std::cout << hypergraph.name << "..." << std::endl;
-    std::cout << "Cut planted with value " << cut.cut_value << std::endl;
-    std::cout << cut << std::endl;
 
-    switch (store_->report(hypergraph)) {
-    case ReportStatus::ALREADY_THERE: {
-      std::cout << "Hypergraph already in DB" << std::endl;
-      break;
-    }
-    case ReportStatus::ERROR: {
+    if (store_->report(hypergraph) == ReportStatus::ERROR) {
       std::cout << "Failed to put hypergraph in DB" << std::endl;
       continue;
     }
-    case ReportStatus::OK: {
-      // Do nothing...
-    }
-    }
 
     ReportStatus status;
-    uint64_t cut_id;
-
-    std::tie(status, cut_id) = store_->report(hypergraph.name, cut);
-    switch (status) {
-    case ReportStatus::ALREADY_THERE: {
-      std::cout << "Cut info already in DB" << std::endl;
-      return;
-    }
-    case ReportStatus::ERROR: {
-      std::cout << "Failed to put cut info in DB" << std::endl;
+    uint64_t planted_cut_id;
+    std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut);
+    if (status == ReportStatus::ERROR) {
+      std::cout << "Failed to put planted cut info in DB" << std::endl;
       continue;
-    }
-    case ReportStatus::OK: {
-      // Do nothing...
-    }
     }
 
     // TODO Random seed
     DiscoverVisitor cxy_visit
-        (cut.k, cut.cut_value, 1337, cxy::discover<Hypergraph, 1>, cxy::discover<WeightedHypergraph<size_t>, 1>);
+        (planted_cut.k,
+         planted_cut.cut_value,
+         1337,
+         cxy::discover<Hypergraph, 1>,
+         cxy::discover<WeightedHypergraph<size_t>, 1>);
     DiscoverVisitor fpz_visit
-        (cut.k, cut.cut_value, 1337, fpz::discover<Hypergraph, 1>, fpz::discover<WeightedHypergraph<size_t>, 1>);
+        (planted_cut.k,
+         planted_cut.cut_value,
+         1337,
+         fpz::discover<Hypergraph, 1>,
+         fpz::discover<WeightedHypergraph<size_t>, 1>);
 
     // Now take the times
     auto start = std::chrono::high_resolution_clock::now();
     HypergraphCut<size_t> cxy_cut = std::visit(cxy_visit, hypergraph.h);
     auto stop = std::chrono::high_resolution_clock::now();
 
-    CutInfo info;
-    info.k = cut.k;
-    info.cut_value = cxy_cut.value;
-    info.partitions = cxy_cut.partitions;
+    CutInfo found_cut_info(planted_cut.k, cxy_cut);
 
-    CutRunInfo run_info;
+    CutRunInfo run_info(found_cut_info);
     run_info.algorithm = "CXY";
     run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
     run_info.machine = hostname();
     run_info.commit = "n/a";
-    run_info.info = info;
 
-    // Report computed cut info to see if it is the same as the planted cut
-    // (Alternatively we can just compare them in memory because we already have both in memory
-    // If they are not the same then we need to do something about it...
-    // Report run
-    std::tie(status, cut_id) = store_->report(hypergraph.name, info);
-    store_->report(hypergraph.name, cut_id, run_info);
+    // Check if found cut was the planted cut
+    uint64_t found_cut_id;
+    if (found_cut_info == planted_cut) {
+      std::cout << "Found the planted cut" << std::endl;
+      found_cut_id = planted_cut_id;
+    } else {
+      // Otherwise we need to report this cut to the DB to get its ID
+      if (found_cut_info.cut_value == planted_cut.cut_value) {
+        std::cout << "Found cut has same value as planted cut but different partitions" << std::endl;
+      } else {
+        std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value " << planted_cut.cut_value
+                  << std::endl;
+      }
+      std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info);
+      if (status == ReportStatus::ERROR) {
+        std::cout << "Failed to report found cut" << std::endl;
+        continue;
+      }
+    }
+
+    if (store_->report(hypergraph.name, found_cut_id, run_info) == ReportStatus::ERROR) {
+      std::cout << "Failed to report run" << std::endl;
+    }
   }
 }
 

@@ -176,16 +176,15 @@ std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
     }
   }
 
-  CutInfo info;
-  info.k = k;
-  info.cut_value = 0;
+  HypergraphCut<size_t> cut = HypergraphCut<size_t>::max();
+  cut.value = 0;
   for (int i = 0; i < k; ++i) {
     Cluster cluster(n, k, i);
     std::vector<int> p;
     for (auto v : cluster) {
       p.emplace_back(v);
     }
-    info.partitions.emplace_back(std::move(p));
+    cut.partitions.emplace_back(std::move(p));
   }
   std::vector<Cluster> clusters;
   for (int i = 0; i < k; ++i) {
@@ -219,14 +218,14 @@ std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
         return get_cluster(v) != c;
       })) {
         // Span different clusters
-        info.cut_value++;
+        cut.value++;
       }
 
     }
     edges.emplace_back(std::move(edge));
   }
 
-  return { { Hypergraph{vertices, edges} }, info };
+  return {{Hypergraph{vertices, edges}}, {k, cut}};
 }
 
 std::string PlantedHypergraph::name() {
