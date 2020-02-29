@@ -131,7 +131,7 @@ void KDiscoveryRunner::run() {
 
     ReportStatus status;
     uint64_t planted_cut_id;
-    std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut);
+    std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
     if (status == ReportStatus::ERROR) {
       std::cout << "Failed to put planted cut info in DB" << std::endl;
       continue;

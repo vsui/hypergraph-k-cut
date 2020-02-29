@@ -33,9 +33,12 @@ public:
    *
    * @param hypergraph_id
    * @param info
+   * @param planted
    * @return
    */
-  virtual std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id, const CutInfo &info) = 0;
+  virtual std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id,
+                                                    const CutInfo &info,
+                                                    bool planted = false) = 0;
 
   /**
    * Report a run to the store.
@@ -60,7 +63,9 @@ public:
   bool open(const std::filesystem::path &db_path);
 
   ReportStatus report(const HypergraphWrapper &hypergraph) override;
-  std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id, const CutInfo &info) override;
+  std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id,
+                                            const CutInfo &info,
+                                            bool planted = false) override;
   ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) override;
 
   ~SqliteStore() override;

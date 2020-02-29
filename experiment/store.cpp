@@ -135,7 +135,9 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
   return ReportStatus::OK;
 }
 
-std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hypergraph_id, const CutInfo &info) {
+std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hypergraph_id,
+                                                       const CutInfo &info,
+                                                       bool planted) {
   using namespace std::string_literals;
 
   // First check if the cut is already present
@@ -154,7 +156,6 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
 
   // Cut not in store, need to add it
   std::stringstream stream;
-  size_t planted = 0; // TODO
 
   auto partition_to_str = [](const std::vector<int> &v) -> std::string {
     std::stringstream s;
@@ -186,7 +187,7 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
          << "'" << hypergraph_id << "'"
          << ", " << info.cut_value
-         << ", " << 0 /* NOT PLANTED */
+         << ", " << (planted ? 1 : 0)
          << partition_sizes_string
          << partition_blobs_string
          << ");";
