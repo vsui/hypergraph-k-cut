@@ -9,6 +9,7 @@
 #include <tuple>
 
 #include "common.hpp"
+#include "generators.hpp"
 
 enum class ReportStatus {
   ERROR,
@@ -25,6 +26,7 @@ public:
    * @return
    */
   virtual ReportStatus report(const HypergraphWrapper &hypergraph) = 0;
+  virtual ReportStatus report(const HypergraphGenerator &hypergraph) = 0;
 
   /**
    * Report a cut to the store and return the store's internal ID of the cut. If the cut is not in the store then a new
@@ -38,7 +40,7 @@ public:
    */
   virtual std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id,
                                                     const CutInfo &info,
-                                                    bool planted = false) = 0;
+                                                    bool planted) = 0;
 
   /**
    * Report a run to the store.
@@ -63,9 +65,11 @@ public:
   bool open(const std::filesystem::path &db_path);
 
   ReportStatus report(const HypergraphWrapper &hypergraph) override;
+  ReportStatus report(const HypergraphGenerator &hypergraph) override;
+
   std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id,
                                             const CutInfo &info,
-                                            bool planted = false) override;
+                                            bool planted) override;
   ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) override;
 
   ~SqliteStore() override;

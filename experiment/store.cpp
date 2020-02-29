@@ -3,6 +3,7 @@
 //
 
 #include "store.hpp"
+#include "generators.hpp"
 
 #include <iostream>
 
@@ -29,6 +30,20 @@ std::string partition_to_str(const std::vector<int> &v) {
   return ret.substr(0, ret.size() - 1);
 }
 
+}
+
+ReportStatus SqliteStore::report(const HypergraphGenerator &h) {
+  if (!h.write_to_table(db_)) {
+    std::cout << "Failed to write hypergraph generator info to DB" << std::endl;
+    return ReportStatus::ERROR;
+  }
+
+  const auto[hypergraph, _] = h.generate();
+  HypergraphWrapper w;
+  w.h = hypergraph;
+  w.name = h.name();
+
+  return report(w);
 }
 
 bool SqliteStore::open(const std::filesystem::path &db_path) {
@@ -104,11 +119,13 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 )";
 
+  std::string sql_command = std::string(kInitialize) + PlantedHypergraph::make_table_sql_command();
   char *zErrMsg{};
-  err = sqlite3_exec(db_, kInitialize, null_callback, nullptr, &zErrMsg);
+  err = sqlite3_exec(db_, sql_command.c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    return false;
   }
 
   return true;
