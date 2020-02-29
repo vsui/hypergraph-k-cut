@@ -37,7 +37,7 @@ jobs:
 
       - run:
           name: Install boost
-          command: 'apt-get update && apt-get install -y libboost1.65-dev'
+          command: 'add-apt-repository universe && apt-get update && apt-get install -y libboost-all-dev'
 
       - run:
           name: Install cmake
