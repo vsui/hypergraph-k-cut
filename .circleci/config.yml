@@ -6,7 +6,7 @@ orbs:
 jobs:
   build_and_test_linux:
     docker:
-      - image: gcc:9
+      - image: ubuntu:bionic
 
     steps:
       - checkout
