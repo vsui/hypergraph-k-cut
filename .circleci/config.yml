@@ -37,7 +37,7 @@ jobs:
 
       - run:
           name: Install boost
-          command: 'apt-get update && apt-get install -y libboost-all-dev'
+          command: 'apt-get update && apt-get install -yf libboost-all-dev'
 
       - run:
           name: Install cmake
