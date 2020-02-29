@@ -7,6 +7,7 @@
 #include "evaluator.hpp"
 #include "source.hpp"
 #include "store.hpp"
+#include "generators.hpp"
 
 #include <hypergraph/cut.hpp>
 #include <hypergraph/order.hpp>
@@ -104,7 +105,7 @@ void MinimumCutFinder::evaluate() {
   run_info.machine = hostname();
   run_info.commit = "n/a";
 
-  const auto[status, cut_id] = store_->report(h.name, info);
+  const auto[status, cut_id] = store_->report(h.name, info, false);
   if (status == ReportStatus::ERROR) {
     std::cerr << "Error when reporting cut" << std::endl;
     return;
@@ -115,23 +116,30 @@ void MinimumCutFinder::evaluate() {
   }
 }
 
-KDiscoveryRunner::KDiscoveryRunner(std::unique_ptr<PlantedHypergraphSource> &&source,
+KDiscoveryRunner::KDiscoveryRunner(std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                                    std::unique_ptr<CutInfoStore> &&store) :
     src_(std::move(source)), store_(std::move(store)) {}
 
 void KDiscoveryRunner::run() {
-  while (src_->has_next()) {
-    auto[hypergraph, planted_cut] = src_->generate();
+  for (const auto &gen : src_) {
+    const auto[hgraph, planted_cut_optional] = gen->generate();
+    assert(planted_cut_optional.has_value());
+
+    HypergraphWrapper hypergraph;
+    hypergraph.h = hgraph;
+    hypergraph.name = gen->name();
+
+    const CutInfo planted_cut = planted_cut_optional.value();
     std::cout << hypergraph.name << "..." << std::endl;
 
-    if (store_->report(hypergraph) == ReportStatus::ERROR) {
+    if (store_->report(*gen) == ReportStatus::ERROR) {
       std::cout << "Failed to put hypergraph in DB" << std::endl;
       continue;
     }
 
     ReportStatus status;
     uint64_t planted_cut_id;
-    std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut);
+    std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
     if (status == ReportStatus::ERROR) {
       std::cout << "Failed to put planted cut info in DB" << std::endl;
       continue;
@@ -141,18 +149,20 @@ void KDiscoveryRunner::run() {
     using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &, size_t, size_t, uint64_t);
 
     // TODO Random seed
-    DiscoverVisitor cxy_visit
-        (planted_cut.k,
-         planted_cut.cut_value,
-         1337,
-         static_cast<FPtr>(cxy::discover<Hypergraph, 1>),
-         static_cast<WFPtr>(cxy::discover<WeightedHypergraph<size_t>, 1>));
-    DiscoverVisitor fpz_visit
-        (planted_cut.k,
-         planted_cut.cut_value,
-         1337,
-         static_cast<FPtr>(fpz::discover<Hypergraph, 1>),
-         static_cast<WFPtr>(fpz::discover<WeightedHypergraph<size_t>, 1>));
+    std::vector<DiscoverVisitor> cxy_visitors;
+    std::vector<DiscoverVisitor> fpz_visitors;
+    for (uint64_t seed : {1618, 2718, 31415, 777777, 2020}) {
+      cxy_visitors.emplace_back(planted_cut.k,
+                                planted_cut.cut_value,
+                                seed,
+                                static_cast<FPtr>(cxy::discover<Hypergraph, 1>),
+                                static_cast<WFPtr>(cxy::discover<WeightedHypergraph<size_t>, 1>));
+      fpz_visitors.emplace_back(planted_cut.k,
+                                planted_cut.cut_value,
+                                seed,
+                                static_cast<FPtr>(fpz::discover<Hypergraph, 1>),
+                                static_cast<WFPtr>(fpz::discover<WeightedHypergraph<size_t>, 1>));
+    }
 
     auto compute_run =
         [this, planted_cut_id](const DiscoverVisitor &visitor,
@@ -187,7 +197,7 @@ void KDiscoveryRunner::run() {
                         << std::endl;
             }
             ReportStatus status;
-            std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info);
+            std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
             if (status == ReportStatus::ERROR) {
               std::cout << "Failed to report found cut" << std::endl;
               return;
@@ -199,8 +209,12 @@ void KDiscoveryRunner::run() {
           }
         };
 
-    compute_run(cxy_visit, "cxy", planted_cut, hypergraph);
-    compute_run(fpz_visit, "fpz", planted_cut, hypergraph);
+    for (auto &cxy_visit : cxy_visitors) {
+      compute_run(cxy_visit, "cxy", planted_cut, hypergraph);
+    }
+    for (auto &fpz_visit : fpz_visitors) {
+      compute_run(fpz_visit, "fpz", planted_cut, hypergraph);
+    }
 
   }
 }

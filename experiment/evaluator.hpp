@@ -6,10 +6,11 @@
 #define HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP
 
 #include <memory>
+#include <vector>
 
 class CutInfoStore;
 class HypergraphSource;
-class PlantedHypergraphSource;
+class HypergraphGenerator;
 
 class CutEvaluator {
 public:
@@ -41,11 +42,11 @@ public:
 
 class KDiscoveryRunner {
 public:
-  KDiscoveryRunner(std::unique_ptr<PlantedHypergraphSource> &&source,
+  KDiscoveryRunner(std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                    std::unique_ptr<CutInfoStore> &&store);
   void run();
 private:
-  std::unique_ptr<PlantedHypergraphSource> src_;
+  std::vector<std::unique_ptr<HypergraphGenerator>> src_;
   std::unique_ptr<CutInfoStore> store_;
 };
 

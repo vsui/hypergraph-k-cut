@@ -4,6 +4,8 @@
 
 #include "generators.hpp"
 
+#include <sqlite3.h>
+
 using std::begin, std::end;
 
 namespace {
@@ -56,6 +58,13 @@ bool angle_between(double angle, double a, double b) {
   return a <= angle && angle <= b;
 }
 
+int null_callback(void *,
+                  int,
+                  char **,
+                  char **) {
+  return 0;
+}
+
 }
 
 template<>
@@ -70,6 +79,8 @@ RandomRingHypergraph::RandomRingHypergraph(size_t num_vertices,
                                            uint64_t seed) :
     num_vertices(num_vertices), num_hyperedges(num_hyperedges), hyperedge_mean(hyperedge_mean),
     hyperedge_variance(hyperedge_variance), seed(seed), gen_(seed), dis_(0.0, 360.0) {}
+
+HypergraphGenerator::~HypergraphGenerator() = default;
 
 Hypergraph RandomRingHypergraph::generate() {
   gen_.seed(seed); // We want to generate the same hypergraph each time
@@ -159,7 +170,7 @@ std::string MXNHypergraph::name() {
 PlantedHypergraph::PlantedHypergraph(size_t n, size_t m1, double p1, size_t m2, double p2, size_t k, uint64_t seed) :
     n(n), m1(m1), p1(p1), m2(m2), p2(p2), k(k), seed(seed) {}
 
-std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
+std::tuple<Hypergraph, std::optional<CutInfo>> PlantedHypergraph::generate() const {
   std::mt19937_64 gen(seed);
   std::uniform_real_distribution dis;
 
@@ -230,10 +241,10 @@ std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
     edges.emplace_back(std::move(edge));
   }
 
-  return {{Hypergraph{vertices, edges}}, {k, cut}};
+  return {{Hypergraph{vertices, edges}}, {{k, cut}}};
 }
 
-std::string PlantedHypergraph::name() {
+std::string PlantedHypergraph::name() const {
   std::stringstream ss;
   ss << "planted"
      << "_" << n
@@ -244,4 +255,45 @@ std::string PlantedHypergraph::name() {
      << "_" << k
      << "_" << seed;
   return ss.str();
+}
+
+std::string PlantedHypergraph::make_table_sql_command() {
+  return R"(
+CREATE TABLE IF NOT EXISTS planted_hypergraphs (
+  id TEXT PRIMARY KEY NOT NULL,
+  n INTEGER NOT NULL,
+  m1 INTEGER NOT NULL,
+  p1 REAL NOT NULL,
+  m2 INTEGER NOT NULL,
+  p2 REAL NOT NULL,
+  k INTEGER NOT NULL,
+  seed INTEGER NOT NULL,
+  FOREIGN KEY (id)
+    REFERENCES hypergraphs (id)
+);)";
+}
+
+bool PlantedHypergraph::write_to_table(sqlite3 *db) const {
+  std::stringstream command;
+  command << "INSERT INTO planted_hypergraphs (id, n, m1, p1, m2, p2, k, seed) VALUES "
+          << "(" << "'" << name() << "'"
+          << ", " << n
+          << ", " << m1
+          << ", " << p1
+          << ", " << m2
+          << ", " << p2
+          << ", " << k
+          << ", " << seed
+          << ");";
+  char *zErrMsg{};
+  int err = sqlite3_exec(db, command.str().c_str(), null_callback, nullptr, &zErrMsg);
+  if (err != SQLITE_OK) {
+    if (std::string(zErrMsg) == "UNIQUE constraint failed: planted_hypergraphs.id") {
+      return true;
+    }
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return false;
+  }
+  return true;
 }

@@ -3,6 +3,7 @@
 //
 
 #include "store.hpp"
+#include "generators.hpp"
 
 #include <iostream>
 
@@ -19,6 +20,30 @@ int null_callback(void *,
   return 0;
 }
 
+std::string partition_to_str(const std::vector<int> &v) {
+  std::stringstream s;
+  for (auto e : v) {
+    s << e << " ";
+  }
+  std::string ret = s.str();
+
+  return ret.substr(0, ret.size() - 1);
+}
+
+}
+
+ReportStatus SqliteStore::report(const HypergraphGenerator &h) {
+  if (!h.write_to_table(db_)) {
+    std::cout << "Failed to write hypergraph generator info to DB" << std::endl;
+    return ReportStatus::ERROR;
+  }
+
+  const auto[hypergraph, _] = h.generate();
+  HypergraphWrapper w;
+  w.h = hypergraph;
+  w.name = h.name();
+
+  return report(w);
 }
 
 bool SqliteStore::open(const std::filesystem::path &db_path) {
@@ -94,11 +119,13 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 )";
 
+  std::string sql_command = std::string(kInitialize) + PlantedHypergraph::make_table_sql_command();
   char *zErrMsg{};
-  err = sqlite3_exec(db_, kInitialize, null_callback, nullptr, &zErrMsg);
+  err = sqlite3_exec(db_, sql_command.c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    return false;
   }
 
   return true;
@@ -135,7 +162,9 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
   return ReportStatus::OK;
 }
 
-std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hypergraph_id, const CutInfo &info) {
+std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hypergraph_id,
+                                                       const CutInfo &info,
+                                                       bool planted) {
   using namespace std::string_literals;
 
   // First check if the cut is already present
@@ -154,17 +183,6 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
 
   // Cut not in store, need to add it
   std::stringstream stream;
-  size_t planted = 0; // TODO
-
-  auto partition_to_str = [](const std::vector<int> &v) -> std::string {
-    std::stringstream s;
-    for (auto e : v) {
-      s << e << " ";
-    }
-    std::string ret = s.str();
-
-    return ret.substr(0, ret.size() - 1);
-  };
 
   std::string table_name = "cuts"s + std::to_string(info.k);
   std::string columns = "(hypergraph_id, val, planted";
@@ -186,7 +204,7 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
          << "'" << hypergraph_id << "'"
          << ", " << info.cut_value
-         << ", " << 0 /* NOT PLANTED */
+         << ", " << (planted ? 1 : 0)
          << partition_sizes_string
          << partition_blobs_string
          << ");";
@@ -237,18 +255,6 @@ std::optional<std::tuple<bool, uint64_t>> SqliteStore::has_cut(const std::string
   using namespace std::string_literals;
 
   std::string table_name = "cuts"s + std::to_string(info.k);
-
-
-  // TODO make function
-  auto partition_to_str = [](const std::vector<int> &v) -> std::string {
-    std::stringstream s;
-    for (auto e : v) {
-      s << e << " ";
-    }
-    std::string ret = s.str();
-
-    return ret.substr(0, ret.size() - 1);
-  };
 
   std::stringstream query;
   query << "SELECT id FROM " << table_name << " WHERE hypergraph_id = '" << hypergraph_id << "'";
