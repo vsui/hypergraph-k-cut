@@ -6,7 +6,7 @@ orbs:
 jobs:
   build_and_test_linux:
     docker:
-      - image: gcc:9
+      - image: ubuntu:bionic
 
     steps:
       - checkout
@@ -17,7 +17,7 @@ jobs:
 
       - run:
           name: Install gcc
-          command: 'apt-get update && apt-get install -y gcc g++'
+          command: 'apt-get update && apt-get install software-properties-common -y && add-apt-repository ppa:ubuntu-toolchain-r/test -y && apt-get update && apt-get install -y gcc-9 g++-9'
 
       - run:
           name: Install make
@@ -37,7 +37,7 @@ jobs:
 
       - run:
           name: Install boost
-          command: 'wget https://dl.bintray.com/boostorg/release/1.66.0/source/boost_1_66_0.tar.bz2; tar --bzip2 -xf boost_1_66_0.tar.bz2; ln -s `pwd`/boost_1_66_0/boost /usr/include'
+          command: 'apt-get update && apt-get install -yf libboost-all-dev'
 
       - run:
           name: Install cmake
@@ -45,7 +45,7 @@ jobs:
 
       - run:
           name: Create build files
-          command: './cmake/bin/cmake -H. -Bbuild'
+          command: 'CC=gcc-9 CXX=g++-9 ./cmake/bin/cmake -H. -Bbuild'
 
       - run:
           name: Build project

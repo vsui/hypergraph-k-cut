@@ -4,6 +4,8 @@
 
 #include "generators.hpp"
 
+using std::begin, std::end;
+
 namespace {
 
 // Helper for logic with cluster operations
@@ -12,7 +14,7 @@ public:
   Cluster(size_t n, size_t k, size_t ki) : n_(n), k_(k), ki_(ki) {}
 
   struct ClusterIt {
-    ClusterIt(size_t v) : v(v) {}
+    explicit ClusterIt(size_t v) : v(v) {}
     ClusterIt &operator++() {
       v++;
       return *this;
@@ -55,6 +57,11 @@ bool angle_between(double angle, double a, double b) {
 }
 
 }
+
+template<>
+struct std::iterator_traits<Cluster::ClusterIt> {
+  using iterator_category = std::input_iterator_tag;
+};
 
 RandomRingHypergraph::RandomRingHypergraph(size_t num_vertices,
                                            size_t num_hyperedges,
@@ -146,5 +153,95 @@ Hypergraph MXNHypergraph::generate() {
 std::string MXNHypergraph::name() {
   std::stringstream ss;
   ss << "mxn_" << m << "_" << n << "_" << p << "_" << seed;
+  return ss.str();
+}
+
+PlantedHypergraph::PlantedHypergraph(size_t n, size_t m1, double p1, size_t m2, double p2, size_t k, uint64_t seed) :
+    n(n), m1(m1), p1(p1), m2(m2), p2(p2), k(k), seed(seed) {}
+
+std::tuple<Hypergraph, CutInfo> PlantedHypergraph::generate() {
+  std::mt19937_64 gen(seed);
+  std::uniform_real_distribution dis;
+
+  std::vector<int> vertices(n, 0);
+  std::iota(begin(vertices), end(vertices), 0);
+  std::vector<std::vector<int>> edges;
+
+  // Sample m1 hyperedges from each cluster, each vertex has p1 probability of being sampled
+  for (int i = 0; i < k; ++i) {
+    Cluster cluster(n, k, i);
+    for (int j = 0; j < m1; ++j) {
+      std::vector<int> edge;
+      for (const auto v : cluster) {
+        if (dis(gen) < p1) {
+          edge.push_back(v);
+        }
+      }
+      edges.emplace_back(std::move(edge));
+    }
+  }
+
+  HypergraphCut<size_t> cut = HypergraphCut<size_t>::max();
+  cut.value = 0;
+  for (int i = 0; i < k; ++i) {
+    Cluster cluster(n, k, i);
+    std::vector<int> p;
+    for (auto v : cluster) {
+      p.emplace_back(v);
+    }
+    cut.partitions.emplace_back(std::move(p));
+  }
+  std::vector<Cluster> clusters;
+  for (int i = 0; i < k; ++i) {
+    clusters.emplace_back(n, k, i);
+  }
+
+  auto get_cluster = [this](const int v) -> Cluster {
+    for (int i = 0; i < k; ++i) {
+      Cluster cluster(n, k, i);
+      auto it = std::find(begin(cluster), end(cluster), v);
+      if (it != end(cluster)) {
+        return cluster;
+      }
+    }
+    // Should be unreachable
+    assert(false && "Should not be reachable");
+  };
+
+  // Sample m2 hyperedges from the entire hypergraph, each vertex has p2 probability of being sampled
+  for (int j = 0; j < m2; ++j) {
+    std::vector<int> edge;
+    for (const auto v : vertices) {
+      if (dis(gen) < p2) {
+        edge.push_back(v);
+      }
+    }
+    // Check if edge crosses clusters to calculate cut value
+    if (edge.size() > 2) {
+      Cluster c = get_cluster(edge.at(0));
+      if (std::any_of(begin(edge), end(edge), [&c, get_cluster](const int v) {
+        return get_cluster(v) != c;
+      })) {
+        // Span different clusters
+        cut.value++;
+      }
+
+    }
+    edges.emplace_back(std::move(edge));
+  }
+
+  return {{Hypergraph{vertices, edges}}, {k, cut}};
+}
+
+std::string PlantedHypergraph::name() {
+  std::stringstream ss;
+  ss << "planted"
+     << "_" << n
+     << "_" << m1
+     << "_" << p1
+     << "_" << m2
+     << "_" << p2
+     << "_" << k
+     << "_" << seed;
   return ss.str();
 }

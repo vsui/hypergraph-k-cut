@@ -11,7 +11,7 @@ public:
   Cluster(size_t n, size_t k, size_t ki) : n_(n), k_(k), ki_(ki) {}
 
   struct ClusterIt {
-    ClusterIt(size_t v) : v(v) {}
+    explicit ClusterIt(size_t v) : v(v) {}
     ClusterIt &operator++() {
       v++;
       return *this;

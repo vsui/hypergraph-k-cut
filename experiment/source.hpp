@@ -14,6 +14,13 @@ public:
   virtual ~HypergraphSource() = default;
 };
 
+class PlantedHypergraphSource {
+public:
+  virtual bool has_next() = 0;
+  virtual std::tuple<HypergraphWrapper, CutInfo> generate() = 0;
+  virtual ~PlantedHypergraphSource() = default;
+};
+
 class AggregateSource : public HypergraphSource {
 public:
   AggregateSource(std::vector<std::unique_ptr<HypergraphSource>> &&sources);
@@ -24,31 +31,60 @@ private:
   decltype(sources_.begin()) it_;
 };
 
-template<typename Generator>
-class GeneratorSource : public HypergraphSource {
+template<bool Planted>
+struct PlantedTrait;
+
+template<>
+struct PlantedTrait<true> {
+  using GenT = std::tuple<HypergraphWrapper, CutInfo>;
+};
+
+template<>
+struct PlantedTrait<false> {
+  using GenT = HypergraphWrapper;
+};
+
+template<typename Generator, bool Planted, typename Interface>
+class GenSource : public Interface {
+  using GenT = typename PlantedTrait<Planted>::GenT;
   using Args = std::vector<typename Generator::ConstructorArgs>;
 
 public:
-  explicit GeneratorSource(Args args) : args_(args), it_(args_.begin()) {}
+  explicit GenSource(Args args) : args_(args), it_(args_.begin()) {}
 
   bool has_next() override { return it_ != args_.end(); }
 
-  HypergraphWrapper generate() override {
+  GenT generate() override {
     auto gen = std::make_from_tuple<Generator>(*it_);
 
     HypergraphWrapper h;
 
     h.name = gen.name();
-    h.h = gen.generate();
 
     it_++;
-    return h;
+
+    if constexpr (Planted) {
+      auto g = gen.generate();
+      h.h = std::get<0>(g);
+      return {h, std::get<1>(g)};
+
+    } else {
+      h.h = gen.generate();
+      return h;
+    }
+
   }
 
 private:
   Args args_;
   decltype(args_.begin()) it_;
 };
+
+template<typename Generator>
+using GeneratorSource = GenSource<Generator, false, HypergraphSource>;
+
+template<typename PlantedGenerator>
+using PlantedGeneratorSource = GenSource<PlantedGenerator, true, PlantedHypergraphSource>;
 
 /**
  * Takes the KCores of another generator

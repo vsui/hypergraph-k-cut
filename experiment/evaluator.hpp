@@ -9,6 +9,7 @@
 
 class CutInfoStore;
 class HypergraphSource;
+class PlantedHypergraphSource;
 
 class CutEvaluator {
 public:
@@ -36,6 +37,16 @@ public:
   using CutEvaluator::CutEvaluator;
   void run() override;
   void evaluate() override;
+};
+
+class KDiscoveryRunner {
+public:
+  KDiscoveryRunner(std::unique_ptr<PlantedHypergraphSource> &&source,
+                   std::unique_ptr<CutInfoStore> &&store);
+  void run();
+private:
+  std::unique_ptr<PlantedHypergraphSource> src_;
+  std::unique_ptr<CutInfoStore> store_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP

@@ -6,6 +6,7 @@
 #define HYPERGRAPHPARTITIONING_EXPERIMENT_STORE_HPP
 
 #include <filesystem>
+#include <tuple>
 
 #include "common.hpp"
 
@@ -15,54 +16,59 @@ enum class ReportStatus {
   ALREADY_THERE,
 };
 
-class CutIterator {
-public:
-  CutIterator(std::filesystem::path path);
-
-  CutInfo operator*();
-
-  CutIterator &operator++();
-
-  CutIterator begin();
-
-  CutIterator end();
-
-  bool operator!=(const CutIterator &it);
-
-private:
-  CutIterator();
-  CutIterator(std::filesystem::directory_iterator hgrs, std::filesystem::directory_iterator cuts);
-
-  bool end_ = false;
-  std::filesystem::directory_iterator hgrs_;
-  std::filesystem::directory_iterator cuts_;
-};
-
 class CutInfoStore {
 public:
+  /**
+   * Report a hypergraph to the store. Does nothing if the hypergraph is already in the store.
+   *
+   * @param hypergraph
+   * @return
+   */
   virtual ReportStatus report(const HypergraphWrapper &hypergraph) = 0;
-  virtual ReportStatus report(const CutInfo &info, uint64_t &id) = 0;
-  virtual ReportStatus report(const CutRunInfo &info) = 0;
+
+  /**
+   * Report a cut to the store and return the store's internal ID of the cut. If the cut is not in the store then a new
+   * ID will be created. If the cut is already in the store then its proper ID will be returned and no changes will be
+   * made to the store. On error the returned ID has no meaning.
+   *
+   * @param hypergraph_id
+   * @param info
+   * @return
+   */
+  virtual std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id, const CutInfo &info) = 0;
+
+  /**
+   * Report a run to the store.
+   *
+   * @param info
+   * @return
+   */
+  virtual ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) = 0;
+
   virtual ~CutInfoStore() = default;
 };
 
-class FilesystemStore : public CutInfoStore {
-public:
-  FilesystemStore(std::filesystem::path path);
 
-  bool initialize();
+// Forward declaration for SqliteStore
+class sqlite3;
+
+/**
+ * Persists experimental data to a sqlite database.
+ */
+class SqliteStore : public CutInfoStore {
+public:
+  bool open(const std::filesystem::path &db_path);
 
   ReportStatus report(const HypergraphWrapper &hypergraph) override;
-  ReportStatus report(const CutInfo &info, uint64_t &id) override;
-  ReportStatus report(const CutRunInfo &info) override;
+  std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id, const CutInfo &info) override;
+  ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) override;
 
-  CutIterator cuts();
-
+  ~SqliteStore() override;
 private:
-  std::filesystem::path root_path_;
-  std::filesystem::path cuts_path_;
-  std::filesystem::path runs_path_;
-  std::filesystem::path hgrs_path_;
+
+  std::optional<std::tuple<bool, uint64_t>> has_cut(const std::string &hypergraph_id, const CutInfo &info);
+
+  sqlite3 *db_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_STORE_HPP
