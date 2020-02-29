@@ -19,6 +19,16 @@ int null_callback(void *,
   return 0;
 }
 
+std::string partition_to_str(const std::vector<int> &v) {
+  std::stringstream s;
+  for (auto e : v) {
+    s << e << " ";
+  }
+  std::string ret = s.str();
+
+  return ret.substr(0, ret.size() - 1);
+}
+
 }
 
 bool SqliteStore::open(const std::filesystem::path &db_path) {
@@ -157,16 +167,6 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   // Cut not in store, need to add it
   std::stringstream stream;
 
-  auto partition_to_str = [](const std::vector<int> &v) -> std::string {
-    std::stringstream s;
-    for (auto e : v) {
-      s << e << " ";
-    }
-    std::string ret = s.str();
-
-    return ret.substr(0, ret.size() - 1);
-  };
-
   std::string table_name = "cuts"s + std::to_string(info.k);
   std::string columns = "(hypergraph_id, val, planted";
   for (int i = 0; i < info.k; ++i) {
@@ -238,18 +238,6 @@ std::optional<std::tuple<bool, uint64_t>> SqliteStore::has_cut(const std::string
   using namespace std::string_literals;
 
   std::string table_name = "cuts"s + std::to_string(info.k);
-
-
-  // TODO make function
-  auto partition_to_str = [](const std::vector<int> &v) -> std::string {
-    std::stringstream s;
-    for (auto e : v) {
-      s << e << " ";
-    }
-    std::string ret = s.str();
-
-    return ret.substr(0, ret.size() - 1);
-  };
 
   std::stringstream query;
   query << "SELECT id FROM " << table_name << " WHERE hypergraph_id = '" << hypergraph_id << "'";
