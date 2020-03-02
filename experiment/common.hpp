@@ -83,8 +83,10 @@ inline std::istream &operator>>(std::istream &in, CutInfo &info) {
 }
 
 struct CutRunInfo {
-  CutRunInfo(const CutInfo &cut_info) : info(cut_info) {}
+  CutRunInfo(const std::string &experiment_id, const CutInfo &cut_info)
+      : experiment_id(experiment_id), info(cut_info) {}
 
+  std::string experiment_id;
   CutInfo info;
   std::string algorithm; // A unique ID for the algorithm used
   std::string machine; // ID for machine this was run on

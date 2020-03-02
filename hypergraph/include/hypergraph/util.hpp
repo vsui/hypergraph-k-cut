@@ -30,16 +30,20 @@ using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, siz
  * @param k find the min-`k`-cut
  * @param discovery_value   when a cut of this value is found, the method terminates
  * @param random_generator
+ * @param num_runs output parameter for the number of times the algorithm needed to be run until the discovery value was found
  * @return the value of the minimum cut
  */
 template<typename HypergraphType, auto Contract, uint8_t Verbosity, bool PassDiscoveryValue = false>
 HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const HypergraphType &hypergraph,
                                                                        size_t k,
                                                                        typename HypergraphType::EdgeWeight discovery_value,
-                                                                       std::mt19937_64 &random_generator) {
+                                                                       std::mt19937_64 &random_generator,
+                                                                       size_t &num_runs) {
+  num_runs = 0;
   auto min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
   size_t i = 0;
   while (min_so_far.value > discovery_value) {
+    ++num_runs;
     HypergraphType copy(hypergraph);
     auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
     auto start = std::chrono::high_resolution_clock::now();
@@ -124,10 +128,10 @@ auto minimum_cut(const HypergraphType &hypergraph, size_t k, size_t num_runs = 0
   return hypergraph_util::minimum_of_runs<HypergraphType, contract<HypergraphType, Verbosity>, default_num_runs, Verbosity, pass_discovery>(hypergraph, k, num_runs, rand);  \
 } \
 template <typename HypergraphType, uint8_t Verbosity=0> \
-auto discover(const HypergraphType &hypergraph, size_t k, size_t discovery_value, uint64_t seed = 0) { \
+auto discover(const HypergraphType &hypergraph, size_t k, size_t discovery_value, size_t &num_runs, uint64_t seed = 0) { \
   std::mt19937_64 rand; \
   if (seed) { rand.seed(seed); } \
-  return hypergraph_util::run_until_discovery<HypergraphType, contract<HypergraphType, Verbosity>, Verbosity, pass_discovery>(hypergraph, k, discovery_value, rand); \
+  return hypergraph_util::run_until_discovery<HypergraphType, contract<HypergraphType, Verbosity>, Verbosity, pass_discovery>(hypergraph, k, discovery_value, rand, num_runs); \
 }
 
 
