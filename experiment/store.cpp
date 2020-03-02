@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS runs (
   commit_hash TEXT,
   time_taken INT NOT NULL,
   num_runs_for_discovery INT,
+  experiment_id TEXT,
   FOREIGN KEY (hypergraph_id)
     REFERENCES hypergraphs (id),
   FOREIGN KEY (cut_id)
@@ -227,13 +228,14 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id, const uint64_
 
   // TODO git hash
   stream
-      << "INSERT INTO runs (algo, k, hypergraph_id, cut_id, time_elapsed_ms, machine, time_taken) VALUES ("
+      << "INSERT INTO runs (algo, k, hypergraph_id, cut_id, time_elapsed_ms, machine, time_taken, experiment_id) VALUES ("
       << "'" << info.algorithm << "'"
       << ", " << info.info.k
       << ", " << "'" << hypergraph_id << "'"
       << ", " << cut_id
       << ", " << info.time
       << ", " << "'" << info.machine << "'"
+      << ", " << "'" << info.experiment_id << "'"
       << ", time(\"now\"))";
 
   char *zErrMsg{};
@@ -255,7 +257,7 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id,
 
   // TODO git hash
   stream
-      << "INSERT INTO runs (algo, k, hypergraph_id, cut_id, time_elapsed_ms, machine, num_runs_for_discovery, time_taken) VALUES ("
+      << "INSERT INTO runs (algo, k, hypergraph_id, cut_id, time_elapsed_ms, machine, num_runs_for_discovery, experiment_id, time_taken) VALUES ("
       << "'" << info.algorithm << "'"
       << ", " << info.info.k
       << ", " << "'" << hypergraph_id << "'"
@@ -263,6 +265,7 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id,
       << ", " << info.time
       << ", " << "'" << info.machine << "'"
       << ", " << num_runs_for_discovery
+      << ", " << "'" << info.experiment_id << "'"
       << ", time(\"now\"))";
 
   char *zErrMsg{};

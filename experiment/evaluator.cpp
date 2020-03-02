@@ -106,7 +106,7 @@ void MinimumCutFinder::evaluate() {
 
   CutInfo info(2, cut);
 
-  CutRunInfo run_info(info);
+  CutRunInfo run_info("MW_min_cut", info);
   run_info.algorithm = "MW";
   run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
   run_info.machine = hostname();
@@ -123,9 +123,11 @@ void MinimumCutFinder::evaluate() {
   }
 }
 
-KDiscoveryRunner::KDiscoveryRunner(std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
-                                   std::unique_ptr<CutInfoStore> &&store) :
-    src_(std::move(source)), store_(std::move(store)) {}
+KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
+                                   std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
+                                   std::unique_ptr<CutInfoStore> &&store) : id_(id),
+                                                                            src_(std::move(source)),
+                                                                            store_(std::move(store)) {}
 
 void KDiscoveryRunner::run() {
   for (const auto &gen : src_) {
@@ -183,7 +185,7 @@ void KDiscoveryRunner::run() {
 
           CutInfo found_cut_info(planted_cut.k, cxy_cut);
 
-          CutRunInfo run_info(found_cut_info);
+          CutRunInfo run_info(id_, found_cut_info);
           run_info.algorithm = func_name;
           run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
           run_info.machine = hostname();

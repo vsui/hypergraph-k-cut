@@ -41,7 +41,7 @@ int main() {
 
   // MinimumCutFinder finder(std::move(source), std::move(store));
 
-  KDiscoveryRunner runner(std::move(planted), std::move(store));
+  KDiscoveryRunner runner("discovery", std::move(planted), std::move(store));
 
   runner.run();
 
