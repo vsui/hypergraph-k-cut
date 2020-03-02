@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 class CutInfoStore;
 class HypergraphSource;
@@ -42,10 +43,12 @@ public:
 
 class KDiscoveryRunner {
 public:
-  KDiscoveryRunner(std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
+  KDiscoveryRunner(const std::string &id,
+                   std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                    std::unique_ptr<CutInfoStore> &&store);
   void run();
 private:
+  std::string id_;
   std::vector<std::unique_ptr<HypergraphGenerator>> src_;
   std::unique_ptr<CutInfoStore> store_;
 };

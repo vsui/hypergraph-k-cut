@@ -295,13 +295,14 @@ int dispatch(Options options) {
   auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
 
   auto start = std::chrono::high_resolution_clock::now();
-  // There is probably a better way to do all of this switching...
+  size_t num_runs_for_discovery{};
   if (options.discover.has_value()) {
     cut = discovery_switch<HypergraphType>(options.algorithm,
                                            options.verbosity,
                                            hypergraph,
                                            options.k,
                                            options.discover.value(),
+                                           num_runs_for_discovery,
                                            options.random_seed);
   } else {
     cut = f(hypergraph, options.k);
