@@ -25,24 +25,31 @@ std::string hostname() {
 
 // Visitor for discovery algorithms
 struct DiscoverVisitor {
-  using F = std::function<HypergraphCut<size_t>(const Hypergraph &, size_t, size_t, uint64_t)>;
-  using WF = std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &, size_t, size_t, uint64_t)>;
+  using F = std::function<HypergraphCut<size_t>(const Hypergraph &, size_t, size_t, size_t &, uint64_t)>;
+  using WF = std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &,
+                                                 size_t,
+                                                 size_t,
+                                                 size_t &,
+                                                 uint64_t)>;
 
   DiscoverVisitor(size_t k, size_t discovery_val, uint64_t seed, F f, WF wf)
       : k(k), discovery_val(discovery_val), seed(seed), f(f), wf(wf) {}
 
   size_t k;
   size_t discovery_val;
+
+  mutable size_t num_runs_for_discovery;
+
   uint64_t seed;
-  std::function<HypergraphCut<size_t>(const Hypergraph &, size_t, size_t, uint64_t)> f;
-  std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &, size_t, size_t, uint64_t)> wf;
+  F f;
+  WF wf;
 
   HypergraphCut<size_t> operator()(const Hypergraph &h) const {
-    return f(h, k, discovery_val, seed);
+    return f(h, k, discovery_val, num_runs_for_discovery, seed);
   }
 
   HypergraphCut<size_t> operator()(const WeightedHypergraph<size_t> &h) const {
-    return wf(h, k, discovery_val, seed);
+    return wf(h, k, discovery_val, num_runs_for_discovery, seed);
   }
 };
 
@@ -145,8 +152,8 @@ void KDiscoveryRunner::run() {
       continue;
     }
 
-    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &, size_t, size_t, uint64_t);
-    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &, size_t, size_t, uint64_t);
+    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &, size_t, size_t, size_t &, uint64_t);
+    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &, size_t, size_t, size_t &, uint64_t);
 
     // TODO Random seed
     std::vector<DiscoverVisitor> cxy_visitors;
@@ -204,7 +211,8 @@ void KDiscoveryRunner::run() {
             }
           }
 
-          if (store_->report(hypergraph.name, found_cut_id, run_info) == ReportStatus::ERROR) {
+          if (store_->report(hypergraph.name, found_cut_id, run_info, visitor.num_runs_for_discovery)
+              == ReportStatus::ERROR) {
             std::cout << "Failed to report run" << std::endl;
           }
         };

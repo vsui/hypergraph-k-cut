@@ -46,9 +46,14 @@ public:
    * Report a run to the store.
    *
    * @param info
+   * @param num_runs_for_discovery, if applicable
    * @return
    */
   virtual ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) = 0;
+  virtual ReportStatus report(const std::string &hypergraph_id,
+                              uint64_t cut_id,
+                              const CutRunInfo &info,
+                              size_t num_runs_for_discovery) = 0;
 
   virtual ~CutInfoStore() = default;
 };
@@ -71,6 +76,10 @@ public:
                                             const CutInfo &info,
                                             bool planted) override;
   ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) override;
+  ReportStatus report(const std::string &hypergraph_id,
+                      uint64_t cut_id,
+                      const CutRunInfo &info,
+                      size_t num_runs_for_discovery) override;
 
   ~SqliteStore() override;
 private:
