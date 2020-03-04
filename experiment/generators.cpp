@@ -72,6 +72,7 @@ public:
       }
       cut.partitions.emplace_back(std::move(p));
     }
+    cut.value = cut_value;
     return cut;
   }
 
@@ -355,4 +356,9 @@ std::string UniformPlantedHypergraph::name() const {
   std::stringstream s;
   s << "uniformplanted_" << n << "_" << k << "_" << r << "_" << m1 << "_" << m2;
   return s.str();
+}
+
+bool UniformPlantedHypergraph::write_to_table(sqlite3 *db) const {
+  // Do nothing for now
+  return true;
 }

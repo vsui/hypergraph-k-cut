@@ -45,12 +45,14 @@ class KDiscoveryRunner {
 public:
   KDiscoveryRunner(const std::string &id,
                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
-                   std::unique_ptr<CutInfoStore> &&store);
+                   std::unique_ptr<CutInfoStore> &&store,
+                   bool compare_kk = false);
   void run();
 private:
   std::string id_;
   std::vector<std::unique_ptr<HypergraphGenerator>> src_;
   std::unique_ptr<CutInfoStore> store_;
+  bool compare_kk_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP
