@@ -242,7 +242,11 @@ void KDiscoveryRunner::run() {
             // Otherwise we need to report this cut to the DB to get its ID
             if (found_cut_info.cut_value == planted_cut.cut_value) {
               std::cout << "Found cut has same value as planted cut (" << planted_cut.cut_value
-                        << ") but different partitions" << std::endl;
+                        << ") but different partitions:";
+              for (const auto &partition : found_cut_info.partitions) {
+                std::cout << " " << partition.size();
+              }
+              std::cout << std::endl;
             } else {
               std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value "
                         << planted_cut.cut_value
