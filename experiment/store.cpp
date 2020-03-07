@@ -157,6 +157,7 @@ CREATE TABLE IF NOT EXISTS runs (
   commit_hash TEXT,
   time_taken INT NOT NULL,
   num_runs_for_discovery INT,
+  num_contractions INT,
   experiment_id TEXT,
   FOREIGN KEY (hypergraph_id)
     REFERENCES hypergraphs (id),
@@ -274,7 +275,8 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
 ReportStatus SqliteStore::report(const std::string &hypergraph_id,
                                  const uint64_t cut_id,
                                  const CutRunInfo &info,
-                                 const size_t num_runs_for_discovery) {
+                                 const size_t num_runs_for_discovery,
+                                 const size_t num_contractions) {
   // TODO git hash
   const std::string stmt = sqlutil::insert_statement(
       "runs",
@@ -286,7 +288,8 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id,
       mst("machine", info.machine),
       std::make_tuple<std::string, sqlutil::TimeNow>("time_taken", {}),
       mst("experiment_id", info.experiment_id),
-      mit("num_runs_for_discovery", num_runs_for_discovery)
+      mit("num_runs_for_discovery", num_runs_for_discovery),
+      mit("num_contractions", num_contractions)
   );
 
   char *zErrMsg{};

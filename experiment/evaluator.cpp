@@ -26,11 +26,17 @@ std::string hostname() {
 
 // Visitor for discovery algorithms
 struct DiscoverVisitor {
-  using F = std::function<HypergraphCut<size_t>(const Hypergraph &, size_t, size_t, size_t &, uint64_t)>;
+  using F = std::function<HypergraphCut<size_t>(const Hypergraph &,
+                                                size_t,
+                                                size_t,
+                                                size_t &,
+                                                hypergraph_util::ContractionStats &,
+                                                uint64_t)>;
   using WF = std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &,
                                                  size_t,
                                                  size_t,
                                                  size_t &,
+                                                 hypergraph_util::ContractionStats &,
                                                  uint64_t)>;
 
   DiscoverVisitor(size_t k, size_t discovery_val, uint64_t seed, F f, WF wf)
@@ -40,17 +46,18 @@ struct DiscoverVisitor {
   size_t discovery_val;
 
   mutable size_t num_runs_for_discovery;
+  mutable hypergraph_util::ContractionStats stats;
 
   uint64_t seed;
   F f;
   WF wf;
 
   HypergraphCut<size_t> operator()(const Hypergraph &h) const {
-    return f(h, k, discovery_val, num_runs_for_discovery, seed);
+    return f(h, k, discovery_val, num_runs_for_discovery, stats, seed);
   }
 
   HypergraphCut<size_t> operator()(const WeightedHypergraph<size_t> &h) const {
-    return wf(h, k, discovery_val, num_runs_for_discovery, seed);
+    return wf(h, k, discovery_val, num_runs_for_discovery, stats, seed);
   }
 };
 
@@ -156,8 +163,18 @@ void KDiscoveryRunner::run() {
       continue;
     }
 
-    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &, size_t, size_t, size_t &, uint64_t);
-    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &, size_t, size_t, size_t &, uint64_t);
+    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &,
+                                           size_t,
+                                           size_t,
+                                           size_t &,
+                                           hypergraph_util::ContractionStats &,
+                                           uint64_t);
+    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &,
+                                            size_t,
+                                            size_t,
+                                            size_t &,
+                                            hypergraph_util::ContractionStats &,
+                                            uint64_t);
 
     // TODO Random seed
     std::vector<DiscoverVisitor> cxy_visitors;
@@ -183,6 +200,7 @@ void KDiscoveryRunner::run() {
 
     struct MW_visitor {
       size_t num_runs_for_discovery = 0;
+      mutable hypergraph_util::ContractionStats stats;
 
       HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
         return MW_min_cut(hypergraph);
@@ -195,6 +213,8 @@ void KDiscoveryRunner::run() {
     struct KW_visitor {
       size_t num_runs_for_discovery = 0;
 
+      mutable hypergraph_util::ContractionStats stats;
+
       HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
         return KW_min_cut(hypergraph);
       }
@@ -205,6 +225,8 @@ void KDiscoveryRunner::run() {
 
     struct Q_visitor {
       size_t num_runs_for_discovery = 0;
+
+      mutable hypergraph_util::ContractionStats stats;
 
       HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
         return Q_min_cut(hypergraph);
@@ -260,7 +282,11 @@ void KDiscoveryRunner::run() {
             }
           }
 
-          if (store_->report(hypergraph.name, found_cut_id, run_info, visitor.num_runs_for_discovery)
+          if (store_->report(hypergraph.name,
+                             found_cut_id,
+                             run_info,
+                             visitor.num_runs_for_discovery,
+                             visitor.stats.num_contractions)
               == ReportStatus::ERROR) {
             std::cout << "Failed to report run" << std::endl;
           }

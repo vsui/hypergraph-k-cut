@@ -41,6 +41,7 @@ template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(HypergraphType &hypergraph,
                                                                        size_t k,
                                                                        std::mt19937_64 &random_generator,
+                                                                       hypergraph_util::ContractionStats &stats,
                                                                        typename HypergraphType::EdgeWeight accumulated = 0,
                                                                        typename HypergraphType::EdgeWeight discovery_value = 0) {
 #ifndef NDEBUG
@@ -70,6 +71,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
       std::advance(end, 2);
       // Contract two vertices
       hypergraph = hypergraph.contract(begin, end);
+      ++stats.num_contractions;
     }
 
     std::vector<std::vector<int>> partitions;
@@ -102,11 +104,17 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
       redo_probability(hypergraph.num_vertices(), sampled_edge.size(), k);
 
   HypergraphType contracted = hypergraph.contract(sampled_edge_id);
+  ++stats.num_contractions;
 
   if (dis(random_generator) < redo) {
     // Maybe we could use continuations to avoid having to pass the value up a long call stack
     auto cut =
-        branching_contract_<HypergraphType, Verbosity>(contracted, k, random_generator, accumulated, discovery_value);
+        branching_contract_<HypergraphType, Verbosity>(contracted,
+                                                       k,
+                                                       random_generator,
+                                                       stats,
+                                                       accumulated,
+                                                       discovery_value);
     if (cut.value <= discovery_value) {
       return cut;
     }
@@ -114,12 +122,14 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
                     branching_contract_<HypergraphType, Verbosity>(hypergraph,
                                                                    k,
                                                                    random_generator,
+                                                                   stats,
                                                                    accumulated,
                                                                    discovery_value));
   } else {
     return branching_contract_<HypergraphType, Verbosity>(contracted,
                                                           k,
                                                           random_generator,
+                                                          stats,
                                                           accumulated,
                                                           discovery_value);
   }

@@ -23,6 +23,7 @@ template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
                                                              size_t k,
                                                              std::mt19937_64 &random_generator,
+                                                             hypergraph_util::ContractionStats &stats,
                                                              [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
 
   // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
@@ -48,6 +49,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hyp
     const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
 
     h = h.template contract<true>(sampled_edge_id);
+    ++stats.num_contractions;
   }
 
   static std::uniform_real_distribution<> dis(0.0, 1.0);

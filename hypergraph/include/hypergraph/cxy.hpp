@@ -73,6 +73,7 @@ template<typename HypergraphType, uint8_t Verbosity>
 HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
                                                              size_t k,
                                                              std::mt19937_64 &random_generator,
+                                                             hypergraph_util::ContractionStats &stats,
                                                              [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
   std::vector<int> candidates = {};
   std::vector<int> edge_ids;
@@ -104,6 +105,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hyp
     int sampled_id = edge_ids.at(sampled);
 
     hypergraph.contract_in_place(sampled_id);
+    ++stats.num_contractions;
   }
 
   // May terminate early if it finds a zero cost cut with >k partitions, so need
@@ -116,6 +118,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hyp
     std::advance(end, 2);
     // Contract two vertices
     hypergraph = hypergraph.contract(begin, end);
+    ++stats.num_contractions;
   }
 
   std::vector<std::vector<int>> partitions;
