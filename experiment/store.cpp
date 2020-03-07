@@ -271,31 +271,6 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   return {ReportStatus::OK, {static_cast<unsigned long long>(rowid)}};
 }
 
-ReportStatus SqliteStore::report(const std::string &hypergraph_id, const uint64_t cut_id, const CutRunInfo &info) {
-  // TODO git hash
-  const std::string stmt = sqlutil::insert_statement(
-      "runs",
-      mst("algo", info.algorithm),
-      mit("k", info.info.k),
-      mst("hypergraph_id", hypergraph_id),
-      mit("cut_id", cut_id),
-      mit("time_elapsed_ms", info.time),
-      mst("machine", info.machine),
-      std::make_tuple<std::string, sqlutil::TimeNow>("time_taken", {}),
-      mst("experiment_id", info.experiment_id)
-  );
-
-  char *zErrMsg{};
-  int err = sqlite3_exec(db_, stmt.c_str(), null_callback, nullptr, &zErrMsg);
-  if (err != SQLITE_OK) {
-    fprintf(stderr, "SQL error: %s\n", zErrMsg);
-    sqlite3_free(zErrMsg);
-    return ReportStatus::ERROR;
-  }
-
-  return ReportStatus::OK;
-}
-
 ReportStatus SqliteStore::report(const std::string &hypergraph_id,
                                  const uint64_t cut_id,
                                  const CutRunInfo &info,
