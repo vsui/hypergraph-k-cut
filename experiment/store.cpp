@@ -4,6 +4,7 @@
 
 #include "store.hpp"
 #include "generators.hpp"
+#include "sqlutil.hpp"
 
 #include <iostream>
 
@@ -28,6 +29,13 @@ std::string partition_to_str(const std::vector<int> &v) {
   std::string ret = s.str();
 
   return ret.substr(0, ret.size() - 1);
+}
+
+// *M*ake string-*I*nt *T*uple
+constexpr auto mit = std::make_tuple<std::string, int>;
+// *M*ake string-*S*tring *T*uple
+std::tuple<std::string, std::string> mst(const std::string &name, const std::string &val) {
+  return std::make_tuple(std::string(name), std::string(val));
 }
 
 }
@@ -166,6 +174,8 @@ CREATE TABLE IF NOT EXISTS runs (
     return false;
   }
 
+  std::cout << "Opened database at " << db_path << std::endl;
+
   return true;
 }
 
@@ -177,16 +187,17 @@ ReportStatus SqliteStore::report(const HypergraphWrapper &hypergraph) {
   std::visit([&blob](auto &&h) { blob << h; }, hypergraph.h);
 
   // Make statement
-  std::stringstream stream;
-  stream << "INSERT INTO hypergraphs (id, num_vertices, num_hyperedges, size, blob) VALUES ("
-         << "'" << hypergraph.name << "'"
-         << ", " << num_vertices
-         << ", " << num_hyperedges
-         << ", " << size
-         << ", " << "'" << blob.str() << "'" << ");";
+  const std::string stmt = sqlutil::insert_statement(
+      "hypergraphs",
+      mst("id", hypergraph.name),
+      mit("num_vertices", num_vertices),
+      mit("num_hyperedges", num_hyperedges),
+      mit("size", size),
+      mst("blob", blob.str())
+  );
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
+  int err = sqlite3_exec(db_, stmt.c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     // May not be the best way to do this..
     if (std::string(zErrMsg) == "UNIQUE constraint failed: hypergraphs.id") {
@@ -239,6 +250,7 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   for (const auto &p : info.partitions) {
     partition_blobs_string += ", "s + "\'" + partition_to_str(p) + "\'";
   }
+  // We still need to make this manually for now...
   stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
          << "'" << hypergraph_id << "'"
          << ", " << info.cut_value
@@ -260,22 +272,21 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
 }
 
 ReportStatus SqliteStore::report(const std::string &hypergraph_id, const uint64_t cut_id, const CutRunInfo &info) {
-  std::stringstream stream;
-
   // TODO git hash
-  stream
-      << "INSERT INTO runs (algo, k, hypergraph_id, cut_id, time_elapsed_ms, machine, time_taken, experiment_id) VALUES ("
-      << "'" << info.algorithm << "'"
-      << ", " << info.info.k
-      << ", " << "'" << hypergraph_id << "'"
-      << ", " << cut_id
-      << ", " << info.time
-      << ", " << "'" << info.machine << "'"
-      << ", " << "'" << info.experiment_id << "'"
-      << ", time(\"now\"))";
+  const std::string stmt = sqlutil::insert_statement(
+      "runs",
+      mst("algo", info.algorithm),
+      mit("k", info.info.k),
+      mst("hypergraph_id", hypergraph_id),
+      mit("cut_id", cut_id),
+      mit("time_elapsed_ms", info.time),
+      mst("machine", info.machine),
+      std::make_tuple<std::string, sqlutil::TimeNow>("time_taken", {}),
+      mst("experiment_id", info.experiment_id)
+  );
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
+  int err = sqlite3_exec(db_, stmt.c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
@@ -289,23 +300,22 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id,
                                  const uint64_t cut_id,
                                  const CutRunInfo &info,
                                  const size_t num_runs_for_discovery) {
-  std::stringstream stream;
-
   // TODO git hash
-  stream
-      << "INSERT INTO runs (algo, k, hypergraph_id, cut_id, time_elapsed_ms, machine, num_runs_for_discovery, experiment_id, time_taken) VALUES ("
-      << "'" << info.algorithm << "'"
-      << ", " << info.info.k
-      << ", " << "'" << hypergraph_id << "'"
-      << ", " << cut_id
-      << ", " << info.time
-      << ", " << "'" << info.machine << "'"
-      << ", " << num_runs_for_discovery
-      << ", " << "'" << info.experiment_id << "'"
-      << ", time(\"now\"))";
+  const std::string stmt = sqlutil::insert_statement(
+      "runs",
+      mst("algo", info.algorithm),
+      mit("k", info.info.k),
+      mst("hypergraph_id", hypergraph_id),
+      mit("cut_id", cut_id),
+      mit("time_elapsed_ms", info.time),
+      mst("machine", info.machine),
+      std::make_tuple<std::string, sqlutil::TimeNow>("time_taken", {}),
+      mst("experiment_id", info.experiment_id),
+      mit("num_runs_for_discovery", num_runs_for_discovery)
+  );
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
+  int err = sqlite3_exec(db_, stmt.c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
