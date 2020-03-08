@@ -29,13 +29,11 @@ struct DiscoverVisitor {
   using F = std::function<HypergraphCut<size_t>(const Hypergraph &,
                                                 size_t,
                                                 size_t,
-                                                size_t &,
                                                 hypergraph_util::ContractionStats &,
                                                 uint64_t)>;
   using WF = std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &,
                                                  size_t,
                                                  size_t,
-                                                 size_t &,
                                                  hypergraph_util::ContractionStats &,
                                                  uint64_t)>;
 
@@ -45,7 +43,6 @@ struct DiscoverVisitor {
   size_t k;
   size_t discovery_val;
 
-  mutable size_t num_runs_for_discovery;
   mutable hypergraph_util::ContractionStats stats;
 
   uint64_t seed;
@@ -53,11 +50,11 @@ struct DiscoverVisitor {
   WF wf;
 
   HypergraphCut<size_t> operator()(const Hypergraph &h) const {
-    return f(h, k, discovery_val, num_runs_for_discovery, stats, seed);
+    return f(h, k, discovery_val, stats, seed);
   }
 
   HypergraphCut<size_t> operator()(const WeightedHypergraph<size_t> &h) const {
-    return wf(h, k, discovery_val, num_runs_for_discovery, stats, seed);
+    return wf(h, k, discovery_val, stats, seed);
   }
 };
 
@@ -166,13 +163,11 @@ void KDiscoveryRunner::run() {
     using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &,
                                            size_t,
                                            size_t,
-                                           size_t &,
                                            hypergraph_util::ContractionStats &,
                                            uint64_t);
     using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &,
                                             size_t,
                                             size_t,
-                                            size_t &,
                                             hypergraph_util::ContractionStats &,
                                             uint64_t);
 
@@ -199,7 +194,6 @@ void KDiscoveryRunner::run() {
     }
 
     struct MW_visitor {
-      size_t num_runs_for_discovery = 0;
       mutable hypergraph_util::ContractionStats stats;
 
       HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
@@ -211,7 +205,6 @@ void KDiscoveryRunner::run() {
     } mw_visit;
 
     struct KW_visitor {
-      size_t num_runs_for_discovery = 0;
 
       mutable hypergraph_util::ContractionStats stats;
 
@@ -224,7 +217,6 @@ void KDiscoveryRunner::run() {
     } kw_visit;
 
     struct Q_visitor {
-      size_t num_runs_for_discovery = 0;
 
       mutable hypergraph_util::ContractionStats stats;
 
@@ -285,7 +277,7 @@ void KDiscoveryRunner::run() {
           if (store_->report(hypergraph.name,
                              found_cut_id,
                              run_info,
-                             visitor.num_runs_for_discovery,
+                             visitor.stats.num_runs,
                              visitor.stats.num_contractions)
               == ReportStatus::ERROR) {
             std::cout << "Failed to report run" << std::endl;

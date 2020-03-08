@@ -195,7 +195,7 @@ int dispatch(Options options) {
   std::cout << hypergraph.num_vertices() << " vertices and "
             << hypergraph.num_edges() << " edges" << std::endl;
 
-  size_t num_runs;
+  size_t num_runs{};
 
   /* Check if need to get default number of runs
    *
@@ -273,7 +273,7 @@ int dispatch(Options options) {
   if constexpr (!is_weighted<HypergraphType>) {
     if (options.k == 2) {
       std::cout << R"(Input "1" if you would like to use a sparsifier, "2" otherwise)" << std::endl;
-      size_t i;
+      size_t i{};
       std::cin >> i;
       if (i != 1 && i != 2) {
         std::cout << "Invalid input" << std::endl;
@@ -295,14 +295,12 @@ int dispatch(Options options) {
   auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
 
   auto start = std::chrono::high_resolution_clock::now();
-  size_t num_runs_for_discovery{};
   if (options.discover.has_value()) {
     cut = discovery_switch<HypergraphType>(options.algorithm,
                                            options.verbosity,
                                            hypergraph,
                                            options.k,
                                            options.discover.value(),
-                                           num_runs_for_discovery,
                                            options.random_seed);
   } else {
     cut = f(hypergraph, options.k);

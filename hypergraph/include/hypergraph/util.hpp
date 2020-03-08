@@ -11,6 +11,7 @@ namespace hypergraph_util {
 struct ContractionStats {
   uint64_t num_contractions;
   uint64_t time_elapsed_ms;
+  size_t num_runs;
 };
 
 template<typename HypergraphType>
@@ -32,7 +33,6 @@ template<typename HypergraphType, auto Contract, uint8_t Verbosity, bool PassDis
 HypergraphCut<typename HypergraphType::EdgeWeight> repeat_contraction(const HypergraphType &hypergraph,
                                                                       size_t k,
                                                                       std::mt19937_64 &random_generator,
-                                                                      size_t &num_runs,
                                                                       ContractionStats &stats,
                                                                       std::optional<size_t> max_num_runs_opt,
                                                                       std::optional<size_t> discovery_value_opt) {
@@ -41,14 +41,13 @@ HypergraphCut<typename HypergraphType::EdgeWeight> repeat_contraction(const Hype
 
   stats = {};
 
-  num_runs = 0;
   auto min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
   size_t i = 0;
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  while (min_so_far.value > discovery_value && num_runs < max_num_runs) {
-    ++num_runs;
+  while (min_so_far.value > discovery_value && stats.num_runs < max_num_runs) {
+    ++stats.num_runs;
     HypergraphType copy(hypergraph);
     auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
     auto start = std::chrono::high_resolution_clock::now();
@@ -80,12 +79,10 @@ HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const Hyp
                                                                        size_t k,
                                                                        typename HypergraphType::EdgeWeight discovery_value,
                                                                        std::mt19937_64 &random_generator,
-                                                                       size_t &num_runs,
                                                                        ContractionStats &stats) {
   return repeat_contraction<HypergraphType, Contract, Verbosity, PassDiscoveryValue>(hypergraph,
                                                                                      k,
                                                                                      random_generator,
-                                                                                     num_runs,
                                                                                      stats,
                                                                                      std::nullopt,
                                                                                      discovery_value);
@@ -95,14 +92,12 @@ template<typename HypergraphType, auto Contract, uint8_t Verbosity, bool PassDis
 HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const HypergraphType &hypergraph,
                                                                        size_t k,
                                                                        typename HypergraphType::EdgeWeight discovery_value,
-                                                                       std::mt19937_64 &random_generator,
-                                                                       size_t &num_runs) {
+                                                                       std::mt19937_64 &random_generator) {
   ContractionStats stats{};
   return run_until_discovery<HypergraphType, Contract, Verbosity, PassDiscoveryValue>(hypergraph,
                                                                                       k,
                                                                                       discovery_value,
                                                                                       random_generator,
-                                                                                      num_runs,
                                                                                       stats);
 };
 
@@ -115,11 +110,9 @@ HypergraphCut<typename HypergraphType::EdgeWeight> minimum_of_runs(const Hypergr
   if (max_num_runs == 0) {
     max_num_runs = DefaultNumRuns(hypergraph, k);
   }
-  size_t num_runs{};
   return repeat_contraction<HypergraphType, Contract, Verbosity, PassDiscoveryValue>(hypergraph,
                                                                                      k,
                                                                                      random_generator,
-                                                                                     num_runs,
                                                                                      stats,
                                                                                      max_num_runs,
                                                                                      std::nullopt);
@@ -148,17 +141,17 @@ auto minimum_cut(const HypergraphType &hypergraph, size_t k, size_t num_runs = 0
   return hypergraph_util::minimum_of_runs<HypergraphType, contract<HypergraphType, Verbosity>, default_num_runs, Verbosity, pass_discovery>(hypergraph, k, num_runs, rand);  \
 } \
 template <typename HypergraphType, uint8_t Verbosity=0> \
-auto discover(const HypergraphType &hypergraph, size_t k, size_t discovery_value, size_t &num_runs, uint64_t seed = 0) { \
+auto discover(const HypergraphType &hypergraph, size_t k, size_t discovery_value, uint64_t seed = 0) { \
   std::mt19937_64 rand; \
   if (seed) { rand.seed(seed); } \
-  return hypergraph_util::run_until_discovery<HypergraphType, contract<HypergraphType, Verbosity>, Verbosity, pass_discovery>(hypergraph, k, discovery_value, rand, num_runs); \
+  return hypergraph_util::run_until_discovery<HypergraphType, contract<HypergraphType, Verbosity>, Verbosity, pass_discovery>(hypergraph, k, discovery_value, rand); \
 } \
 template <typename HypergraphType, uint8_t Verbosity=0> \
-auto discover(const HypergraphType &hypergraph, size_t k, size_t discovery_value, size_t &num_runs, hypergraph_util::ContractionStats &stats, uint64_t seed = 0) { \
+auto discover(const HypergraphType &hypergraph, size_t k, size_t discovery_value, hypergraph_util::ContractionStats &stats, uint64_t seed = 0) { \
   std::mt19937_64 rand; \
   stats = {}; \
   if (seed) { rand.seed(seed); } \
-  return hypergraph_util::run_until_discovery<HypergraphType, contract<HypergraphType, Verbosity>, Verbosity, pass_discovery>(hypergraph, k, discovery_value, rand, num_runs, stats); \
+  return hypergraph_util::run_until_discovery<HypergraphType, contract<HypergraphType, Verbosity>, Verbosity, pass_discovery>(hypergraph, k, discovery_value, rand, stats); \
 }
 
 
