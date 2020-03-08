@@ -235,15 +235,12 @@ void KDiscoveryRunner::run() {
                                const HypergraphWrapper &hypergraph) -> void {
           // Now take the times
           HypergraphWrapper temp(hypergraph); // Need to make a copy for vertex ordering algos
-          auto start = std::chrono::high_resolution_clock::now();
           HypergraphCut<size_t> cxy_cut = std::visit(visitor, temp.h);
-          auto stop = std::chrono::high_resolution_clock::now();
-
           CutInfo found_cut_info(planted_cut.k, cxy_cut);
 
           CutRunInfo run_info(id_, found_cut_info);
           run_info.algorithm = func_name;
-          run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+          run_info.time = visitor.stats.time_elapsed_ms;
           run_info.machine = hostname();
           run_info.commit = "n/a";
 
