@@ -24,6 +24,9 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
   return 1 - cxy::cxy_delta(n, e, k);
 }
 
+struct FpzImpl {
+  static constexpr bool pass_discovery_value = true;
+
 /**
  * The randomized branching contraction algorithm from [FPZ'19] that returns the minimum-k-cut of a hypergraph with some
  * probability.
@@ -37,103 +40,103 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
  * @param discovery_value   this function will early-exit if a cut of this value is found.
  * @return minimum found k cut
  */
-template<typename HypergraphType, uint8_t Verbosity>
-HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(HypergraphType &hypergraph,
-                                                                       size_t k,
-                                                                       std::mt19937_64 &random_generator,
-                                                                       hypergraph_util::ContractionStats &stats,
-                                                                       typename HypergraphType::EdgeWeight accumulated = 0,
-                                                                       typename HypergraphType::EdgeWeight discovery_value = 0) {
+  template<typename HypergraphType, uint8_t Verbosity>
+  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
+                                                                     size_t k,
+                                                                     std::mt19937_64 &random_generator,
+                                                                     hypergraph_util::ContractionStats &stats,
+                                                                     typename HypergraphType::EdgeWeight accumulated = 0,
+                                                                     typename HypergraphType::EdgeWeight discovery_value = 0) {
 #ifndef NDEBUG
-  assert(hypergraph.is_valid());
+    assert(hypergraph.is_valid());
 #endif
 
-  // Remove k-spanning hyperedges from hypergraph
-  std::vector<int> k_spanning_hyperedges;
-  for (const auto &[edge_id, vertices] : hypergraph.edges()) {
-    // TODO overflow here?
-    if (vertices.size() >= hypergraph.num_vertices() - k + 2) {
-      k_spanning_hyperedges.push_back(edge_id);
-      accumulated += edge_weight(hypergraph, edge_id);
+    // Remove k-spanning hyperedges from hypergraph
+    std::vector<int> k_spanning_hyperedges;
+    for (const auto &[edge_id, vertices] : hypergraph.edges()) {
+      // TODO overflow here?
+      if (vertices.size() >= hypergraph.num_vertices() - k + 2) {
+        k_spanning_hyperedges.push_back(edge_id);
+        accumulated += edge_weight(hypergraph, edge_id);
+      }
     }
-  }
-  for (const auto edge_id : k_spanning_hyperedges) {
-    hypergraph.remove_hyperedge(edge_id);
-  }
-
-  // If no edges remain, return the answer
-  if (hypergraph.num_edges() == 0) {
-    // May terminate early if it finds a zero cost cut with >k partitions, so need
-    // to merge partitions.
-    while (hypergraph.num_vertices() > k) {
-      auto begin = std::begin(hypergraph.vertices());
-      auto end = std::begin(hypergraph.vertices());
-      std::advance(end, 2);
-      // Contract two vertices
-      hypergraph = hypergraph.contract(begin, end);
-      ++stats.num_contractions;
+    for (const auto edge_id : k_spanning_hyperedges) {
+      hypergraph.remove_hyperedge(edge_id);
     }
 
-    std::vector<std::vector<int>> partitions;
-    for (const auto v : hypergraph.vertices()) {
-      const auto &partition = hypergraph.vertices_within(v);
-      partitions.emplace_back(std::begin(partition), std::end(partition));
-    }
-    const auto cut =
-        HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), accumulated);
-    if constexpr (Verbosity > 1) {
-      std::cout << "Got cut of value " << cut.value << std::endl;
-    }
-    return cut;
-  }
+    // If no edges remain, return the answer
+    if (hypergraph.num_edges() == 0) {
+      // May terminate early if it finds a zero cost cut with >k partitions, so need
+      // to merge partitions.
+      while (hypergraph.num_vertices() > k) {
+        auto begin = std::begin(hypergraph.vertices());
+        auto end = std::begin(hypergraph.vertices());
+        std::advance(end, 2);
+        // Contract two vertices
+        hypergraph = hypergraph.contract(begin, end);
+        ++stats.num_contractions;
+      }
 
-  static std::uniform_real_distribution<> dis(0.0, 1.0);
-
-  // Select a hyperedge with probability proportional to its weight
-  std::vector<int> edge_ids;
-  std::vector<Hypergraph::EdgeWeight> edge_weights;
-  for (const auto &[edge_id, vertices] : hypergraph.edges()) {
-    edge_ids.push_back(edge_id);
-    edge_weights.push_back(edge_weight(hypergraph, edge_id));
-  }
-  std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
-  const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
-  const auto sampled_edge = hypergraph.edges().at(sampled_edge_id);
-
-  double redo =
-      redo_probability(hypergraph.num_vertices(), sampled_edge.size(), k);
-
-  HypergraphType contracted = hypergraph.contract(sampled_edge_id);
-  ++stats.num_contractions;
-
-  if (dis(random_generator) < redo) {
-    // Maybe we could use continuations to avoid having to pass the value up a long call stack
-    auto cut =
-        branching_contract_<HypergraphType, Verbosity>(contracted,
-                                                       k,
-                                                       random_generator,
-                                                       stats,
-                                                       accumulated,
-                                                       discovery_value);
-    if (cut.value <= discovery_value) {
+      std::vector<std::vector<int>> partitions;
+      for (const auto v : hypergraph.vertices()) {
+        const auto &partition = hypergraph.vertices_within(v);
+        partitions.emplace_back(std::begin(partition), std::end(partition));
+      }
+      const auto cut =
+          HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), accumulated);
+      if constexpr (Verbosity > 1) {
+        std::cout << "Got cut of value " << cut.value << std::endl;
+      }
       return cut;
     }
-    return std::min(cut,
-                    branching_contract_<HypergraphType, Verbosity>(hypergraph,
-                                                                   k,
-                                                                   random_generator,
-                                                                   stats,
-                                                                   accumulated,
-                                                                   discovery_value));
-  } else {
-    return branching_contract_<HypergraphType, Verbosity>(contracted,
+
+    static std::uniform_real_distribution<> dis(0.0, 1.0);
+
+    // Select a hyperedge with probability proportional to its weight
+    std::vector<int> edge_ids;
+    std::vector<Hypergraph::EdgeWeight> edge_weights;
+    for (const auto &[edge_id, vertices] : hypergraph.edges()) {
+      edge_ids.push_back(edge_id);
+      edge_weights.push_back(edge_weight(hypergraph, edge_id));
+    }
+    std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
+    const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
+    const auto sampled_edge = hypergraph.edges().at(sampled_edge_id);
+
+    double redo =
+        redo_probability(hypergraph.num_vertices(), sampled_edge.size(), k);
+
+    HypergraphType contracted = hypergraph.contract(sampled_edge_id);
+    ++stats.num_contractions;
+
+    if (dis(random_generator) < redo) {
+      // Maybe we could use continuations to avoid having to pass the value up a long call stack
+      auto cut =
+          contract<HypergraphType, Verbosity>(contracted,
+                                              k,
+                                              random_generator,
+                                              stats,
+                                              accumulated,
+                                              discovery_value);
+      if (cut.value <= discovery_value) {
+        return cut;
+      }
+      return std::min(cut,
+                      contract<HypergraphType, Verbosity>(hypergraph,
                                                           k,
                                                           random_generator,
                                                           stats,
                                                           accumulated,
-                                                          discovery_value);
+                                                          discovery_value));
+    } else {
+      return contract<HypergraphType, Verbosity>(contracted,
+                                                 k,
+                                                 random_generator,
+                                                 stats,
+                                                 accumulated,
+                                                 discovery_value);
+    }
   }
-}
 
 /**
  * Calculate the number of runs required to find the minimum k-cut with high probability.
@@ -143,13 +146,14 @@ HypergraphCut<typename HypergraphType::EdgeWeight> branching_contract_(Hypergrap
  * @param k
  * @return the number of runs required to find the minimum cut with high probability
  */
-template<typename HypergraphType>
-size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_t k) {
-  auto log_n =
-      static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
-  return log_n * log_n;
-}
+  template<typename HypergraphType>
+  static size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_t k) {
+    auto log_n =
+        static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
+    return log_n * log_n;
+  }
+};
 
-DECLARE_CONTRACTION_MIN_K_CUT(branching_contract_, default_num_runs, true)
+DECLARE_CONTRACTION_MIN_K_CUT(FpzImpl);
 
 } // namespace fpz

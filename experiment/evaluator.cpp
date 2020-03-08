@@ -179,18 +179,18 @@ void KDiscoveryRunner::run() {
       cxy_visitors.emplace_back(planted_cut.k,
                                 planted_cut.cut_value,
                                 seed,
-                                static_cast<FPtr>(cxy::discover<Hypergraph, 1>),
-                                static_cast<WFPtr>(cxy::discover<WeightedHypergraph<size_t>, 1>));
+                                static_cast<FPtr>(cxy::discover_stats<Hypergraph, 1>),
+                                static_cast<WFPtr>(cxy::discover_stats<WeightedHypergraph<size_t>, 1>));
       fpz_visitors.emplace_back(planted_cut.k,
                                 planted_cut.cut_value,
                                 seed,
-                                static_cast<FPtr>(fpz::discover<Hypergraph, 1>),
-                                static_cast<WFPtr>(fpz::discover<WeightedHypergraph<size_t>, 1>));
+                                static_cast<FPtr>(fpz::discover_stats<Hypergraph, 1>),
+                                static_cast<WFPtr>(fpz::discover_stats<WeightedHypergraph<size_t>, 1>));
       kk_visitors.emplace_back(planted_cut.k,
                                planted_cut.cut_value,
                                seed,
-                               static_cast<FPtr>(kk::discover<Hypergraph, 1>),
-                               static_cast<WFPtr>(kk::discover<WeightedHypergraph<size_t>, 1>));
+                               static_cast<FPtr>(kk::discover_stats<Hypergraph, 1>),
+                               static_cast<WFPtr>(kk::discover_stats<WeightedHypergraph<size_t>, 1>));
     }
 
     struct MW_visitor {
