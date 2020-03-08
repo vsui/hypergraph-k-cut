@@ -23,36 +23,31 @@ template<typename HypergraphType>
 using default_num_runs_t = std::add_pointer_t<size_t(const HypergraphType &, size_t)>;
 
 /**
- * Run the contraction algorithm `Contract` on `hypergraph` until it finds a minimum cut of value `discovery_value`.
+ * Repeat randomized min-k-cut algorithm until either it has discovery a cut with value at least `discovery_value`
+ * or has repeated a specified maximum number of times.
  *
- * Returns the value of the found minimum cut. Mainly useful for getting experimental data.
- *
- * @tparam HypergraphType
- * @tparam Contract the contraction algorithm to use
- * @tparam Verbosity
- * @tparam PassDiscoveryValue whether or not to pass the discovery value to the contraction algorithm (for FPZ)
- * @param hypergraph
- * @param k find the min-`k`-cut
- * @param discovery_value   when a cut of this value is found, the method terminates
- * @param random_generator
- * @param num_runs output parameter for the number of times the algorithm needed to be run until the discovery value was found
- * @param stats
- * @return the value of the minimum cut
+ * Returns the minimum cut across all runs.
  */
 template<typename HypergraphType, auto Contract, uint8_t Verbosity, bool PassDiscoveryValue = false>
-HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const HypergraphType &hypergraph,
-                                                                       size_t k,
-                                                                       typename HypergraphType::EdgeWeight discovery_value,
-                                                                       std::mt19937_64 &random_generator,
-                                                                       size_t &num_runs,
-                                                                       ContractionStats &stats) {
+HypergraphCut<typename HypergraphType::EdgeWeight> repeat_contraction(const HypergraphType &hypergraph,
+                                                                      size_t k,
+                                                                      std::mt19937_64 &random_generator,
+                                                                      size_t &num_runs,
+                                                                      ContractionStats &stats,
+                                                                      std::optional<size_t> max_num_runs_opt,
+                                                                      std::optional<size_t> discovery_value_opt) {
+  size_t max_num_runs = max_num_runs_opt.value_or(100); // TODO use default num runs of algorithm
+  size_t discovery_value = discovery_value_opt.value_or(0);
+
+  stats = {};
+
   num_runs = 0;
   auto min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
   size_t i = 0;
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  while (min_so_far.value > discovery_value) {
+  while (min_so_far.value > discovery_value && num_runs < max_num_runs) {
     ++num_runs;
     HypergraphType copy(hypergraph);
     auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
@@ -85,6 +80,22 @@ HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const Hyp
                                                                        size_t k,
                                                                        typename HypergraphType::EdgeWeight discovery_value,
                                                                        std::mt19937_64 &random_generator,
+                                                                       size_t &num_runs,
+                                                                       ContractionStats &stats) {
+  return repeat_contraction<HypergraphType, Contract, Verbosity, PassDiscoveryValue>(hypergraph,
+                                                                                     k,
+                                                                                     random_generator,
+                                                                                     num_runs,
+                                                                                     stats,
+                                                                                     std::nullopt,
+                                                                                     discovery_value);
+}
+
+template<typename HypergraphType, auto Contract, uint8_t Verbosity, bool PassDiscoveryValue = false>
+HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const HypergraphType &hypergraph,
+                                                                       size_t k,
+                                                                       typename HypergraphType::EdgeWeight discovery_value,
+                                                                       std::mt19937_64 &random_generator,
                                                                        size_t &num_runs) {
   ContractionStats stats{};
   return run_until_discovery<HypergraphType, Contract, Verbosity, PassDiscoveryValue>(hypergraph,
@@ -95,67 +106,23 @@ HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const Hyp
                                                                                       stats);
 };
 
-/**
- * A utility to repeatedly run Monte Carlo minimum cut algorithms like [CXY'18] and [FPZ'19], returning the minimum cut
- * across all runs.
- *
- * @tparam HypergraphType
- * @tparam Contract the contraction algorithm to use
- * @tparam DefaultNumRuns   the number of runs to use if `num_runs` is set to 0
- * @tparam Verbosity
- * @param hypergraph
- * @param k find the min-`k`-cut
- * @param num_runs  number of times to run the algorithm. Set to 0 to use the default for high probability of finding the minimum cut.
- * @param random_generator
- * @param stats
- * @return the minimum cut across all runs
- */
 template<typename HypergraphType, auto Contract, default_num_runs_t<HypergraphType> DefaultNumRuns, uint8_t Verbosity, bool PassDiscoveryValue = false>
 HypergraphCut<typename HypergraphType::EdgeWeight> minimum_of_runs(const HypergraphType &hypergraph,
                                                                    size_t k,
-                                                                   size_t num_runs,
+                                                                   size_t max_num_runs,
                                                                    std::mt19937_64 &random_generator,
                                                                    ContractionStats &stats) {
-  if (num_runs == 0) {
-    num_runs = DefaultNumRuns(hypergraph, k);
+  if (max_num_runs == 0) {
+    max_num_runs = DefaultNumRuns(hypergraph, k);
   }
-  if constexpr (Verbosity > 0) {
-    std::cout << "Running algorithm " << num_runs << " times..." << std::endl;
-  }
-  auto min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
-
-  auto start = std::chrono::high_resolution_clock::now();
-
-  for (size_t i = 0; i < num_runs; ++i) {
-    HypergraphType copy(hypergraph);
-    auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
-    auto start = std::chrono::high_resolution_clock::now();
-    if constexpr (PassDiscoveryValue) {
-      cut = Contract(copy, k, random_generator, stats, /* unused */ 0, 0);
-    } else {
-      cut = Contract(copy, k, random_generator, stats, /* unused */ 0);
-    }
-    auto stop = std::chrono::high_resolution_clock::now();
-    min_so_far = std::min(min_so_far, cut);
-    if (min_so_far.value == 0) {
-      // We found a zero cost cut, no need to look any longer
-      break;
-    }
-    if constexpr (Verbosity > 0) {
-      std::cout << "[" << i + 1 << "/" << num_runs << "] took "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(stop -
-                    start)
-                    .count()
-                << " milliseconds, got " << cut.value << ", min is " << min_so_far.value
-                << "\n";
-    }
-  }
-
-  auto stop = std::chrono::high_resolution_clock::now();
-
-  stats.time_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-
-  return min_so_far;
+  size_t num_runs{};
+  return repeat_contraction<HypergraphType, Contract, Verbosity, PassDiscoveryValue>(hypergraph,
+                                                                                     k,
+                                                                                     random_generator,
+                                                                                     num_runs,
+                                                                                     stats,
+                                                                                     max_num_runs,
+                                                                                     std::nullopt);
 }
 
 template<typename HypergraphType, auto Contract, default_num_runs_t<HypergraphType> DefaultNumRuns, uint8_t Verbosity, bool PassDiscoveryValue = false>
