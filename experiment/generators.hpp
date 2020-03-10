@@ -133,4 +133,29 @@ struct PlantedHypergraph : public HypergraphGenerator {
   bool write_to_table(sqlite3 *db) const override;
 };
 
+/**
+ * Same as a planted hypergraph, but every hyperedge has the same rank (r).
+ */
+struct UniformPlantedHypergraph : public HypergraphGenerator {
+  using ConstructorArgs = std::tuple<size_t, size_t, size_t, size_t, size_t, uint64_t>;
+
+  UniformPlantedHypergraph(size_t n, size_t k, size_t r, size_t m1, size_t m2, uint64_t seed);
+
+  size_t n;
+  size_t k;
+  size_t r;
+  size_t m1;
+  size_t m2;
+  uint64_t seed;
+
+  [[nodiscard]]
+  std::tuple<Hypergraph, std::optional<CutInfo>> generate() const override;
+
+  [[nodiscard]]
+  std::string name() const override;
+
+  [[nodiscard]]
+  bool write_to_table(sqlite3 *db) const override;
+};
+
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_GENERATORS_HPP

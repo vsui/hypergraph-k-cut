@@ -29,29 +29,29 @@ namespace cxy {
  *
  * The calculation is computed in logs for numerical stability.
  *
- * Args:
+ *
  *   n: number of vertices
  *   e: the size of the hyperedge
  *   k: number of partitions
  */
-inline double cxy_delta(size_t n, size_t e, size_t k) {
+inline double cxy_delta(size_t num_vertices, size_t hyperedge_size, size_t k) {
   static std::map<std::tuple<size_t, size_t, size_t>, double> memo;
 
-  if (auto it = memo.find(std::make_tuple(n, e, k)); it != std::end(memo)) {
+  if (auto it = memo.find(std::make_tuple(num_vertices, hyperedge_size, k)); it != std::end(memo)) {
     return it->second;
   }
 
   double s = 0;
-  if (n < e + k - 2) {
+  if (num_vertices < hyperedge_size + k - 2) {
     return 0;
   }
-  for (size_t i = n - (e + k - 2); i <= n - e; ++i) {
+  for (size_t i = num_vertices - (hyperedge_size + k - 2); i <= num_vertices - hyperedge_size; ++i) {
     s += std::log(i);
   }
-  if (n < k - 2) {
+  if (num_vertices < k - 2) {
     return 0;
   }
-  for (size_t i = n - (k - 2); i <= n; ++i) {
+  for (size_t i = num_vertices - (k - 2); i <= num_vertices; ++i) {
     s -= std::log(i);
   }
   assert(!std::isnan(s));
@@ -59,78 +59,7 @@ inline double cxy_delta(size_t n, size_t e, size_t k) {
 }
 
 /**
- * The contraction algorithm from [CXY'18]. This returns the minimum cut with some probability.
- *
- * Takes time O(np) where p is the size of the hypergraph
- *
- * Args:
- *   hypergraph: the hypergraph to calculate on
- *   k: compute the k-cut
- *   random_generator: the random generator used to induce randomness
- *   accumulated: UNUSED
- */
-template<typename HypergraphType, uint8_t Verbosity>
-HypergraphCut<typename HypergraphType::EdgeWeight> contract_(HypergraphType &hypergraph,
-                                                             size_t k,
-                                                             std::mt19937_64 &random_generator,
-                                                             [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
-  std::vector<int> candidates = {};
-  std::vector<int> edge_ids;
-  std::vector<double> deltas;
-
-  typename HypergraphType::EdgeWeight min_so_far = total_edge_weight(hypergraph);
-
-  while (true) {
-    edge_ids.resize(hypergraph.edges().size());
-    deltas.resize(hypergraph.edges().size());
-
-    size_t i = 0;
-    for (const auto &[edge_id, incidence] : hypergraph.edges()) {
-      edge_ids[i] = edge_id;
-      deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k) * edge_weight(hypergraph, edge_id);
-      ++i;
-    }
-
-    if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
-      auto cut = total_edge_weight(hypergraph);
-      min_so_far = std::min(min_so_far, cut);
-      break;
-    }
-
-    std::discrete_distribution<size_t> distribution(std::begin(deltas),
-                                                    std::end(deltas));
-
-    size_t sampled = distribution(random_generator);
-    int sampled_id = edge_ids.at(sampled);
-
-    hypergraph.contract_in_place(sampled_id);
-  }
-
-  // May terminate early if it finds a zero cost cut with >k partitions, so need
-  // to merge partitions. At this point the sum of deltas is zero, so every
-  // remaining hyperedge crosses all components, so we can merge components
-  // without changing the cut value.
-  while (hypergraph.num_vertices() > k) {
-    auto begin = std::begin(hypergraph.vertices());
-    auto end = std::begin(hypergraph.vertices());
-    std::advance(end, 2);
-    // Contract two vertices
-    hypergraph = hypergraph.contract(begin, end);
-  }
-
-  std::vector<std::vector<int>> partitions;
-  for (const auto v : hypergraph.vertices()) {
-    const auto &partition = hypergraph.vertices_within(v);
-    partitions.emplace_back(std::begin(partition), std::end(partition));
-  }
-
-  return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), min_so_far);
-}
-
-/**
- * @param n
- * @param k
- * @return n choose k
+ * Return n choose k
  */
 inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
   if (k > n) {
@@ -151,24 +80,89 @@ inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
   return result;
 }
 
+struct CxyImpl {
+  static constexpr bool pass_discovery_value = false;
+
+/**
+ * The contraction algorithm from [CXY'18]. This returns the minimum cut with some probability.
+ *
+ * Takes time O(np) where p is the size of the hypergraph.
+ */
+  template<typename HypergraphType, uint8_t Verbosity>
+  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
+                                                                     size_t k,
+                                                                     std::mt19937_64 &random_generator,
+                                                                     hypergraph_util::ContractionStats &stats,
+                                                                     [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+    std::vector<int> candidates = {};
+    std::vector<int> edge_ids;
+    std::vector<double> deltas;
+
+    typename HypergraphType::EdgeWeight min_so_far = total_edge_weight(hypergraph);
+
+    while (true) {
+      edge_ids.resize(hypergraph.edges().size());
+      deltas.resize(hypergraph.edges().size());
+
+      size_t i = 0;
+      for (const auto &[edge_id, incidence] : hypergraph.edges()) {
+        edge_ids[i] = edge_id;
+        deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k) * edge_weight(hypergraph, edge_id);
+        ++i;
+      }
+
+      if (std::accumulate(std::begin(deltas), std::end(deltas), 0.0) == 0) {
+        auto cut = total_edge_weight(hypergraph);
+        min_so_far = std::min(min_so_far, cut);
+        break;
+      }
+
+      std::discrete_distribution<size_t> distribution(std::begin(deltas),
+                                                      std::end(deltas));
+
+      size_t sampled = distribution(random_generator);
+      int sampled_id = edge_ids.at(sampled);
+
+      hypergraph.contract_in_place(sampled_id);
+      ++stats.num_contractions;
+    }
+
+    // May terminate early if it finds a zero cost cut with >k partitions, so need
+    // to merge partitions. At this point the sum of deltas is zero, so every
+    // remaining hyperedge crosses all components, so we can merge components
+    // without changing the cut value.
+    while (hypergraph.num_vertices() > k) {
+      auto begin = std::begin(hypergraph.vertices());
+      auto end = std::begin(hypergraph.vertices());
+      std::advance(end, 2);
+      // Contract two vertices
+      hypergraph = hypergraph.contract(begin, end);
+      ++stats.num_contractions;
+    }
+
+    std::vector<std::vector<int>> partitions;
+    for (const auto v : hypergraph.vertices()) {
+      const auto &partition = hypergraph.vertices_within(v);
+      partitions.emplace_back(std::begin(partition), std::end(partition));
+    }
+
+    return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), min_so_far);
+  }
+
 /**
  * Calculate the number of runs required to find the minimum cut with high probability.
- *
- * @tparam HypergraphType the type of hypergraph
- * @param hypergraph the hypergraph
- * @param k the k for k-cut
- * @return the number of runs required to find the minimum cut with high probability
  */
-template<typename HypergraphType>
-size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
-  // TODO this is likely to overflow when n is large (> 100000)
-  auto num_runs = ncr(hypergraph.num_vertices(), 2 * (k - 1));
-  num_runs *= static_cast<decltype(num_runs)>(
-      std::ceil(std::log(hypergraph.num_vertices())));
-  num_runs = std::max(num_runs, 1ull);
-  return num_runs;
-}
+  template<typename HypergraphType>
+  static size_t default_num_runs(const HypergraphType &hypergraph, size_t k) {
+    // TODO this is likely to overflow when n is large (> 100000)
+    auto num_runs = ncr(hypergraph.num_vertices(), 2 * (k - 1));
+    num_runs *= static_cast<decltype(num_runs)>(
+        std::ceil(std::log(hypergraph.num_vertices())));
+    num_runs = std::max(num_runs, 1ull);
+    return num_runs;
+  }
+};
 
-DECLARE_CONTRACTION_MIN_K_CUT(contract_, default_num_runs, false)
+DECLARE_CONTRACTION_MIN_K_CUT(CxyImpl)
 
 }

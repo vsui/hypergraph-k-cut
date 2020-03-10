@@ -49,11 +49,11 @@ public:
    * @param num_runs_for_discovery, if applicable
    * @return
    */
-  virtual ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) = 0;
   virtual ReportStatus report(const std::string &hypergraph_id,
                               uint64_t cut_id,
                               const CutRunInfo &info,
-                              size_t num_runs_for_discovery) = 0;
+                              size_t num_runs_for_discovery = 0,
+                              size_t num_contractions = 0) = 0;
 
   virtual ~CutInfoStore() = default;
 };
@@ -75,11 +75,11 @@ public:
   std::tuple<ReportStatus, uint64_t> report(const std::string &hypergraph_id,
                                             const CutInfo &info,
                                             bool planted) override;
-  ReportStatus report(const std::string &hypergraph_id, uint64_t cut_id, const CutRunInfo &info) override;
   ReportStatus report(const std::string &hypergraph_id,
                       uint64_t cut_id,
                       const CutRunInfo &info,
-                      size_t num_runs_for_discovery) override;
+                      size_t num_runs_for_discovery,
+                      size_t num_contractions) override;
 
   ~SqliteStore() override;
 private:

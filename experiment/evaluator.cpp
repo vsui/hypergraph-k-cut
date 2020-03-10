@@ -14,6 +14,7 @@
 #include <hypergraph/hypergraph.hpp>
 #include <hypergraph/cxy.hpp>
 #include <hypergraph/fpz.hpp>
+#include <hypergraph/kk.hpp>
 
 namespace {
 
@@ -25,11 +26,15 @@ std::string hostname() {
 
 // Visitor for discovery algorithms
 struct DiscoverVisitor {
-  using F = std::function<HypergraphCut<size_t>(const Hypergraph &, size_t, size_t, size_t &, uint64_t)>;
+  using F = std::function<HypergraphCut<size_t>(const Hypergraph &,
+                                                size_t,
+                                                size_t,
+                                                hypergraph_util::ContractionStats &,
+                                                uint64_t)>;
   using WF = std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &,
                                                  size_t,
                                                  size_t,
-                                                 size_t &,
+                                                 hypergraph_util::ContractionStats &,
                                                  uint64_t)>;
 
   DiscoverVisitor(size_t k, size_t discovery_val, uint64_t seed, F f, WF wf)
@@ -38,18 +43,18 @@ struct DiscoverVisitor {
   size_t k;
   size_t discovery_val;
 
-  mutable size_t num_runs_for_discovery;
+  mutable hypergraph_util::ContractionStats stats;
 
   uint64_t seed;
   F f;
   WF wf;
 
   HypergraphCut<size_t> operator()(const Hypergraph &h) const {
-    return f(h, k, discovery_val, num_runs_for_discovery, seed);
+    return f(h, k, discovery_val, stats, seed);
   }
 
   HypergraphCut<size_t> operator()(const WeightedHypergraph<size_t> &h) const {
-    return wf(h, k, discovery_val, num_runs_for_discovery, seed);
+    return wf(h, k, discovery_val, stats, seed);
   }
 };
 
@@ -125,9 +130,10 @@ void MinimumCutFinder::evaluate() {
 
 KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
                                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
-                                   std::unique_ptr<CutInfoStore> &&store) : id_(id),
-                                                                            src_(std::move(source)),
-                                                                            store_(std::move(store)) {}
+                                   std::unique_ptr<CutInfoStore> &&store, bool compare_kk) : id_(id),
+                                                                                             src_(std::move(source)),
+                                                                                             store_(std::move(store)),
+                                                                                             compare_kk_(compare_kk) {}
 
 void KDiscoveryRunner::run() {
   for (const auto &gen : src_) {
@@ -154,40 +160,87 @@ void KDiscoveryRunner::run() {
       continue;
     }
 
-    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &, size_t, size_t, size_t &, uint64_t);
-    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &, size_t, size_t, size_t &, uint64_t);
+    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &,
+                                           size_t,
+                                           size_t,
+                                           hypergraph_util::ContractionStats &,
+                                           uint64_t);
+    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &,
+                                            size_t,
+                                            size_t,
+                                            hypergraph_util::ContractionStats &,
+                                            uint64_t);
 
     // TODO Random seed
     std::vector<DiscoverVisitor> cxy_visitors;
     std::vector<DiscoverVisitor> fpz_visitors;
-    for (uint64_t seed : {1618, 2718, 31415, 777777, 2020}) {
+    std::vector<DiscoverVisitor> kk_visitors;
+    for (uint64_t seed : {1618, 2718, 31415, 777777, 2020, 101, 203, 55555, 909, 10}) {
       cxy_visitors.emplace_back(planted_cut.k,
                                 planted_cut.cut_value,
                                 seed,
-                                static_cast<FPtr>(cxy::discover<Hypergraph, 1>),
-                                static_cast<WFPtr>(cxy::discover<WeightedHypergraph<size_t>, 1>));
+                                static_cast<FPtr>(cxy::discover_stats<Hypergraph, 1>),
+                                static_cast<WFPtr>(cxy::discover_stats<WeightedHypergraph<size_t>, 1>));
       fpz_visitors.emplace_back(planted_cut.k,
                                 planted_cut.cut_value,
                                 seed,
-                                static_cast<FPtr>(fpz::discover<Hypergraph, 1>),
-                                static_cast<WFPtr>(fpz::discover<WeightedHypergraph<size_t>, 1>));
+                                static_cast<FPtr>(fpz::discover_stats<Hypergraph, 1>),
+                                static_cast<WFPtr>(fpz::discover_stats<WeightedHypergraph<size_t>, 1>));
+      kk_visitors.emplace_back(planted_cut.k,
+                               planted_cut.cut_value,
+                               seed,
+                               static_cast<FPtr>(kk::discover_stats<Hypergraph, 1>),
+                               static_cast<WFPtr>(kk::discover_stats<WeightedHypergraph<size_t>, 1>));
     }
 
+    struct MW_visitor {
+      mutable hypergraph_util::ContractionStats stats;
+
+      HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
+        return MW_min_cut(hypergraph);
+      }
+      HypergraphCut<size_t> operator()(WeightedHypergraph<size_t> &hypergraph) const {
+        return MW_min_cut(hypergraph);
+      }
+    } mw_visit;
+
+    struct KW_visitor {
+
+      mutable hypergraph_util::ContractionStats stats;
+
+      HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
+        return KW_min_cut(hypergraph);
+      }
+      HypergraphCut<size_t> operator()(WeightedHypergraph<size_t> &hypergraph) const {
+        return KW_min_cut(hypergraph);
+      }
+    } kw_visit;
+
+    struct Q_visitor {
+
+      mutable hypergraph_util::ContractionStats stats;
+
+      HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
+        return Q_min_cut(hypergraph);
+      }
+      HypergraphCut<size_t> operator()(WeightedHypergraph<size_t> &hypergraph) const {
+        return Q_min_cut(hypergraph);
+      }
+    } q_visit;
+
     auto compute_run =
-        [this, planted_cut_id](const DiscoverVisitor &visitor,
+        [this, planted_cut_id](const auto &visitor,
                                std::string func_name,
                                const CutInfo &planted_cut,
                                const HypergraphWrapper &hypergraph) -> void {
           // Now take the times
-          auto start = std::chrono::high_resolution_clock::now();
-          HypergraphCut<size_t> cxy_cut = std::visit(visitor, hypergraph.h);
-          auto stop = std::chrono::high_resolution_clock::now();
-
+          HypergraphWrapper temp(hypergraph); // Need to make a copy for vertex ordering algos
+          HypergraphCut<size_t> cxy_cut = std::visit(visitor, temp.h);
           CutInfo found_cut_info(planted_cut.k, cxy_cut);
 
           CutRunInfo run_info(id_, found_cut_info);
           run_info.algorithm = func_name;
-          run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+          run_info.time = visitor.stats.time_elapsed_ms;
           run_info.machine = hostname();
           run_info.commit = "n/a";
 
@@ -199,7 +252,12 @@ void KDiscoveryRunner::run() {
           } else {
             // Otherwise we need to report this cut to the DB to get its ID
             if (found_cut_info.cut_value == planted_cut.cut_value) {
-              std::cout << "Found cut has same value as planted cut but different partitions" << std::endl;
+              std::cout << "Found cut has same value as planted cut (" << planted_cut.cut_value
+                        << ") but different partitions:";
+              for (const auto &partition : found_cut_info.partitions) {
+                std::cout << " " << partition.size();
+              }
+              std::cout << std::endl;
             } else {
               std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value "
                         << planted_cut.cut_value
@@ -213,7 +271,11 @@ void KDiscoveryRunner::run() {
             }
           }
 
-          if (store_->report(hypergraph.name, found_cut_id, run_info, visitor.num_runs_for_discovery)
+          if (store_->report(hypergraph.name,
+                             found_cut_id,
+                             run_info,
+                             visitor.stats.num_runs,
+                             visitor.stats.num_contractions)
               == ReportStatus::ERROR) {
             std::cout << "Failed to report run" << std::endl;
           }
@@ -224,6 +286,18 @@ void KDiscoveryRunner::run() {
     }
     for (auto &fpz_visit : fpz_visitors) {
       compute_run(fpz_visit, "fpz", planted_cut, hypergraph);
+    }
+    if (compare_kk_) {
+      for (auto &kk_visit : kk_visitors) {
+        compute_run(kk_visit, "kk", planted_cut, hypergraph);
+      }
+    }
+    if (planted_cut.k == 2) {
+      for (int i = 0; i < 10; ++i) {
+        compute_run(mw_visit, "mw", planted_cut, hypergraph);
+        compute_run(kw_visit, "kw", planted_cut, hypergraph);
+        compute_run(q_visit, "q", planted_cut, hypergraph);
+      }
     }
 
   }

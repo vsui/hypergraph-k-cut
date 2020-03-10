@@ -66,8 +66,7 @@ TEST_P(name##Test, Works) { \
   const auto &[hypergraph, cut_pair, filename] = GetParam(); \
   const auto [k, cut_value] = cut_pair; \
   const HypergraphType copy(hypergraph); \
-  size_t num_runs_before_discovery; \
-  const auto cut = discover(copy, k, cut_value, num_runs_before_discovery); \
+  const auto cut = discover(copy, k, cut_value); \
   std::string error; \
   EXPECT_TRUE(cut_is_valid(cut, hypergraph, k, error)) << error; \
   EXPECT_EQ(cut.value, cut_value); \

@@ -38,6 +38,44 @@ public:
     return other.n_ != n_ || other.k_ != k_ || other.ki_ != ki_;
   }
 
+  static Cluster get_cluster(const int v, size_t num_clusters, size_t num_vertices) {
+    for (int i = 0; i < num_clusters; ++i) {
+      Cluster cluster(num_vertices, num_clusters, i);
+      auto it = std::find(std::begin(cluster), std::end(cluster), v);
+      if (it != std::end(cluster)) {
+        return cluster;
+      }
+    }
+    // Should not be reachable
+    assert(false);
+  }
+
+  static bool edge_crosses_clusters(const std::vector<int> &edge, size_t num_clusters, size_t num_vertices) {
+    if (edge.size() < 2) {
+      return false;
+    }
+    Cluster c = get_cluster(edge.at(0), num_clusters, num_vertices);
+    return std::any_of(std::begin(edge), std::end(edge), [&c, num_clusters, num_vertices](const int v) {
+      return Cluster::get_cluster(v, num_clusters, num_vertices) != c;
+    });
+  }
+
+  static HypergraphCut<size_t> create_cut_from_cluster(const size_t cut_value,
+                                                       const size_t num_clusters,
+                                                       const size_t num_vertices) {
+    HypergraphCut<size_t> cut = HypergraphCut<size_t>::max();
+    for (int i = 0; i < num_clusters; ++i) {
+      Cluster cluster(num_vertices, num_clusters, i);
+      std::vector<int> p;
+      for (auto v : cluster) {
+        p.emplace_back(v);
+      }
+      cut.partitions.emplace_back(std::move(p));
+    }
+    cut.value = cut_value;
+    return cut;
+  }
+
 private:
   size_t vertices_before() { return size_() * ki_; }
   size_t size_() { return n_ / k_; }
@@ -192,32 +230,7 @@ std::tuple<Hypergraph, std::optional<CutInfo>> PlantedHypergraph::generate() con
     }
   }
 
-  HypergraphCut<size_t> cut = HypergraphCut<size_t>::max();
-  cut.value = 0;
-  for (int i = 0; i < k; ++i) {
-    Cluster cluster(n, k, i);
-    std::vector<int> p;
-    for (auto v : cluster) {
-      p.emplace_back(v);
-    }
-    cut.partitions.emplace_back(std::move(p));
-  }
-  std::vector<Cluster> clusters;
-  for (int i = 0; i < k; ++i) {
-    clusters.emplace_back(n, k, i);
-  }
-
-  auto get_cluster = [this](const int v) -> Cluster {
-    for (int i = 0; i < k; ++i) {
-      Cluster cluster(n, k, i);
-      auto it = std::find(begin(cluster), end(cluster), v);
-      if (it != end(cluster)) {
-        return cluster;
-      }
-    }
-    // Should be unreachable
-    assert(false && "Should not be reachable");
-  };
+  size_t cut_value = 0;
 
   // Sample m2 hyperedges from the entire hypergraph, each vertex has p2 probability of being sampled
   for (int j = 0; j < m2; ++j) {
@@ -227,19 +240,13 @@ std::tuple<Hypergraph, std::optional<CutInfo>> PlantedHypergraph::generate() con
         edge.push_back(v);
       }
     }
-    // Check if edge crosses clusters to calculate cut value
-    if (edge.size() > 2) {
-      Cluster c = get_cluster(edge.at(0));
-      if (std::any_of(begin(edge), end(edge), [&c, get_cluster](const int v) {
-        return get_cluster(v) != c;
-      })) {
-        // Span different clusters
-        cut.value++;
-      }
-
+    if (Cluster::edge_crosses_clusters(edge, k, n)) {
+      ++cut_value;
     }
     edges.emplace_back(std::move(edge));
   }
+
+  HypergraphCut<size_t> cut = Cluster::create_cut_from_cluster(cut_value, k, n);
 
   return {{Hypergraph{vertices, edges}}, {{k, cut}}};
 }
@@ -295,5 +302,63 @@ bool PlantedHypergraph::write_to_table(sqlite3 *db) const {
     sqlite3_free(zErrMsg);
     return false;
   }
+  return true;
+}
+
+UniformPlantedHypergraph::UniformPlantedHypergraph(size_t n, size_t k, size_t r, size_t m1, size_t m2, uint64_t seed) :
+    n(n), k(k), r(r), m1(m1), m2(m2), seed(seed) {}
+
+std::tuple<Hypergraph, std::optional<CutInfo>> UniformPlantedHypergraph::generate() const {
+  std::mt19937_64 gen(seed);
+  std::vector<int> vertices(n);
+  std::iota(begin(vertices), end(vertices), 0);
+
+  std::vector<std::vector<int>> edges;
+
+  for (int i = 0; i < k; ++i) {
+    Cluster cluster(n, k, i);
+    std::vector<int> inside_cluster;
+    for (const auto v : cluster) {
+      inside_cluster.push_back(v);
+    }
+
+    // Sample r vertices from this
+    for (int j = 0; j < m1; ++j) {
+      std::vector<int> edge;
+      std::sample(begin(inside_cluster),
+                  end(inside_cluster),
+                  std::back_inserter(edge),
+                  r,
+                  gen);
+      edges.emplace_back(std::move(edge));
+    }
+  }
+
+  size_t cut_value = 0;
+  // Sample r vertices from all clusters
+  for (int j = 0; j < m2; ++j) {
+    std::vector<int> edge;
+    std::sample(begin(vertices),
+                end(vertices),
+                std::back_inserter(edge),
+                r,
+                gen);
+    if (Cluster::edge_crosses_clusters(edge, k, n)) {
+      ++cut_value;
+    }
+    edges.emplace_back(std::move(edge));
+  }
+  HypergraphCut<size_t> cut = Cluster::create_cut_from_cluster(cut_value, k, n);
+
+  return {{Hypergraph{vertices, edges}}, {{k, cut}}};
+}
+std::string UniformPlantedHypergraph::name() const {
+  std::stringstream s;
+  s << "uniformplanted_" << n << "_" << k << "_" << r << "_" << m1 << "_" << m2;
+  return s.str();
+}
+
+bool UniformPlantedHypergraph::write_to_table(sqlite3 *db) const {
+  // Do nothing for now
   return true;
 }
