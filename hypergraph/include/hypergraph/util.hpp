@@ -87,7 +87,11 @@ auto repeat_contraction(const HypergraphType &hypergraph,
 
   stats.time_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 
-  return min_so_far;
+  if constexpr (ReturnPartitions) {
+    return min_so_far;
+  } else {
+    return min_so_far.value;
+  }
 }
 
 }
@@ -113,6 +117,24 @@ struct ContractionAlgo {
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
+  static auto minimum_cut_value(const HypergraphType &hypergraph, size_t k, size_t num_runs = 0, uint64_t seed = 0) {
+    std::mt19937_64 rand;
+    if (seed) {
+      rand.seed(seed);
+    }
+    hypergraph_util::ContractionStats stats{};
+    return hypergraph_util::repeat_contraction<HypergraphType,
+                                               ContractionImpl,
+                                               false,
+                                               Verbosity>(hypergraph,
+                                                          k,
+                                                          rand,
+                                                          stats,
+                                                          num_runs == 0 ? std::nullopt : std::optional(num_runs),
+                                                          std::nullopt);
+  }
+
+  template<typename HypergraphType, uint8_t Verbosity = 0>
   static auto discover(const HypergraphType &hypergraph,
                        size_t k,
                        typename HypergraphType::EdgeWeight discovery_value,
@@ -120,6 +142,16 @@ struct ContractionAlgo {
     hypergraph_util::ContractionStats stats{};
     return discover<HypergraphType,
                     Verbosity>(hypergraph, k, discovery_value, stats, seed);
+  }
+
+  template<typename HypergraphType, uint8_t Verbosity = 0>
+  static auto discover_value(const HypergraphType &hypergraph,
+                             size_t k,
+                             typename HypergraphType::EdgeWeight discovery_value,
+                             uint64_t seed = 0) {
+    hypergraph_util::ContractionStats stats{};
+    return discover_value<HypergraphType,
+                          Verbosity>(hypergraph, k, discovery_value, stats, seed);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
@@ -143,11 +175,35 @@ struct ContractionAlgo {
                                                           std::nullopt,
                                                           discovery_value);
   }
+
+  template<typename HypergraphType, uint8_t Verbosity = 0>
+  static auto discover_value(const HypergraphType &hypergraph,
+                             size_t k,
+                             typename HypergraphType::EdgeWeight discovery_value,
+                             hypergraph_util::ContractionStats &stats,
+                             uint64_t seed = 0) {
+    std::mt19937_64 rand;
+    stats = {};
+    if (seed) {
+      rand.seed(seed);
+    }
+    return hypergraph_util::repeat_contraction<HypergraphType,
+                                               ContractionImpl,
+                                               false,
+                                               Verbosity>(hypergraph,
+                                                          k,
+                                                          rand,
+                                                          stats,
+                                                          std::nullopt,
+                                                          discovery_value);
+  }
 };
 
 // Makes importing the overloaded function names into a different namespace easier.
 #define DECLARE_CONTRACTION_MIN_K_CUT(impl) \
 template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto minimum_cut(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::minimum_cut<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
+template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto minimum_cut_value(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::minimum_cut_value<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
 template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto discover(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::discover<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
+template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto discover_value(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::discover_value<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
 template <typename HypergraphType, uint8_t Verbosity = 0> auto discover_stats(const HypergraphType &h, size_t k, typename HypergraphType::EdgeWeight discovery_value, hypergraph_util::ContractionStats &stats, uint64_t seed = 0) { return ContractionAlgo<impl>::discover<HypergraphType, Verbosity>(h, k, discovery_value, stats, seed); }
 

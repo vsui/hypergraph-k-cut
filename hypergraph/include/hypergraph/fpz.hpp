@@ -77,17 +77,26 @@ struct FpzImpl {
         ++stats.num_contractions;
       }
 
-      std::vector<std::vector<int>> partitions;
-      for (const auto v : hypergraph.vertices()) {
-        const auto &partition = hypergraph.vertices_within(v);
-        partitions.emplace_back(std::begin(partition), std::end(partition));
+      if constexpr (ReturnPartitions) {
+        std::vector<std::vector<int>> partitions;
+        for (const auto v : hypergraph.vertices()) {
+          const auto &partition = hypergraph.vertices_within(v);
+          partitions.emplace_back(std::begin(partition), std::end(partition));
+        }
+        const auto cut =
+            HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions),
+                                                               std::end(partitions),
+                                                               accumulated);
+        if constexpr (Verbosity > 1) {
+          std::cout << "Got cut of value " << cut.value << std::endl;
+        }
+        return cut;
+      } else {
+        if constexpr (Verbosity > 1) {
+          std::cout << "Got cut of value " << accumulated << std::endl;
+        }
+        return HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated};
       }
-      const auto cut =
-          HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), accumulated);
-      if constexpr (Verbosity > 1) {
-        std::cout << "Got cut of value " << cut.value << std::endl;
-      }
-      return cut;
     }
 
     static std::uniform_real_distribution<> dis(0.0, 1.0);

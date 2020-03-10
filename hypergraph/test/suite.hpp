@@ -2,21 +2,22 @@
 // Created by Victor on 1/27/20.
 //
 
-#define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(name, ns) \
-CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name##Unweighted, ns, Hypergraph, small_unweighted_tests()) \
-CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name##WeightedIntegral, ns, WeightedHypergraph<size_t>, small_weighted_tests<size_t>()) \
-CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name##WeightedFloating, ns, WeightedHypergraph<double>, small_weighted_tests<double>()) \
-CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##Unweighted, ns, Hypergraph, small_unweighted_tests()) \
-CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedIntegral, ns, WeightedHypergraph<size_t>, small_weighted_tests<size_t>()) \
-CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedFloating, ns, WeightedHypergraph<double>, small_weighted_tests<double>())
-
 #define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(name, ns, unweighted, weighted1, weighted2) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name##Unweighted, ns, Hypergraph, unweighted) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name##WeightedIntegral, ns, WeightedHypergraph<size_t>, weighted1) \
 CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name##WeightedFloating, ns, WeightedHypergraph<double>, weighted2) \
-CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##Unweighted, ns, Hypergraph, unweighted) \
-CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedIntegral, ns, WeightedHypergraph<size_t>, weighted1) \
-CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##Discovery##WeightedFloating, ns, WeightedHypergraph<double>, weighted2)
+CREATE_HYPERGRAPH_K_CUT_VALUE_TEST_FIXTURE(name##ValueUnweighted, ns, Hypergraph, unweighted) \
+CREATE_HYPERGRAPH_K_CUT_VALUE_TEST_FIXTURE(name##ValueWeightedIntegral, ns, WeightedHypergraph<size_t>, weighted1) \
+CREATE_HYPERGRAPH_K_CUT_VALUE_TEST_FIXTURE(name##ValueWeightedFloating, ns, WeightedHypergraph<double>, weighted2) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##DiscoveryUnweighted, ns, Hypergraph, unweighted) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##DiscoveryWeightedIntegral, ns, WeightedHypergraph<size_t>, weighted1) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name##DiscoveryWeightedFloating, ns, WeightedHypergraph<double>, weighted2) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_VALUE_TEST_FIXTURE(name##DiscoveryValueUnweighted, ns, Hypergraph, unweighted) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_VALUE_TEST_FIXTURE(name##DiscoveryValueWeightedIntegral, ns, WeightedHypergraph<size_t>, weighted1) \
+CREATE_HYPERGRAPH_K_CUT_DISCOVERY_VALUE_TEST_FIXTURE(name##DiscoveryValueWeightedFloating, ns, WeightedHypergraph<double>, weighted2)
+
+#define CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(name, ns) \
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(name, ns, small_unweighted_tests(), small_weighted_tests<size_t>(), small_weighted_tests<double>())
 
 #define CREATE_HYPERGRAPH_K_CUT_TEST_FIXTURE(name, ns, HypergraphType, values) \
 class name##Test : public testing::TestWithParam<TestCaseInstance<HypergraphType>> {}; \
@@ -36,6 +37,22 @@ INSTANTIATE_TEST_SUITE_P( \
   } \
 );
 
+#define CREATE_HYPERGRAPH_K_CUT_VALUE_TEST_FIXTURE(name, ns, HypergraphType, values) \
+class name##Test : public testing::TestWithParam<TestCaseInstance<HypergraphType>> {}; \
+TEST_P(name##Test, Works) { \
+  const auto &[hypergraph, cut_pair, filename] = GetParam(); \
+  const auto [k, cut_value] = cut_pair; \
+  const HypergraphType copy(hypergraph); \
+  const auto cutvalue = ns::minimum_cut_value(copy, k); \
+  EXPECT_EQ(cutvalue, cut_value); \
+} \
+INSTANTIATE_TEST_SUITE_P( \
+  name##Test, name##Test, testing::ValuesIn(values), \
+  [](const testing::TestParamInfo<name##Test::ParamType>& info) { \
+    return std::get<2>(info.param) + std::to_string(std::get<0>(std::get<1>(info.param))); \
+  } \
+);
+
 #define CREATE_HYPERGRAPH_K_CUT_DISCOVERY_TEST_FIXTURE(name, ns, HypergraphType, values) \
 class name##Test : public testing::TestWithParam<TestCaseInstance<HypergraphType>> {}; \
 TEST_P(name##Test, Works) { \
@@ -46,6 +63,22 @@ TEST_P(name##Test, Works) { \
   std::string error; \
   EXPECT_TRUE(cut_is_valid(cut, hypergraph, k, error)) << error; \
   EXPECT_EQ(cut.value, cut_value); \
+} \
+INSTANTIATE_TEST_SUITE_P( \
+  name##Test, name##Test, testing::ValuesIn(values), \
+  [](const testing::TestParamInfo<name##Test::ParamType>& info) { \
+    return std::get<2>(info.param) + std::to_string(std::get<0>(std::get<1>(info.param))); \
+  } \
+);
+
+#define CREATE_HYPERGRAPH_K_CUT_DISCOVERY_VALUE_TEST_FIXTURE(name, ns, HypergraphType, values) \
+class name##Test : public testing::TestWithParam<TestCaseInstance<HypergraphType>> {}; \
+TEST_P(name##Test, Works) { \
+  const auto &[hypergraph, cut_pair, filename] = GetParam(); \
+  const auto [k, cut_value] = cut_pair; \
+  const HypergraphType copy(hypergraph); \
+  const auto cutvalue = ns::discover_value(copy, k, cut_value); \
+  EXPECT_EQ(cutvalue, cut_value); \
 } \
 INSTANTIATE_TEST_SUITE_P( \
   name##Test, name##Test, testing::ValuesIn(values), \

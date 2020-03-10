@@ -140,13 +140,18 @@ struct CxyImpl {
       ++stats.num_contractions;
     }
 
-    std::vector<std::vector<int>> partitions;
-    for (const auto v : hypergraph.vertices()) {
-      const auto &partition = hypergraph.vertices_within(v);
-      partitions.emplace_back(std::begin(partition), std::end(partition));
+    if constexpr (ReturnPartitions) {
+      std::vector<std::vector<int>> partitions;
+      for (const auto v : hypergraph.vertices()) {
+        const auto &partition = hypergraph.vertices_within(v);
+        partitions.emplace_back(std::begin(partition), std::end(partition));
+      }
+      return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions),
+                                                                std::end(partitions),
+                                                                min_so_far);
+    } else {
+      return HypergraphCut<typename HypergraphType::EdgeWeight>{min_so_far};
     }
-
-    return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), min_so_far);
   }
 
 /**
