@@ -40,7 +40,7 @@ struct FpzImpl {
  * @param discovery_value   this function will early-exit if a cut of this value is found.
  * @return minimum found k cut
  */
-  template<typename HypergraphType, uint8_t Verbosity>
+  template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
   static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
@@ -73,7 +73,7 @@ struct FpzImpl {
         auto end = std::begin(hypergraph.vertices());
         std::advance(end, 2);
         // Contract two vertices
-        hypergraph = hypergraph.contract(begin, end);
+        hypergraph = hypergraph.template contract<true, ReturnPartitions>(begin, end);
         ++stats.num_contractions;
       }
 
@@ -106,35 +106,35 @@ struct FpzImpl {
     double redo =
         redo_probability(hypergraph.num_vertices(), sampled_edge.size(), k);
 
-    HypergraphType contracted = hypergraph.contract(sampled_edge_id);
+    HypergraphType contracted = hypergraph.template contract<true, ReturnPartitions>(sampled_edge_id);
     ++stats.num_contractions;
 
     if (dis(random_generator) < redo) {
       // Maybe we could use continuations to avoid having to pass the value up a long call stack
       auto cut =
-          contract<HypergraphType, Verbosity>(contracted,
-                                              k,
-                                              random_generator,
-                                              stats,
-                                              accumulated,
-                                              discovery_value);
+          contract<HypergraphType, ReturnPartitions, Verbosity>(contracted,
+                                                                k,
+                                                                random_generator,
+                                                                stats,
+                                                                accumulated,
+                                                                discovery_value);
       if (cut.value <= discovery_value) {
         return cut;
       }
       return std::min(cut,
-                      contract<HypergraphType, Verbosity>(hypergraph,
-                                                          k,
-                                                          random_generator,
-                                                          stats,
-                                                          accumulated,
-                                                          discovery_value));
+                      contract<HypergraphType, ReturnPartitions, Verbosity>(hypergraph,
+                                                                            k,
+                                                                            random_generator,
+                                                                            stats,
+                                                                            accumulated,
+                                                                            discovery_value));
     } else {
-      return contract<HypergraphType, Verbosity>(contracted,
-                                                 k,
-                                                 random_generator,
-                                                 stats,
-                                                 accumulated,
-                                                 discovery_value);
+      return contract<HypergraphType, ReturnPartitions, Verbosity>(contracted,
+                                                                   k,
+                                                                   random_generator,
+                                                                   stats,
+                                                                   accumulated,
+                                                                   discovery_value);
     }
   }
 

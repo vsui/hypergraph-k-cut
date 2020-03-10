@@ -55,7 +55,8 @@ HypergraphCut<typename HypergraphType::EdgeWeight> approximate_minimizer(Hypergr
   // alpha contraction
   HypergraphType temp(hypergraph);
   for (const auto[begin, end] : alpha_tight_sets) {
-    temp = temp.contract(begin, end);
+    // TODO support not getting contraction
+    temp = temp.template contract<false, true>(begin, end);
   }
 
   return std::min(delta, approximate_minimizer(temp, epsilon));

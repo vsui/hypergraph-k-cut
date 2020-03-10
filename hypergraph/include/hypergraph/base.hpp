@@ -121,9 +121,11 @@ public:
    *
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
-  template<bool EdgeMayContainLoops = true> // TODO check rank and set as necessary
+  template<bool EdgeMayContainLoops = true, bool TrackContractedVertices = true>
   [[nodiscard]]
   T contract(const int edge_id) const {
+    // TODO EdgeMayContainLoops default true is a bit aggressive and may lead to performance regressions,
+    //      we should try to avoid setting it to true if possible
     std::vector<int> old_edge = edges_.at(edge_id);
 
     if (old_edge.empty()) {
@@ -197,18 +199,20 @@ public:
     T new_hypergraph(std::move(new_vertices), std::move(new_edges), static_cast<const T &>(*this));
     new_hypergraph.next_vertex_id_++;
 
-    // Update vertices_within_ of new hypergraph
-    std::list<int> edges_within_new_v;
-    for (const auto v : old_edge) {
-      edges_within_new_v.splice(std::end(edges_within_new_v), std::move(new_hypergraph.vertices_within_.at(v)));
-      new_hypergraph.vertices_within_.erase(v);
+    if constexpr (TrackContractedVertices) {
+      // Update vertices_within_ of new hypergraph
+      std::list<int> edges_within_new_v;
+      for (const auto v : old_edge) {
+        edges_within_new_v.splice(std::end(edges_within_new_v), std::move(new_hypergraph.vertices_within_.at(v)));
+        new_hypergraph.vertices_within_.erase(v);
+      }
+      new_hypergraph.vertices_within_.insert({v_e, edges_within_new_v});
     }
-    new_hypergraph.vertices_within_.insert({v_e, edges_within_new_v});
 
     return new_hypergraph;
   }
 
-  template<bool EdgeMayContainLoops = true>
+  template<bool EdgeMayContainLoops = true, bool TrackContractedVertices = true>
   void contract_in_place(const int edge_id) {
     assert(is_valid());
     if (edges_.at(edge_id).empty()) {
@@ -235,9 +239,11 @@ public:
     auto new_v = next_vertex_id_++;
     vertices_[new_v] = {};
 
-    for (const auto v : edge) {
-      vertices_within_[new_v].splice(std::end(vertices_within_[new_v]), std::move(vertices_within_[v]));
-      vertices_within_.erase(v);
+    if constexpr (TrackContractedVertices) {
+      for (const auto v : edge) {
+        vertices_within_[new_v].splice(std::end(vertices_within_[new_v]), std::move(vertices_within_[v]));
+        vertices_within_.erase(v);
+      }
     }
 
     // Remove v from all edges such that v in edge
@@ -332,7 +338,7 @@ public:
    *
    * Time complexity: O(p), where p is the size of the hypergraph.
    */
-  template<typename InputIt>
+  template<bool EdgesMayContainLoops, bool TrackContractedVertices, typename InputIt>
   [[nodiscard]]
   T contract(InputIt begin, InputIt end) const {
     // TODO if we have a non-const contract then this copy is unnecessary. Right
@@ -340,7 +346,7 @@ public:
     // second time to contract)
     HypergraphBase copy(*this);
     auto new_e = copy.add_hyperedge(begin, end);
-    return copy.contract(new_e);
+    return copy.contract<EdgesMayContainLoops, TrackContractedVertices>(new_e);
   }
 
   /* When an edge is contracted into a single vertex the original vertices in the edge can be stored and referred to

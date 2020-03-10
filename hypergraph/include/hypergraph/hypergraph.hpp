@@ -98,10 +98,10 @@ public:
 
   using vertex_range = typename Base::vertex_range;
 
-  template<bool EdgeMayContainLoops = true>
+  template<bool EdgeMayContainLoops = true, bool TrackContractedVertices = true>
   [[nodiscard]]
   WeightedHypergraph contract(int edge_id) const {
-    HypergraphBase contracted = Base::template contract<EdgeMayContainLoops>(edge_id);
+    HypergraphBase contracted = Base::template contract<EdgeMayContainLoops, TrackContractedVertices>(edge_id);
     // TODO edges to weights should still be valid
     return WeightedHypergraph(contracted, edges_to_weights_);
   }
@@ -132,11 +132,11 @@ public:
     edges_to_weights_.erase(edge_id);
   }
 
-  template<typename InputIt>
+  template<bool EdgeMayContainLoops, bool TrackContractedVertices, typename InputIt>
   WeightedHypergraph contract(InputIt begin, InputIt end) const {
     WeightedHypergraph copy(*this);
     auto new_e = copy.add_hyperedge(begin, end, {}); // Doesn't matter what weight you add
-    return copy.contract(new_e);
+    return copy.template contract<true, TrackContractedVertices>(new_e);
   }
 
 private:
@@ -185,10 +185,10 @@ inline typename HypergraphType::EdgeWeight total_edge_weight(const HypergraphTyp
  *
  * Time complexity: O(p), where p is the size of the hypergraph
  */
-template<typename HypergraphType>
+template<typename HypergraphType, bool EdgesContainLoops = true, bool TrackContractedVertices = true>
 HypergraphType merge_vertices(const HypergraphType &hypergraph, const int s, const int t) {
   const auto vs = {s, t};
-  return hypergraph.contract(std::begin(vs), std::end(vs));
+  return hypergraph.template contract<EdgesContainLoops, TrackContractedVertices>(std::begin(vs), std::end(vs));
 }
 
 std::istream &operator>>(std::istream &is, Hypergraph &hypergraph);

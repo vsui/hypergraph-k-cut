@@ -8,6 +8,19 @@
 
 namespace hypergraph_util {
 
+template<typename HypergraphType, bool ReturnPartitions>
+struct HypergraphCutRet;
+
+template<typename HypergraphType>
+struct HypergraphCutRet<HypergraphType, true> {
+  using T = HypergraphCut<typename HypergraphType::EdgeWeight>;
+};
+
+template<typename HypergraphType>
+struct HypergraphCutRet<HypergraphType, false> {
+  using T = typename HypergraphType::EdgeWeight; // Just return cut value
+};
+
 struct ContractionStats {
   uint64_t num_contractions;
   uint64_t time_elapsed_ms;
@@ -20,13 +33,14 @@ struct ContractionStats {
  *
  * Returns the minimum cut across all runs.
  */
-template<typename HypergraphType, typename ContractImpl, uint8_t Verbosity>
-HypergraphCut<typename HypergraphType::EdgeWeight> repeat_contraction(const HypergraphType &hypergraph,
-                                                                      size_t k,
-                                                                      std::mt19937_64 &random_generator,
-                                                                      ContractionStats &stats,
-                                                                      std::optional<size_t> max_num_runs_opt,
-                                                                      std::optional<size_t> discovery_value_opt) {
+template<typename HypergraphType, typename ContractImpl, bool ReturnPartitions, uint8_t Verbosity>
+auto repeat_contraction(const HypergraphType &hypergraph,
+                        size_t k,
+                        std::mt19937_64 &random_generator,
+                        ContractionStats &stats,
+                        std::optional<size_t> max_num_runs_opt,
+                        std::optional<size_t> discovery_value_opt) -> typename HypergraphCutRet<HypergraphType,
+                                                                                                ReturnPartitions>::T {
   // Since we are very likely to find the discovery value within `default_num_runs` runs this should not conflict
   // with discovery times.
   size_t max_num_runs = max_num_runs_opt.value_or(ContractImpl::default_num_runs(hypergraph, k));
@@ -45,14 +59,18 @@ HypergraphCut<typename HypergraphType::EdgeWeight> repeat_contraction(const Hype
     auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
     auto start = std::chrono::high_resolution_clock::now();
     if constexpr (ContractImpl::pass_discovery_value) {
-      cut = ContractImpl::template contract<HypergraphType, Verbosity>(copy,
-                                                                       k,
-                                                                       random_generator,
-                                                                       stats,
-                                                                       0,
-                                                                       discovery_value);
+      cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
+                                                                                         k,
+                                                                                         random_generator,
+                                                                                         stats,
+                                                                                         0,
+                                                                                         discovery_value);
     } else {
-      cut = ContractImpl::template contract<HypergraphType, Verbosity>(copy, k, random_generator, stats, 0);
+      cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
+                                                                                         k,
+                                                                                         random_generator,
+                                                                                         stats,
+                                                                                         0);
     }
     auto stop = std::chrono::high_resolution_clock::now();
     min_so_far = std::min(min_so_far, cut);
@@ -85,6 +103,7 @@ struct ContractionAlgo {
     hypergraph_util::ContractionStats stats{};
     return hypergraph_util::repeat_contraction<HypergraphType,
                                                ContractionImpl,
+                                               true,
                                                Verbosity>(hypergraph,
                                                           k,
                                                           rand,
@@ -116,6 +135,7 @@ struct ContractionAlgo {
     }
     return hypergraph_util::repeat_contraction<HypergraphType,
                                                ContractionImpl,
+                                               true,
                                                Verbosity>(hypergraph,
                                                           k,
                                                           rand,

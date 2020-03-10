@@ -22,7 +22,7 @@ struct KkImpl {
  * @param accumulated   Unused parameter
  * @return
  */
-  template<typename HypergraphType, uint8_t Verbosity>
+  template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
   static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
@@ -51,7 +51,7 @@ struct KkImpl {
       std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
       const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
 
-      h = h.template contract<true>(sampled_edge_id);
+      h = h.template contract<true, ReturnPartitions>(sampled_edge_id);
       ++stats.num_contractions;
     }
 

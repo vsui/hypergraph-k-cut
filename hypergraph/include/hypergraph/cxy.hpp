@@ -88,7 +88,7 @@ struct CxyImpl {
  *
  * Takes time O(np) where p is the size of the hypergraph.
  */
-  template<typename HypergraphType, uint8_t Verbosity>
+  template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
   static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
@@ -123,7 +123,7 @@ struct CxyImpl {
       size_t sampled = distribution(random_generator);
       int sampled_id = edge_ids.at(sampled);
 
-      hypergraph.contract_in_place(sampled_id);
+      hypergraph.template contract_in_place<true, ReturnPartitions>(sampled_id);
       ++stats.num_contractions;
     }
 
@@ -136,7 +136,7 @@ struct CxyImpl {
       auto end = std::begin(hypergraph.vertices());
       std::advance(end, 2);
       // Contract two vertices
-      hypergraph = hypergraph.contract(begin, end);
+      hypergraph = hypergraph.template contract<true, ReturnPartitions>(begin, end);
       ++stats.num_contractions;
     }
 
