@@ -11,8 +11,8 @@
 #include "hypergraph/kk.hpp"
 #include "hypergraph/certificate.hpp"
 
-CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(CXY, cxy::minimum_cut, cxy::discover)
-CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(FPZ, fpz::minimum_cut, fpz::discover)
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(CXY, cxy)
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(FPZ, fpz)
 
 CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(MW, MW_min_cut)
 CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(Q, Q_min_cut)
@@ -24,7 +24,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> KK_min_cut(const HypergraphTy
 }
 
 // KK needs a special suite since it takes very long for high-rank hypergraphs
-CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(KK, kk::minimum_cut, kk::discover,
+CREATE_HYPERGRAPH_K_CUT_TEST_SUITE2(KK, kk,
                                     up_to_k(tests_in_folder<Hypergraph>("instances/misc/smallrank/unweighted"), 5),
                                     up_to_k(tests_in_folder<WeightedHypergraph<size_t>>(
                                         "instances/misc/smallrank/weighted"), 5),
