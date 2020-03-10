@@ -27,7 +27,9 @@ HypergraphCut<typename HypergraphType::EdgeWeight> repeat_contraction(const Hype
                                                                       ContractionStats &stats,
                                                                       std::optional<size_t> max_num_runs_opt,
                                                                       std::optional<size_t> discovery_value_opt) {
-  size_t max_num_runs = max_num_runs_opt.value_or(100); // TODO use default num runs of algorithm
+  // Since we are very likely to find the discovery value within `default_num_runs` runs this should not conflict
+  // with discovery times.
+  size_t max_num_runs = max_num_runs_opt.value_or(ContractImpl::default_num_runs(hypergraph, k));
   size_t discovery_value = discovery_value_opt.value_or(0);
 
   stats = {};
