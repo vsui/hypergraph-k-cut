@@ -72,63 +72,6 @@ HypergraphCut<typename HypergraphType::EdgeWeight> repeat_contraction(const Hype
   return min_so_far;
 }
 
-template<typename HypergraphType, typename ContractImpl, uint8_t Verbosity, bool PassDiscoveryValue = false>
-HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const HypergraphType &hypergraph,
-                                                                       size_t k,
-                                                                       typename HypergraphType::EdgeWeight discovery_value,
-                                                                       std::mt19937_64 &random_generator,
-                                                                       ContractionStats &stats) {
-  return repeat_contraction<HypergraphType, ContractImpl, Verbosity, PassDiscoveryValue>(hypergraph,
-                                                                                         k,
-                                                                                         random_generator,
-                                                                                         stats,
-                                                                                         std::nullopt,
-                                                                                         discovery_value);
-}
-
-template<typename HypergraphType, typename ContractImpl, uint8_t Verbosity, bool PassDiscoveryValue = false>
-HypergraphCut<typename HypergraphType::EdgeWeight> run_until_discovery(const HypergraphType &hypergraph,
-                                                                       size_t k,
-                                                                       typename HypergraphType::EdgeWeight discovery_value,
-                                                                       std::mt19937_64 &random_generator) {
-  ContractionStats stats{};
-  return run_until_discovery<HypergraphType, ContractImpl, Verbosity, PassDiscoveryValue>(hypergraph,
-                                                                                          k,
-                                                                                          discovery_value,
-                                                                                          random_generator,
-                                                                                          stats);
-};
-
-template<typename HypergraphType, typename ContractImpl, uint8_t Verbosity, bool PassDiscoveryValue = false>
-HypergraphCut<typename HypergraphType::EdgeWeight> minimum_of_runs(const HypergraphType &hypergraph,
-                                                                   size_t k,
-                                                                   size_t max_num_runs,
-                                                                   std::mt19937_64 &random_generator,
-                                                                   ContractionStats &stats) {
-  if (max_num_runs == 0) {
-    max_num_runs = ContractImpl::template default_num_runs<HypergraphType>(hypergraph, k);
-  }
-  return repeat_contraction<HypergraphType, ContractImpl, Verbosity, PassDiscoveryValue>(hypergraph,
-                                                                                         k,
-                                                                                         random_generator,
-                                                                                         stats,
-                                                                                         max_num_runs,
-                                                                                         std::nullopt);
-}
-
-template<typename HypergraphType, typename ContractImpl, uint8_t Verbosity, bool PassDiscoveryValue = false>
-HypergraphCut<typename HypergraphType::EdgeWeight> minimum_of_runs(const HypergraphType &hypergraph,
-                                                                   size_t k,
-                                                                   size_t num_runs,
-                                                                   std::mt19937_64 &random_generator) {
-  ContractionStats stats{};
-  return minimum_of_runs<HypergraphType, ContractImpl, Verbosity, PassDiscoveryValue>(hypergraph,
-                                                                                      k,
-                                                                                      num_runs,
-                                                                                      random_generator,
-                                                                                      stats);
-}
-
 }
 
 template<typename ContractionImpl>
@@ -141,10 +84,16 @@ struct ContractionAlgo {
     if (seed) {
       rand.seed(seed);
     }
-    return hypergraph_util::minimum_of_runs<HypergraphType,
-                                            ContractionImpl,
-                                            Verbosity,
-                                            PassDiscovery>(hypergraph, k, num_runs, rand);
+    hypergraph_util::ContractionStats stats{};
+    return hypergraph_util::repeat_contraction<HypergraphType,
+                                               ContractionImpl,
+                                               Verbosity,
+                                               PassDiscovery>(hypergraph,
+                                                              k,
+                                                              rand,
+                                                              stats,
+                                                              num_runs == 0 ? std::nullopt : std::optional(num_runs),
+                                                              std::nullopt);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
@@ -168,10 +117,15 @@ struct ContractionAlgo {
     if (seed) {
       rand.seed(seed);
     }
-    return hypergraph_util::run_until_discovery<HypergraphType,
-                                                ContractionImpl,
-                                                Verbosity,
-                                                PassDiscovery>(hypergraph, k, discovery_value, rand, stats);
+    return hypergraph_util::repeat_contraction<HypergraphType,
+                                               ContractionImpl,
+                                               Verbosity,
+                                               PassDiscovery>(hypergraph,
+                                                              k,
+                                                              rand,
+                                                              stats,
+                                                              std::nullopt,
+                                                              discovery_value);
   }
 };
 
