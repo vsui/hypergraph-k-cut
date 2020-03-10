@@ -87,49 +87,39 @@ INSTANTIATE_TEST_SUITE_P( \
   } \
 );
 
-#define CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(name, func) \
-CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE( \
-  name##Unweighted, \
-  func, \
-  Hypergraph, \
-  min_cut_instances(small_unweighted_tests())) \
-CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE( \
-  name##WeightedIntegral, \
-  func, \
-  WeightedHypergraph<size_t>, \
-  min_cut_instances(small_weighted_tests<size_t>())) \
-CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE( \
-  name##WeightedFloating, \
-  func, \
-  WeightedHypergraph<double>, \
-  min_cut_instances(small_weighted_tests<double>()))
+#define CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE2(name, unweighted, weighted1, weighted2) \
+CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE(name##Unweighted, name, Hypergraph, min_cut_instances(unweighted)) \
+CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE(name##WeightedIntegral, name, WeightedHypergraph<size_t>, min_cut_instances(weighted1)) \
+CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE(name##WeightedFloating, name, WeightedHypergraph<double>, min_cut_instances(weighted2)) \
+CREATE_HYPERGRAPH_MIN_CUT_VALUE_TEST_FIXTURE(name##ValueUnweighted, name, Hypergraph, min_cut_instances(unweighted)) \
+CREATE_HYPERGRAPH_MIN_CUT_VALUE_TEST_FIXTURE(name##ValueWeightedIntegral, name, WeightedHypergraph<size_t>, min_cut_instances(weighted1)) \
+CREATE_HYPERGRAPH_MIN_CUT_VALUE_TEST_FIXTURE(name##ValueWeightedFloating, name, WeightedHypergraph<double>, min_cut_instances(weighted2))
 
-#define CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE2(name, func, unweighted, weighted1, weighted2) \
-CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE( \
-  name##Unweighted, \
-  func, \
-  Hypergraph, \
-  min_cut_instances(unweighted)) \
-CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE( \
-  name##WeightedIntegral, \
-  func, \
-  WeightedHypergraph<size_t>, \
-  min_cut_instances(weighted1)) \
-CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE( \
-  name##WeightedFloating, \
-  func, \
-  WeightedHypergraph<double>, \
-  min_cut_instances(weighted2))
+#define CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(name) \
+CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE2(name, small_unweighted_tests(), small_weighted_tests<size_t>(), small_weighted_tests<double>())
 
-#define CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE(name, func, HypergraphType, values) \
+#define CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE(name, funcprefix, HypergraphType, values) \
 class name##Test : public testing::TestWithParam<MinCutTestCaseInstance<HypergraphType>> {}; \
 TEST_P(name##Test, Works) { \
   auto &[hypergraph, cut_value, filename] = GetParam(); \
   HypergraphType copy(hypergraph); \
-  const auto cut = func(copy); \
+  const auto cut = funcprefix##_min_cut(copy); \
   std::string error; \
   EXPECT_TRUE(cut_is_valid(cut, hypergraph, 2, error)) << error; \
   EXPECT_EQ(cut.value, cut_value); \
+} \
+INSTANTIATE_TEST_SUITE_P( \
+  name##Test, name##Test, testing::ValuesIn(values), \
+  [](const testing::TestParamInfo<name##Test::ParamType>& info) { return std::get<2>(info.param); } \
+);
+
+#define CREATE_HYPERGRAPH_MIN_CUT_VALUE_TEST_FIXTURE(name, funcprefix, HypergraphType, values) \
+class name##Test : public testing::TestWithParam<MinCutTestCaseInstance<HypergraphType>> {}; \
+TEST_P(name##Test, Works) { \
+  auto &[hypergraph, cut_value, filename] = GetParam(); \
+  HypergraphType copy(hypergraph); \
+  const auto cutvalue = funcprefix##_min_cut_value(copy); \
+  EXPECT_EQ(cutvalue, cut_value); \
 } \
 INSTANTIATE_TEST_SUITE_P( \
   name##Test, name##Test, testing::ValuesIn(values), \

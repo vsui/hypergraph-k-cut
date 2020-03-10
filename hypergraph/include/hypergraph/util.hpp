@@ -4,22 +4,10 @@
 #include <chrono>
 
 #include "hypergraph.hpp"
+#include "cut.hpp"
 #include "certificate.hpp"
 
 namespace hypergraph_util {
-
-template<typename HypergraphType, bool ReturnPartitions>
-struct HypergraphCutRet;
-
-template<typename HypergraphType>
-struct HypergraphCutRet<HypergraphType, true> {
-  using T = HypergraphCut<typename HypergraphType::EdgeWeight>;
-};
-
-template<typename HypergraphType>
-struct HypergraphCutRet<HypergraphType, false> {
-  using T = typename HypergraphType::EdgeWeight; // Just return cut value
-};
 
 struct ContractionStats {
   uint64_t num_contractions;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hypergraph.hpp"
+#include "cut.hpp"
 
 template<typename EdgeWeightType>
 struct HypergraphCut {
@@ -114,6 +115,27 @@ bool cut_is_valid(const HypergraphCut<typename HypergraphType::EdgeWeight> &cut,
   }
 }
 
+template<typename HypergraphType, bool ReturnPartitions>
+struct HypergraphCutRet;
+
+template<typename HypergraphType>
+struct HypergraphCutRet<HypergraphType, true> {
+  using T = HypergraphCut<typename HypergraphType::EdgeWeight>;
+
+  static T max() {
+    return T::max();
+  }
+};
+
+template<typename HypergraphType>
+struct HypergraphCutRet<HypergraphType, false> {
+  using T = typename HypergraphType::EdgeWeight; // Just return cut value
+
+  static T max() {
+    return std::numeric_limits<T>::max();
+  }
+};
+
 template<typename EdgeWeight>
 std::ostream &operator<<(std::ostream &os, const HypergraphCut<EdgeWeight> &cut) {
   os << "VALUE: " << cut.value << std::endl;
@@ -133,8 +155,9 @@ std::ostream &operator<<(std::ostream &os, const HypergraphCut<EdgeWeight> &cut)
  *
  * Time complexity: O(m), where m is the number of edges
  */
-template<typename HypergraphType>
-HypergraphCut<typename HypergraphType::EdgeWeight> one_vertex_cut(const HypergraphType &hypergraph, const int v) {
+template<bool ReturnPartitions, typename HypergraphType>
+auto one_vertex_cut(const HypergraphType &hypergraph, const int v) -> typename HypergraphCutRet<HypergraphType,
+                                                                                                ReturnPartitions>::T {
   // Get cut-value
   typename HypergraphType::EdgeWeight cut_value = 0;
   if constexpr (is_unweighted<HypergraphType>) {
@@ -145,22 +168,26 @@ HypergraphCut<typename HypergraphType::EdgeWeight> one_vertex_cut(const Hypergra
     }
   }
 
-  // Get partitions
-  // TODO can't use splice here because we need to keep the vertices valid
-  std::list<int> partitions[2] = {{}, {}};
-  partitions[0].insert(std::end(partitions[0]),
-                       std::begin(hypergraph.vertices_within(v)), std::end(hypergraph.vertices_within(v)));
-  for (const int u : hypergraph.vertices()) {
-    if (u == v) {
-      continue;
+  if constexpr (ReturnPartitions) {
+    // Get partitions
+    // TODO can't use splice here because we need to keep the vertices valid
+    std::list<int> partitions[2] = {{}, {}};
+    partitions[0].insert(std::end(partitions[0]),
+                         std::begin(hypergraph.vertices_within(v)), std::end(hypergraph.vertices_within(v)));
+    for (const int u : hypergraph.vertices()) {
+      if (u == v) {
+        continue;
+      }
+      partitions[1].insert(std::end(partitions[1]),
+                           std::begin(hypergraph.vertices_within(u)), std::end(hypergraph.vertices_within(u)));
     }
-    partitions[1].insert(std::end(partitions[1]),
-                         std::begin(hypergraph.vertices_within(u)), std::end(hypergraph.vertices_within(u)));
-  }
 
-  return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions),
-                                                            std::end(partitions),
-                                                            cut_value);
+    return HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions),
+                                                              std::end(partitions),
+                                                              cut_value);
+  } else {
+    return cut_value;
+  }
 }
 
 template<typename HypergraphType>

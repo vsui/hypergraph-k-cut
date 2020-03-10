@@ -19,7 +19,7 @@ HypergraphCut<typename HypergraphType::EdgeWeight> approximate_minimizer(Hypergr
   auto delta = Cut::max();
   for (const auto v : hypergraph.vertices()) {
     // TODO one vertex cut
-    delta = std::min(delta, one_vertex_cut(hypergraph, v));
+    delta = std::min(delta, one_vertex_cut<true>(hypergraph, v));
   }
   if (delta.value == 0) {
     return delta;

@@ -14,9 +14,9 @@
 CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(CXY, cxy)
 CREATE_HYPERGRAPH_K_CUT_TEST_SUITE(FPZ, fpz)
 
-CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(MW, MW_min_cut)
-CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(Q, Q_min_cut)
-CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(KW, KW_min_cut)
+CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(MW)
+CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(Q)
+CREATE_HYPERGRAPH_MIN_CUT_TEST_SUITE(KW)
 
 template<typename HypergraphType>
 HypergraphCut<typename HypergraphType::EdgeWeight> KK_min_cut(const HypergraphType &hypergraph) {
@@ -44,4 +44,4 @@ HypergraphCut<typename HypergraphType::EdgeWeight> MW_certificate_min_cut(const 
 
 // Certificate min cut only works for unweighted as of now
 CREATE_HYPERGRAPH_MIN_CUT_TEST_FIXTURE(
-    Certificate, MW_certificate_min_cut, Hypergraph, min_cut_instances(small_unweighted_tests()));
+    Certificate, MW_certificate, Hypergraph, min_cut_instances(small_unweighted_tests()));

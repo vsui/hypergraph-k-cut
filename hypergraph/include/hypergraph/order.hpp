@@ -224,13 +224,14 @@ using ordering_t = std::add_pointer_t<std::vector<int>(const HypergraphType &, c
  * Ordering should be one of `tight_ordering`, `queyranne_ordering`, or
  * `maximum_adjacency_ordering`.
  */
-template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
-HypergraphCut<typename HypergraphType::EdgeWeight> vertex_ordering_minimum_cut_start_vertex(HypergraphType &hypergraph,
-                                                                                            const int a) {
-  auto min_cut_of_phase = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
+template<typename HypergraphType, ordering_t<HypergraphType> Ordering, bool ReturnPartitions>
+auto vertex_ordering_minimum_cut_start_vertex(HypergraphType &hypergraph,
+                                              const int a) -> typename HypergraphCutRet<HypergraphType,
+                                                                                        ReturnPartitions>::T {
+  auto min_cut_of_phase = HypergraphCutRet<HypergraphType, ReturnPartitions>::max();
   while (hypergraph.num_vertices() > 1) {
     auto ordering = Ordering(hypergraph, a);
-    const auto cut_of_phase = one_vertex_cut(hypergraph, ordering.back());
+    const auto cut_of_phase = one_vertex_cut<ReturnPartitions>(hypergraph, ordering.back());
     hypergraph = merge_vertices(hypergraph, *(std::end(ordering) - 2),
                                 *(std::end(ordering) - 1));
     min_cut_of_phase = std::min(min_cut_of_phase, cut_of_phase);
@@ -238,24 +239,37 @@ HypergraphCut<typename HypergraphType::EdgeWeight> vertex_ordering_minimum_cut_s
   return min_cut_of_phase;
 }
 
-template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
-inline HypergraphCut<typename HypergraphType::EdgeWeight> vertex_ordering_mincut(HypergraphType &hypergraph) {
+template<typename HypergraphType, ordering_t<HypergraphType> Ordering, bool ReturnPartitions>
+auto vertex_ordering_mincut(HypergraphType &hypergraph) -> typename HypergraphCutRet<HypergraphType,
+                                                                                     ReturnPartitions>::T {
   const auto a = *std::begin(hypergraph.vertices());
-  return vertex_ordering_minimum_cut_start_vertex<HypergraphType, Ordering>(hypergraph, a);
+  return vertex_ordering_minimum_cut_start_vertex<HypergraphType, Ordering, ReturnPartitions>(hypergraph, a);
 }
 
 template<typename HypergraphType>
-HypergraphCut<typename HypergraphType::EdgeWeight> MW_min_cut(HypergraphType &hypergraph) {
-  return vertex_ordering_mincut<HypergraphType, tight_ordering>(hypergraph);
+inline auto MW_min_cut(HypergraphType &hypergraph) {
+  return vertex_ordering_mincut<HypergraphType, tight_ordering, true>(hypergraph);
+}
+template<typename HypergraphType>
+inline auto MW_min_cut_value(HypergraphType &hypergraph) {
+  return vertex_ordering_mincut<HypergraphType, tight_ordering, false>(hypergraph);
 }
 
 template<typename HypergraphType>
 inline auto Q_min_cut(HypergraphType &hypergraph) {
-  return vertex_ordering_mincut<HypergraphType, queyranne_ordering>(hypergraph);
+  return vertex_ordering_mincut<HypergraphType, queyranne_ordering, true>(hypergraph);
+}
+template<typename HypergraphType>
+inline auto Q_min_cut_value(HypergraphType &hypergraph) {
+  return vertex_ordering_mincut<HypergraphType, queyranne_ordering, false>(hypergraph);
 }
 
 template<typename HypergraphType>
 inline auto KW_min_cut(HypergraphType &hypergraph) {
-  return vertex_ordering_mincut<HypergraphType, maximum_adjacency_ordering>(hypergraph);
+  return vertex_ordering_mincut<HypergraphType, maximum_adjacency_ordering, true>(hypergraph);
+}
+template<typename HypergraphType>
+inline auto KW_min_cut_value(HypergraphType &hypergraph) {
+  return vertex_ordering_mincut<HypergraphType, maximum_adjacency_ordering, false>(hypergraph);
 }
 
