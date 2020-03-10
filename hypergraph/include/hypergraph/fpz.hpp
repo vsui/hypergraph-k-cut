@@ -47,10 +47,6 @@ struct FpzImpl {
                                                                      hypergraph_util::ContractionStats &stats,
                                                                      typename HypergraphType::EdgeWeight accumulated = 0,
                                                                      typename HypergraphType::EdgeWeight discovery_value = 0) {
-#ifndef NDEBUG
-    assert(hypergraph.is_valid());
-#endif
-
     // Remove k-spanning hyperedges from hypergraph
     std::vector<int> k_spanning_hyperedges;
     for (const auto &[edge_id, vertices] : hypergraph.edges()) {
