@@ -10,18 +10,18 @@ int main() {
 
   // Can't use initializer list, std::apply not working
   std::vector<size_t> multipliers = {10};
-  std::vector<size_t> ns = {100, 200, 300, 400, 500};
-  std::vector<size_t> ranks = {3, 4, 5};
+  std::vector<size_t> ns = {100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475, 500};
+  std::vector<size_t> ranks = {3};
 
   using HypergraphGeneratorPtr = std::unique_ptr<HypergraphGenerator>;
 
   using Experiment = std::tuple<std::string, std::vector<HypergraphGeneratorPtr>>;
 
+  /*
   std::vector<Experiment> planted_experiments;
-  std::vector<Experiment> uniformplanted_experiments;
 
   // Make planted generators
-  for (size_t k = 2; k < 5; ++k) {
+  for (size_t k = 2; k < 3; ++k) {
     for (size_t multiplier : multipliers) {
       std::string name = "planted_"s + std::to_string(k) + "_"s + std::to_string(multiplier);
       std::vector<HypergraphGeneratorPtr> generators;
@@ -36,8 +36,53 @@ int main() {
     }
   }
 
+
+  for (auto &experiment : planted_experiments) {
+    auto store = std::make_unique<SqliteStore>();
+    if (!store->open("mar11.db")) {
+      std::cout << "Failed to open store" << std::endl;
+      return 1;
+    }
+    auto &[name, generators] = experiment;
+    KDiscoveryRunner runner(name, std::move(generators), std::move(store));
+    runner.run();
+  }
+
+   */
+
+  // Create ring experiments
+  std::vector<Experiment> ring_experiments;
+  std::vector<Experiment> uniformring_experiments;
+
+  // Make ring generators
+  for (double hyperedge_radius : {10, 15, 20}) {
+    std::vector<HypergraphGeneratorPtr> generators;
+    for (size_t num_vertices : {100, 150, 200, 250, 300, 350, 400, 450, 500}) {
+      size_t num_edges = num_vertices * 10;
+      generators.emplace_back(std::make_unique<RandomRingConstantEdgeHypergraph>(num_vertices,
+                                                                                 num_edges,
+                                                                                 hyperedge_radius,
+                                                                                 777));
+    }
+    ring_experiments.emplace_back("ring_"s + std::to_string(hyperedge_radius), std::move(generators));
+  }
+
+  /*
+  for (auto &experiment : ring_experiments) {
+    auto store = std::make_unique<SqliteStore>();
+    if (!store->open("mar11-2.db")) {
+      std::cout << "Failed to open store" << std::endl;
+      return 1;
+    }
+    auto &[name, generators] = experiment;
+    RandomRingRunner runner(name, std::move(generators), std::move(store), false);
+    runner.run();
+  }
+   */
+
+  std::vector<Experiment> uniformplanted_experiments;
   // Make uniform planted generators
-  for (size_t k = 2; k < 5; ++k) {
+  for (size_t k = 2; k < 3; ++k) {
     for (size_t multiplier : multipliers) {
       for (size_t rank : ranks) {
         std::string name =
@@ -53,20 +98,9 @@ int main() {
     }
   }
 
-  for (auto &experiment : planted_experiments) {
-    auto store = std::make_unique<SqliteStore>();
-    if (!store->open("my.db")) {
-      std::cout << "Failed to open store" << std::endl;
-      return 1;
-    }
-    auto &[name, generators] = experiment;
-    KDiscoveryRunner runner(name, std::move(generators), std::move(store));
-    runner.run();
-  }
-
   for (auto &experiment : uniformplanted_experiments) {
     auto store = std::make_unique<SqliteStore>();
-    if (!store->open("my.db")) {
+    if (!store->open("mar11-3.db")) {
       std::cout << "Failed to open store" << std::endl;
       return 1;
     }

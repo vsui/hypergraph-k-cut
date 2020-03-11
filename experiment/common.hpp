@@ -36,6 +36,8 @@ struct CutInfo {
   size_t cut_value;
   std::vector<std::vector<int>> partitions;
 
+  CutInfo(size_t k, size_t cut_value) : k(k), cut_value(cut_value) {}
+
   CutInfo(size_t k, const HypergraphCut<size_t> cut)
       : k(k), cut_value(cut.value), partitions(normalize_partitions(cut.partitions)) {}
 

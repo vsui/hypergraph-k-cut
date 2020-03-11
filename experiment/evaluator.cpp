@@ -24,40 +24,6 @@ std::string hostname() {
   return {hostname.data()};
 }
 
-// Visitor for discovery algorithms
-struct DiscoverVisitor {
-  using F = std::function<HypergraphCut<size_t>(const Hypergraph &,
-                                                size_t,
-                                                size_t,
-                                                hypergraph_util::ContractionStats &,
-                                                uint64_t)>;
-  using WF = std::function<HypergraphCut<size_t>(const WeightedHypergraph<size_t> &,
-                                                 size_t,
-                                                 size_t,
-                                                 hypergraph_util::ContractionStats &,
-                                                 uint64_t)>;
-
-  DiscoverVisitor(size_t k, size_t discovery_val, uint64_t seed, F f, WF wf)
-      : k(k), discovery_val(discovery_val), seed(seed), f(f), wf(wf) {}
-
-  size_t k;
-  size_t discovery_val;
-
-  mutable hypergraph_util::ContractionStats stats;
-
-  uint64_t seed;
-  F f;
-  WF wf;
-
-  HypergraphCut<size_t> operator()(const Hypergraph &h) const {
-    return f(h, k, discovery_val, stats, seed);
-  }
-
-  HypergraphCut<size_t> operator()(const WeightedHypergraph<size_t> &h) const {
-    return wf(h, k, discovery_val, stats, seed);
-  }
-};
-
 }
 
 CutEvaluator::CutEvaluator(std::unique_ptr<HypergraphSource> &&source, std::unique_ptr<CutInfoStore> &&store) : source_(
@@ -145,6 +111,8 @@ void KDiscoveryRunner::run() {
     hypergraph.name = gen->name();
 
     const CutInfo planted_cut = planted_cut_optional.value();
+    const size_t k = planted_cut.k;
+    const size_t cut_value = planted_cut.cut_value;
     std::cout << hypergraph.name << "..." << std::endl;
 
     if (store_->report(*gen) == ReportStatus::ERROR) {
@@ -160,146 +128,422 @@ void KDiscoveryRunner::run() {
       continue;
     }
 
-    using FPtr = HypergraphCut<size_t> (*)(const Hypergraph &,
-                                           size_t,
-                                           size_t,
-                                           hypergraph_util::ContractionStats &,
-                                           uint64_t);
-    using WFPtr = HypergraphCut<size_t> (*)(const WeightedHypergraph<size_t> &,
-                                            size_t,
-                                            size_t,
-                                            hypergraph_util::ContractionStats &,
-                                            uint64_t);
+    // Avoid this variant foolishness for now
+    Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+    assert(hypergraph_ptr != nullptr);
 
-    // TODO Random seed
-    std::vector<DiscoverVisitor> cxy_visitors;
-    std::vector<DiscoverVisitor> fpz_visitors;
-    std::vector<DiscoverVisitor> kk_visitors;
-    for (uint64_t seed : {1618, 2718, 31415, 777777, 2020, 101, 203, 55555, 909, 10}) {
-      cxy_visitors.emplace_back(planted_cut.k,
-                                planted_cut.cut_value,
-                                seed,
-                                static_cast<FPtr>(cxy::discover_stats<Hypergraph, 1>),
-                                static_cast<WFPtr>(cxy::discover_stats<WeightedHypergraph<size_t>, 1>));
-      fpz_visitors.emplace_back(planted_cut.k,
-                                planted_cut.cut_value,
-                                seed,
-                                static_cast<FPtr>(fpz::discover_stats<Hypergraph, 1>),
-                                static_cast<WFPtr>(fpz::discover_stats<WeightedHypergraph<size_t>, 1>));
-      kk_visitors.emplace_back(planted_cut.k,
-                               planted_cut.cut_value,
-                               seed,
-                               static_cast<FPtr>(kk::discover_stats<Hypergraph, 1>),
-                               static_cast<WFPtr>(kk::discover_stats<WeightedHypergraph<size_t>, 1>));
+    using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
+                                                                  uint64_t seed,
+                                                                  hypergraph_util::ContractionStats &stats)>;
+    using HypergraphCutValFunc = std::function<size_t(Hypergraph *,
+                                                      uint64_t seed,
+                                                      hypergraph_util::ContractionStats &stats)>;
+
+    std::map<std::string, HypergraphCutFunc> cut_funcs = {
+        {"cxy", [k, cut_value](Hypergraph *h,
+                               uint64_t seed,
+                               hypergraph_util::ContractionStats &stats) {
+          return cxy::discover_stats<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+        {"fpz", [k, cut_value](Hypergraph *h,
+                               uint64_t seed,
+                               hypergraph_util::ContractionStats &stats) {
+          return fpz::discover_stats<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+    };
+
+    std::map<std::string, HypergraphCutValFunc> cutval_funcs = {
+        {"cxyval", [k, cut_value](Hypergraph *h,
+                                  uint64_t seed,
+                                  hypergraph_util::ContractionStats &stats) {
+          return cxy::discover_value<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+        {"fpzval", [k, cut_value](Hypergraph *h,
+                                  uint64_t seed,
+                                  hypergraph_util::ContractionStats &stats) {
+          return fpz::discover_value<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+    };
+
+    if (k == 2) {
+      cut_funcs.insert({"mw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return MW_min_cut<Hypergraph>(*h);
+      }});
+      cut_funcs.insert({"q", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return Q_min_cut<Hypergraph>(*h);
+      }});
+      cut_funcs.insert({"kw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return KW_min_cut<Hypergraph>(*h);
+      }});
+      cutval_funcs.insert({"mwval", [](Hypergraph *h,
+                                       uint64_t seed,
+                                       hypergraph_util::ContractionStats &stats) { return MW_min_cut_value<Hypergraph>(*h); }});
+      cutval_funcs.insert({"qval", [](Hypergraph *h,
+                                      uint64_t seed,
+                                      hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }});
+      cutval_funcs.insert({"kwval", [](Hypergraph *h,
+                                       uint64_t seed,
+                                       hypergraph_util::ContractionStats &stats) { return KW_min_cut_value<Hypergraph>(*h); }});
     }
 
-    struct MW_visitor {
-      mutable hypergraph_util::ContractionStats stats;
-
-      HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
-        return MW_min_cut(hypergraph);
-      }
-      HypergraphCut<size_t> operator()(WeightedHypergraph<size_t> &hypergraph) const {
-        return MW_min_cut(hypergraph);
-      }
-    } mw_visit;
-
-    struct KW_visitor {
-
-      mutable hypergraph_util::ContractionStats stats;
-
-      HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
-        return KW_min_cut(hypergraph);
-      }
-      HypergraphCut<size_t> operator()(WeightedHypergraph<size_t> &hypergraph) const {
-        return KW_min_cut(hypergraph);
-      }
-    } kw_visit;
-
-    struct Q_visitor {
-
-      mutable hypergraph_util::ContractionStats stats;
-
-      HypergraphCut<size_t> operator()(Hypergraph &hypergraph) const {
-        return Q_min_cut(hypergraph);
-      }
-      HypergraphCut<size_t> operator()(WeightedHypergraph<size_t> &hypergraph) const {
-        return Q_min_cut(hypergraph);
-      }
-    } q_visit;
-
-    auto compute_run =
-        [this, planted_cut_id](const auto &visitor,
-                               std::string func_name,
-                               const CutInfo &planted_cut,
-                               const HypergraphWrapper &hypergraph) -> void {
-          // Now take the times
-          HypergraphWrapper temp(hypergraph); // Need to make a copy for vertex ordering algos
-          HypergraphCut<size_t> cxy_cut = std::visit(visitor, temp.h);
-          CutInfo found_cut_info(planted_cut.k, cxy_cut);
-
-          CutRunInfo run_info(id_, found_cut_info);
-          run_info.algorithm = func_name;
-          run_info.time = visitor.stats.time_elapsed_ms;
-          run_info.machine = hostname();
-          run_info.commit = "n/a";
-
-          // Check if found cut was the planted cut
-          uint64_t found_cut_id;
-          if (found_cut_info == planted_cut) {
-            std::cout << "Found the planted cut" << std::endl;
-            found_cut_id = planted_cut_id;
-          } else {
-            // Otherwise we need to report this cut to the DB to get its ID
-            if (found_cut_info.cut_value == planted_cut.cut_value) {
-              std::cout << "Found cut has same value as planted cut (" << planted_cut.cut_value
-                        << ") but different partitions:";
-              for (const auto &partition : found_cut_info.partitions) {
-                std::cout << " " << partition.size();
-              }
-              std::cout << std::endl;
-            } else {
-              std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value "
-                        << planted_cut.cut_value
-                        << std::endl;
-            }
-            ReportStatus status;
-            std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
-            if (status == ReportStatus::ERROR) {
-              std::cout << "Failed to report found cut" << std::endl;
-              return;
-            }
-          }
-
-          if (store_->report(hypergraph.name,
-                             found_cut_id,
-                             run_info,
-                             visitor.stats.num_runs,
-                             visitor.stats.num_contractions)
-              == ReportStatus::ERROR) {
-            std::cout << "Failed to report run" << std::endl;
-          }
-        };
-
-    for (auto &cxy_visit : cxy_visitors) {
-      compute_run(cxy_visit, "cxy", planted_cut, hypergraph);
-    }
-    for (auto &fpz_visit : fpz_visitors) {
-      compute_run(fpz_visit, "fpz", planted_cut, hypergraph);
-    }
     if (compare_kk_) {
-      for (auto &kk_visit : kk_visitors) {
-        compute_run(kk_visit, "kk", planted_cut, hypergraph);
-      }
-    }
-    if (planted_cut.k == 2) {
-      for (int i = 0; i < 10; ++i) {
-        compute_run(mw_visit, "mw", planted_cut, hypergraph);
-        compute_run(kw_visit, "kw", planted_cut, hypergraph);
-        compute_run(q_visit, "q", planted_cut, hypergraph);
-      }
+      cut_funcs.insert({"kk", [k, cut_value](Hypergraph *h,
+                                             uint64_t seed,
+                                             hypergraph_util::ContractionStats &stats) {
+        return kk::discover_stats<Hypergraph,
+                                  1>(*h, k, cut_value, stats, seed);
+      }});
+      cutval_funcs.insert({"kkval", [k, cut_value](Hypergraph *h,
+                                                   uint64_t seed,
+                                                   hypergraph_util::ContractionStats &stats) {
+        return kk::discover_value<Hypergraph,
+                                  1>(*h, k, cut_value, stats, seed);
+      }});
     }
 
+    // Do them in order
+    std::random_device rd;
+    std::mt19937_64 rgen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+    for (int i = 0; i < 20; ++i) {
+      for (const auto &[func_name, func] : cut_funcs) {
+        Hypergraph temp(*hypergraph_ptr);
+        std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
+        hypergraph_util::ContractionStats stats;
+
+        auto start = std::chrono::high_resolution_clock::now();
+        HypergraphCut<size_t> cut = func(&temp, dis(rgen), stats);
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        CutInfo found_cut_info(k, cut);
+
+        CutRunInfo run_info(id_, found_cut_info);
+        run_info.algorithm = func_name;
+        run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+        run_info.machine = hostname();
+        run_info.commit = "n/a";
+
+        // Check if found cut was the planted cut
+        uint64_t found_cut_id;
+        if (found_cut_info == planted_cut) {
+          std::cout << "Found the planted cut" << std::endl;
+          found_cut_id = planted_cut_id;
+        } else {
+          // Otherwise we need to report this cut to the DB to get its ID
+          if (found_cut_info.cut_value == planted_cut.cut_value) {
+            std::cout << "Found cut has same value as planted cut (" << planted_cut.cut_value
+                      << ") but different partitions:";
+            for (const auto &partition : found_cut_info.partitions) {
+              std::cout << " " << partition.size();
+            }
+            std::cout << std::endl;
+          } else {
+            std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value "
+                      << planted_cut.cut_value
+                      << std::endl;
+          }
+          ReportStatus status;
+          std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
+          if (status == ReportStatus::ERROR) {
+            std::cout << "Failed to report found cut" << std::endl;
+            return;
+          }
+        }
+
+        if (store_->report(hypergraph.name,
+                           found_cut_id,
+                           run_info,
+                           stats.num_runs,
+                           stats.num_contractions)
+            == ReportStatus::ERROR) {
+          std::cout << "Failed to report run" << std::endl;
+        }
+      };
+
+      for (const auto &[func_name, func] : cutval_funcs) {
+        Hypergraph temp(*hypergraph_ptr);
+        std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
+        hypergraph_util::ContractionStats stats;
+        auto start = std::chrono::high_resolution_clock::now();
+        size_t cutval = func(&temp, dis(rgen), stats);
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        if (cutval < planted_cut.cut_value) {
+          std::cout << "Found cut value has lesser value than planted cut" << std::endl;
+        }
+
+        CutInfo found_cut_info(k, cut_value);
+
+        CutRunInfo run_info(id_, found_cut_info);
+        run_info.algorithm = func_name;
+        run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+        run_info.machine = hostname();
+        run_info.commit = "n/a";
+
+        if (store_->report(hypergraph.name,
+                           run_info,
+                           stats.num_runs,
+                           stats.num_contractions)
+            == ReportStatus::ERROR) {
+          std::cout << "Failed to report run" << std::endl;
+        }
+      }
+    }
   }
 }
 
+RandomRingRunner::RandomRingRunner(const std::string &id,
+                                   std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
+                                   std::unique_ptr<CutInfoStore> &&store, bool compare_kk) : id_(id),
+                                                                                             src_(std::move(source)),
+                                                                                             store_(std::move(store)),
+                                                                                             compare_kk_(compare_kk) {}
+
+void RandomRingRunner::run() {
+  for (const auto &gen : src_) {
+    // We need to initially check that the hypergraph has an interesting cut...
+    const auto[hgraph, planted_cut_optional] = gen->generate();
+    assert(!planted_cut_optional.has_value());
+
+    HypergraphWrapper hypergraph;
+    hypergraph.h = hgraph;
+    hypergraph.name = gen->name();
+
+    // Avoid this variant foolishness for now
+    const Hypergraph *const hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+    Hypergraph temp(*hypergraph_ptr);
+
+    assert(hypergraph_ptr != nullptr);
+
+    CutInfo planted_cut(2, MW_min_cut(temp));
+
+    std::cout << hypergraph.name << ": size " << hypergraph_ptr->size() << std::endl;
+
+    if (planted_cut.cut_value == 0) {
+      std::cout << hypergraph.name << " is uninteresting: cut value is 0" << std::endl;
+      continue;
+    }
+
+    if (std::any_of(std::begin(planted_cut.partitions), std::end(planted_cut.partitions), [](const auto &p) {
+      return p.size() == 1;
+    })) {
+      std::cout << hypergraph.name << " is uninteresting: skewed partitions" << std::endl;
+      continue;
+    }
+
+    std::cout << hypergraph.name << " is interesting: cut value is "
+              << planted_cut.cut_value
+              << ", partitions have sizes " << planted_cut.partitions[0].size()
+              << " and "
+              << planted_cut.partitions[1].size()
+              << std::endl;
+
+    const size_t k = planted_cut.k;
+    const size_t cut_value = planted_cut.cut_value;
+    std::cout << hypergraph.name << "..." << std::endl;
+
+    if (store_->report(*gen) == ReportStatus::ERROR) {
+      std::cout << "Failed to put hypergraph in DB" << std::endl;
+      continue;
+    }
+
+    ReportStatus status;
+    uint64_t planted_cut_id;
+    std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
+    if (status == ReportStatus::ERROR) {
+      std::cout << "Failed to put planted cut info in DB" << std::endl;
+      continue;
+    }
+
+
+    using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
+                                                                  uint64_t seed,
+                                                                  hypergraph_util::ContractionStats &stats)>;
+    using HypergraphCutValFunc = std::function<size_t(Hypergraph *,
+                                                      uint64_t seed,
+                                                      hypergraph_util::ContractionStats &stats)>;
+
+    std::map<std::string, HypergraphCutFunc> cut_funcs = {
+        {"cxy", [k, cut_value](Hypergraph *h,
+                               uint64_t seed,
+                               hypergraph_util::ContractionStats &stats) {
+          return cxy::discover_stats<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+        {"fpz", [k, cut_value](Hypergraph *h,
+                               uint64_t seed,
+                               hypergraph_util::ContractionStats &stats) {
+          return fpz::discover_stats<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+    };
+
+    std::map<std::string, HypergraphCutValFunc> cutval_funcs = {
+        {"cxyval", [k, cut_value](Hypergraph *h,
+                                  uint64_t seed,
+                                  hypergraph_util::ContractionStats &stats) {
+          return cxy::discover_value<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+        {"fpzval", [k, cut_value](Hypergraph *h,
+                                  uint64_t seed,
+                                  hypergraph_util::ContractionStats &stats) {
+          return fpz::discover_value<Hypergraph, 1>(*h,
+                                                    k,
+                                                    cut_value,
+                                                    stats,
+                                                    seed);
+        }},
+    };
+
+    if (k == 2) {
+      cut_funcs.insert({"mw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return MW_min_cut<Hypergraph>(*h);
+      }});
+      cut_funcs.insert({"q", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return Q_min_cut<Hypergraph>(*h);
+      }});
+      cut_funcs.insert({"kw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return KW_min_cut<Hypergraph>(*h);
+      }});
+      cutval_funcs.insert({"mwval", [](Hypergraph *h,
+                                       uint64_t seed,
+                                       hypergraph_util::ContractionStats &stats) { return MW_min_cut_value<Hypergraph>(*h); }});
+      cutval_funcs.insert({"qval", [](Hypergraph *h,
+                                      uint64_t seed,
+                                      hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }});
+      cutval_funcs.insert({"kwval", [](Hypergraph *h,
+                                       uint64_t seed,
+                                       hypergraph_util::ContractionStats &stats) { return KW_min_cut_value<Hypergraph>(*h); }});
+    }
+
+    if (compare_kk_) {
+      cut_funcs.insert({"kk", [k, cut_value](Hypergraph *h,
+                                             uint64_t seed,
+                                             hypergraph_util::ContractionStats &stats) {
+        return kk::discover_stats<Hypergraph,
+                                  1>(*h, k, cut_value, stats, seed);
+      }});
+      cutval_funcs.insert({"kkval", [k, cut_value](Hypergraph *h,
+                                                   uint64_t seed,
+                                                   hypergraph_util::ContractionStats &stats) {
+        return kk::discover_value<Hypergraph,
+                                  1>(*h, k, cut_value, stats, seed);
+      }});
+    }
+
+    // Do them in order
+    std::random_device rd;
+    std::mt19937_64 rgen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+    for (int i = 0; i < 20; ++i) {
+      for (const auto &[func_name, func] : cut_funcs) {
+        Hypergraph temp(*hypergraph_ptr);
+        std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
+        hypergraph_util::ContractionStats stats;
+
+        auto start = std::chrono::high_resolution_clock::now();
+        HypergraphCut<size_t> cut = func(&temp, dis(rgen), stats);
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        CutInfo found_cut_info(k, cut);
+
+        CutRunInfo run_info(id_, found_cut_info);
+        run_info.algorithm = func_name;
+        run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+        run_info.machine = hostname();
+        run_info.commit = "n/a";
+
+        // Check if found cut was the planted cut
+        uint64_t found_cut_id;
+        if (found_cut_info == planted_cut) {
+          std::cout << "Found the planted cut" << std::endl;
+          found_cut_id = planted_cut_id;
+        } else {
+          // Otherwise we need to report this cut to the DB to get its ID
+          if (found_cut_info.cut_value == planted_cut.cut_value) {
+            std::cout << "Found cut has same value as planted cut (" << planted_cut.cut_value
+                      << ") but different partitions:";
+            for (const auto &partition : found_cut_info.partitions) {
+              std::cout << " " << partition.size();
+            }
+            std::cout << std::endl;
+          } else {
+            std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value "
+                      << planted_cut.cut_value
+                      << std::endl;
+          }
+          ReportStatus status;
+          std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
+          if (status == ReportStatus::ERROR) {
+            std::cout << "Failed to report found cut" << std::endl;
+            return;
+          }
+        }
+
+        if (store_->report(hypergraph.name,
+                           found_cut_id,
+                           run_info,
+                           stats.num_runs,
+                           stats.num_contractions)
+            == ReportStatus::ERROR) {
+          std::cout << "Failed to report run" << std::endl;
+        }
+      };
+
+      for (const auto &[func_name, func] : cutval_funcs) {
+        Hypergraph temp(*hypergraph_ptr);
+        std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
+        hypergraph_util::ContractionStats stats;
+        auto start = std::chrono::high_resolution_clock::now();
+        size_t cutval = func(&temp, dis(rgen), stats);
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        if (cutval < planted_cut.cut_value) {
+          std::cout << "Found cut value has lesser value than planted cut" << std::endl;
+        }
+
+        CutInfo found_cut_info(k, cut_value);
+
+        CutRunInfo run_info(id_, found_cut_info);
+        run_info.algorithm = func_name;
+        run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+        run_info.machine = hostname();
+        run_info.commit = "n/a";
+
+        if (store_->report(hypergraph.name,
+                           run_info,
+                           stats.num_runs,
+                           stats.num_contractions)
+            == ReportStatus::ERROR) {
+          std::cout << "Failed to report run" << std::endl;
+        }
+      }
+    }
+  }
+}
