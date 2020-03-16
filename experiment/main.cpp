@@ -7,7 +7,7 @@
 
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;
-using Experiment = std::tuple<std::string, HyGenPtrs>;
+using Experiment = std::tuple<std::string, HyGenPtrs, bool /* compare_kk */, bool /* planted */>;
 
 namespace {
 
@@ -27,6 +27,11 @@ Experiment planted_experiment(const std::string &name,
                               size_t m2_mult,
                               size_t m1_mult) {
   Experiment planted_experiment;
+
+  std::get<0>(planted_experiment) = name;
+  std::get<2>(planted_experiment) = false;
+  std::get<3>(planted_experiment) = true;
+
   for (size_t n : num_vertices) {
     size_t m2 = n / m2_mult;
     size_t m1 = m2 * m1_mult;
@@ -54,6 +59,11 @@ Experiment planted_uniform_experiment(const std::string &name,
                                       size_t m2_mult,
                                       size_t m1_mult) {
   Experiment experiment;
+
+  std::get<0>(experiment) = name;
+  std::get<2>(experiment) = true;
+  std::get<3>(experiment) = true;
+
   for (size_t n : num_vertices) {
     size_t m2 = n / m2_mult;
     size_t m1 = m2 * m1_mult;
@@ -67,6 +77,11 @@ Experiment ring_experiment(const std::string &name,
                            size_t edge_mult,
                            size_t radius) {
   Experiment experiment;
+
+  std::get<0>(experiment) = name;
+  std::get<2>(experiment) = false;
+  std::get<3>(experiment) = false;
+
   for (size_t n : num_vertices) {
     size_t num_edges = n * edge_mult;
     std::get<1>(experiment).emplace_back(new RandomRingConstantEdgeHypergraph(n, num_edges, radius, 777));
@@ -80,10 +95,11 @@ int main() {
   using namespace std::string_literals;
 
   // Can't use initializer list, std::apply not working
-  std::vector<size_t> ns = {100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475, 500};
+  // std::vector<size_t> ns = {100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475, 500};
+  std::vector<size_t> ns = {110, 120, 130, 140, 150};
 
   std::vector<Experiment> experiments;
-
+  /*
   // Make planted experiments
   for (size_t k = 2; k < 4; ++k) {
     std::string name = "planted_"s + std::to_string(k) + "_"s + std::to_string(10);
@@ -99,6 +115,7 @@ int main() {
     Experiment experiment = planted_uniform_experiment(name, ns, k, rank, 10, 10);
     experiments.emplace_back(std::move(experiment));
   }
+   */
 
   // Make ring experiments
   {
@@ -114,8 +131,8 @@ int main() {
       std::cout << "Failed to open store" << std::endl;
       return 1;
     }
-    auto &[name, generators] = experiment;
-    KDiscoveryRunner runner(name, std::move(generators), std::move(store));
+    auto &[name, generators, compare_kk, planted] = experiment;
+    KDiscoveryRunner runner(name, std::move(generators), std::move(store), compare_kk, planted, 1);
     runner.run();
   }
 
