@@ -54,10 +54,13 @@ public:
                               const CutRunInfo &info,
                               size_t num_runs_for_discovery = 0,
                               size_t num_contractions = 0) = 0;
+  virtual ReportStatus report(const std::string &hypergraph_id,
+                              const CutRunInfo &info,
+                              size_t num_runs_for_discovery,
+                              size_t num_contractions) = 0;
 
   virtual ~CutInfoStore() = default;
 };
-
 
 // Forward declaration for SqliteStore
 class sqlite3;
@@ -77,6 +80,10 @@ public:
                                             bool planted) override;
   ReportStatus report(const std::string &hypergraph_id,
                       uint64_t cut_id,
+                      const CutRunInfo &info,
+                      size_t num_runs_for_discovery,
+                      size_t num_contractions) override;
+  ReportStatus report(const std::string &hypergraph_id,
                       const CutRunInfo &info,
                       size_t num_runs_for_discovery,
                       size_t num_contractions) override;

@@ -240,19 +240,19 @@ int dispatch(Options options) {
   switch (options.algorithm) {
   case cut_algorithm::MW: {
     f = [](HypergraphType &hypergraph, size_t k) {
-      return vertex_ordering_mincut<HypergraphType, tight_ordering>(hypergraph);
+      return MW_min_cut(hypergraph);
     };
     break;
   }
   case cut_algorithm::KW: {
     f = [](HypergraphType &hypergraph, size_t k) {
-      return vertex_ordering_mincut<HypergraphType, maximum_adjacency_ordering>(hypergraph);
+      return KW_min_cut(hypergraph);
     };
     break;
   }
   case cut_algorithm::Q: {
     f = [](HypergraphType &hypergraph, size_t k) {
-      return vertex_ordering_mincut<HypergraphType, queyranne_ordering>(hypergraph);
+      return Q_min_cut(hypergraph);
     };
     break;
   }

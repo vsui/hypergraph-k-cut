@@ -116,12 +116,17 @@ RandomRingHypergraph::RandomRingHypergraph(size_t num_vertices,
                                            double hyperedge_variance,
                                            uint64_t seed) :
     num_vertices(num_vertices), num_hyperedges(num_hyperedges), hyperedge_mean(hyperedge_mean),
-    hyperedge_variance(hyperedge_variance), seed(seed), gen_(seed), dis_(0.0, 360.0) {}
+    hyperedge_variance(hyperedge_variance), seed(seed), dis_(0.0, 360.0) {}
 
 HypergraphGenerator::~HypergraphGenerator() = default;
 
-Hypergraph RandomRingHypergraph::generate() {
-  gen_.seed(seed); // We want to generate the same hypergraph each time
+bool RandomRingHypergraph::write_to_table(sqlite3 *db) const {
+  // Do nothing
+  return true;
+}
+
+std::tuple<Hypergraph, std::optional<CutInfo>> RandomRingHypergraph::generate() const {
+  std::mt19937_64 gen_(seed); // We want to generate the same hypergraph each time
 
   std::vector<int> vertices(num_vertices);
   std::iota(begin(vertices), end(vertices), 0);
@@ -130,23 +135,24 @@ Hypergraph RandomRingHypergraph::generate() {
   std::transform(begin(vertex_positions),
                  end(vertex_positions),
                  begin(vertex_positions),
-                 [this](auto &a) { return dis_(gen_); });
+                 [this, &gen_](auto &a) { return dis_(gen_); });
   std::sort(begin(vertex_positions), end(vertex_positions)); // Sort for binary search access
 
   auto sample =
-      [this, &vertices, &vertex_positions](std::vector<int> &edge) {
-        sample_hyperedge(vertices, vertex_positions, edge);
+      [this, &vertices, &vertex_positions, &gen_](std::vector<int> &edge) {
+        sample_hyperedge(vertices, vertex_positions, edge, gen_);
       };
 
   std::vector<std::vector<int>> edges(num_hyperedges);
   std::for_each(begin(edges), end(edges), sample);
 
-  return Hypergraph{vertices, edges};
+  return {Hypergraph{vertices, edges}, std::nullopt};
 }
 
 void RandomRingHypergraph::sample_hyperedge(const std::vector<int> &vertices,
                                             const std::vector<double> &positions,
-                                            std::vector<int> &edge) {
+                                            std::vector<int> &edge,
+                                            std::mt19937_64 &gen_) const {
   std::normal_distribution<> normal_dis{hyperedge_mean, hyperedge_variance};
 
   double angle1 = dis_(gen_);
@@ -162,13 +168,13 @@ void RandomRingHypergraph::sample_hyperedge(const std::vector<int> &vertices,
 RandomRingConstantEdgeHypergraph::RandomRingConstantEdgeHypergraph(size_t n, size_t m, double r, uint64_t seed) :
     RandomRingHypergraph(n, m, r, 0, seed) {}
 
-std::string RandomRingConstantEdgeHypergraph::name() {
+std::string RandomRingConstantEdgeHypergraph::name() const {
   std::stringstream stream;
   stream << "constantring_" << num_vertices << "_" << num_hyperedges << "_" << hyperedge_mean << "_" << seed;
   return stream.str();
 }
 
-std::string RandomRingVariableEdgeHypergraph::name() {
+std::string RandomRingVariableEdgeHypergraph::name() const {
   std::stringstream stream;
   stream << "variablering_" << num_vertices << "_" << num_hyperedges << "_" << hyperedge_mean << "_"
          << hyperedge_variance << "_" << seed;

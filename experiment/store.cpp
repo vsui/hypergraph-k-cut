@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS runs (
   algo TEXT NOT NULL,
   k INTEGER NOT NULL,
   hypergraph_id TEXT NOT NULL,
-  cut_id INTEGER NOT NULL,
+  cut_id INTEGER,
   time_elapsed_ms INTEGER NOT NULL,
   machine TEXT NOT NULL,
   commit_hash TEXT,
@@ -300,6 +300,33 @@ ReportStatus SqliteStore::report(const std::string &hypergraph_id,
     return ReportStatus::ERROR;
   }
 
+  return ReportStatus::OK;
+}
+
+ReportStatus SqliteStore::report(const std::string &hypergraph_id,
+                                 const CutRunInfo &info,
+                                 size_t num_runs_for_discovery,
+                                 size_t num_contractions) {
+  const std::string stmt = sqlutil::insert_statement(
+      "runs",
+      mst("algo", info.algorithm),
+      mit("k", info.info.k),
+      mst("hypergraph_id", hypergraph_id),
+      mit("time_elapsed_ms", info.time),
+      mst("machine", info.machine),
+      std::make_tuple<std::string, sqlutil::TimeNow>("time_taken", {}),
+      mst("experiment_id", info.experiment_id),
+      mit("num_runs_for_discovery", num_runs_for_discovery),
+      mit("num_contractions", num_contractions)
+  );
+
+  char *zErrMsg{};
+  int err = sqlite3_exec(db_, stmt.c_str(), null_callback, nullptr, &zErrMsg);
+  if (err != SQLITE_OK) {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return ReportStatus::ERROR;
+  }
   return ReportStatus::OK;
 }
 

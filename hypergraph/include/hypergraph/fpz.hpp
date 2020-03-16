@@ -40,17 +40,13 @@ struct FpzImpl {
  * @param discovery_value   this function will early-exit if a cut of this value is found.
  * @return minimum found k cut
  */
-  template<typename HypergraphType, uint8_t Verbosity>
+  template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
   static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
                                                                      hypergraph_util::ContractionStats &stats,
                                                                      typename HypergraphType::EdgeWeight accumulated = 0,
                                                                      typename HypergraphType::EdgeWeight discovery_value = 0) {
-#ifndef NDEBUG
-    assert(hypergraph.is_valid());
-#endif
-
     // Remove k-spanning hyperedges from hypergraph
     std::vector<int> k_spanning_hyperedges;
     for (const auto &[edge_id, vertices] : hypergraph.edges()) {
@@ -73,21 +69,30 @@ struct FpzImpl {
         auto end = std::begin(hypergraph.vertices());
         std::advance(end, 2);
         // Contract two vertices
-        hypergraph = hypergraph.contract(begin, end);
+        hypergraph = hypergraph.template contract<true, ReturnPartitions>(begin, end);
         ++stats.num_contractions;
       }
 
-      std::vector<std::vector<int>> partitions;
-      for (const auto v : hypergraph.vertices()) {
-        const auto &partition = hypergraph.vertices_within(v);
-        partitions.emplace_back(std::begin(partition), std::end(partition));
+      if constexpr (ReturnPartitions) {
+        std::vector<std::vector<int>> partitions;
+        for (const auto v : hypergraph.vertices()) {
+          const auto &partition = hypergraph.vertices_within(v);
+          partitions.emplace_back(std::begin(partition), std::end(partition));
+        }
+        const auto cut =
+            HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions),
+                                                               std::end(partitions),
+                                                               accumulated);
+        if constexpr (Verbosity > 1) {
+          std::cout << "Got cut of value " << cut.value << std::endl;
+        }
+        return cut;
+      } else {
+        if constexpr (Verbosity > 1) {
+          std::cout << "Got cut of value " << accumulated << std::endl;
+        }
+        return HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated};
       }
-      const auto cut =
-          HypergraphCut<typename HypergraphType::EdgeWeight>(std::begin(partitions), std::end(partitions), accumulated);
-      if constexpr (Verbosity > 1) {
-        std::cout << "Got cut of value " << cut.value << std::endl;
-      }
-      return cut;
     }
 
     static std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -106,35 +111,35 @@ struct FpzImpl {
     double redo =
         redo_probability(hypergraph.num_vertices(), sampled_edge.size(), k);
 
-    HypergraphType contracted = hypergraph.contract(sampled_edge_id);
+    HypergraphType contracted = hypergraph.template contract<true, ReturnPartitions>(sampled_edge_id);
     ++stats.num_contractions;
 
     if (dis(random_generator) < redo) {
       // Maybe we could use continuations to avoid having to pass the value up a long call stack
       auto cut =
-          contract<HypergraphType, Verbosity>(contracted,
-                                              k,
-                                              random_generator,
-                                              stats,
-                                              accumulated,
-                                              discovery_value);
+          contract<HypergraphType, ReturnPartitions, Verbosity>(contracted,
+                                                                k,
+                                                                random_generator,
+                                                                stats,
+                                                                accumulated,
+                                                                discovery_value);
       if (cut.value <= discovery_value) {
         return cut;
       }
       return std::min(cut,
-                      contract<HypergraphType, Verbosity>(hypergraph,
-                                                          k,
-                                                          random_generator,
-                                                          stats,
-                                                          accumulated,
-                                                          discovery_value));
+                      contract<HypergraphType, ReturnPartitions, Verbosity>(hypergraph,
+                                                                            k,
+                                                                            random_generator,
+                                                                            stats,
+                                                                            accumulated,
+                                                                            discovery_value));
     } else {
-      return contract<HypergraphType, Verbosity>(contracted,
-                                                 k,
-                                                 random_generator,
-                                                 stats,
-                                                 accumulated,
-                                                 discovery_value);
+      return contract<HypergraphType, ReturnPartitions, Verbosity>(contracted,
+                                                                   k,
+                                                                   random_generator,
+                                                                   stats,
+                                                                   accumulated,
+                                                                   discovery_value);
     }
   }
 

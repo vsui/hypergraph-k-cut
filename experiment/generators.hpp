@@ -41,7 +41,7 @@ struct HypergraphGenerator {
   virtual ~HypergraphGenerator() = 0;
 };
 
-struct RandomRingHypergraph {
+struct RandomRingHypergraph : public HypergraphGenerator {
 
   RandomRingHypergraph(size_t num_vertices,
                        size_t num_hyperedges,
@@ -55,15 +55,17 @@ struct RandomRingHypergraph {
   double hyperedge_variance; // Variance of size the sector each hyperedge is sampled from
   uint64_t seed;
 
-  virtual std::string name() = 0;
+  bool write_to_table(sqlite3 *db) const override;
 
-  Hypergraph generate();
+  std::tuple<Hypergraph, std::optional<CutInfo>> generate() const override;
 
 private:
-  void sample_hyperedge(const std::vector<int> &vertices, const std::vector<double> &positions, std::vector<int> &edge);
+  void sample_hyperedge(const std::vector<int> &vertices,
+                        const std::vector<double> &positions,
+                        std::vector<int> &edge,
+                        std::mt19937_64 &gen) const;
 
-  std::mt19937_64 gen_;
-  std::uniform_real_distribution<> dis_;
+  mutable std::uniform_real_distribution<> dis_;
 
 };
 
@@ -72,7 +74,7 @@ struct RandomRingConstantEdgeHypergraph : public RandomRingHypergraph {
 
   RandomRingConstantEdgeHypergraph(size_t n, size_t m, double r, uint64_t seed);
 
-  std::string name() override;
+  std::string name() const override;
 };
 
 struct RandomRingVariableEdgeHypergraph : public RandomRingHypergraph {
@@ -80,7 +82,7 @@ struct RandomRingVariableEdgeHypergraph : public RandomRingHypergraph {
 
   using RandomRingHypergraph::RandomRingHypergraph;
 
-  std::string name() override;
+  std::string name() const override;
 };
 
 /**
