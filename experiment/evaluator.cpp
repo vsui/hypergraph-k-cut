@@ -96,10 +96,15 @@ void MinimumCutFinder::evaluate() {
 
 KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
                                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
-                                   std::unique_ptr<CutInfoStore> &&store, bool compare_kk) : id_(id),
-                                                                                             src_(std::move(source)),
-                                                                                             store_(std::move(store)),
-                                                                                             compare_kk_(compare_kk) {}
+                                   std::unique_ptr<CutInfoStore> &&store, bool compare_kk, size_t num_runs) : id_(id),
+                                                                                                              src_(std::move(
+                                                                                                                  source)),
+                                                                                                              store_(std::move(
+                                                                                                                  store)),
+                                                                                                              compare_kk_(
+                                                                                                                  compare_kk),
+                                                                                                              num_runs_(
+                                                                                                                  num_runs) {}
 
 void KDiscoveryRunner::run() {
   for (const auto &gen : src_) {
@@ -221,11 +226,11 @@ void KDiscoveryRunner::run() {
     std::random_device rd;
     std::mt19937_64 rgen(rd());
     std::uniform_int_distribution<uint64_t> dis;
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < num_runs_; ++i) {
       for (const auto &[func_name, func] : cut_funcs) {
         Hypergraph temp(*hypergraph_ptr);
         std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
-        hypergraph_util::ContractionStats stats;
+        hypergraph_util::ContractionStats stats{};
 
         auto start = std::chrono::high_resolution_clock::now();
         HypergraphCut<size_t> cut = func(&temp, dis(rgen), stats);
@@ -279,7 +284,7 @@ void KDiscoveryRunner::run() {
       for (const auto &[func_name, func] : cutval_funcs) {
         Hypergraph temp(*hypergraph_ptr);
         std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
-        hypergraph_util::ContractionStats stats;
+        hypergraph_util::ContractionStats stats{};
         auto start = std::chrono::high_resolution_clock::now();
         size_t cutval = func(&temp, dis(rgen), stats);
         auto stop = std::chrono::high_resolution_clock::now();
@@ -461,11 +466,11 @@ void RandomRingRunner::run() {
     std::random_device rd;
     std::mt19937_64 rgen(rd());
     std::uniform_int_distribution<uint64_t> dis;
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < 100; ++i) {
       for (const auto &[func_name, func] : cut_funcs) {
         Hypergraph temp(*hypergraph_ptr);
         std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
-        hypergraph_util::ContractionStats stats;
+        hypergraph_util::ContractionStats stats{};
 
         auto start = std::chrono::high_resolution_clock::now();
         HypergraphCut<size_t> cut = func(&temp, dis(rgen), stats);
@@ -519,7 +524,7 @@ void RandomRingRunner::run() {
       for (const auto &[func_name, func] : cutval_funcs) {
         Hypergraph temp(*hypergraph_ptr);
         std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
-        hypergraph_util::ContractionStats stats;
+        hypergraph_util::ContractionStats stats{};
         auto start = std::chrono::high_resolution_clock::now();
         size_t cutval = func(&temp, dis(rgen), stats);
         auto stop = std::chrono::high_resolution_clock::now();
