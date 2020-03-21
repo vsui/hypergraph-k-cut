@@ -101,8 +101,9 @@ It takes the following parameters:
 - `P` : weight multiplier for hyperedges that are entirely contained within a single component
 
 This seems to be the most straight-forward way to generate interesting hypergraphs with non-skewed min k-cuts. Some care in
-the choice of parameters must be taken though: specifically, the expected number of hyperedges that a vertex is present should
-be much greater than the weight of a hyperedge crossing a component. That is, `E[# hyperedges that contain v] * P >> weight of hyperedge that crosses between components`.
+the choice of parameters must be taken though: the degree of each vertex should
+be much greater than the weight of a hyperedge crossing a component.
+This helps ensure that singleton cuts are not min cuts and that the min cut is the cut induced by the clusters.
 
 For example, using `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, `k=3`, `P = 10` will generate a hypergraph with 100 vertices, three equal sized clusters, 20 hyperedges lying entirely within each cluster that samples within the cluster with probability 0.3, 10 hyperedges that are sampled from all vertices with probability 0.4, and all hyperedges that are entirely within a cluster have weight multiplied by 10. Weights are ignored for unweighted hypergraphs.
 
