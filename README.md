@@ -109,7 +109,7 @@ For example, using `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, `k=3
 
 ### Type 6
 
-This generator lays out the vertices in a ring, and creates `n - 1` hyperedges of `r` adjacent hyperedges. This creates
+This generator lays out the vertices in a ring, and creates `n - 1` hyperedges containing `r` adjacent vertices. This creates
 hypergraphs with predictable cuts.
 
 It takes the following parameters:
