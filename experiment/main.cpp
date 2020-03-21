@@ -1,4 +1,8 @@
+#include <filesystem>
 #include <memory>
+
+#include <yaml-cpp/yaml.h>
+#include <tclap/CmdLine.h>
 
 #include "generators.hpp"
 #include "source.hpp"
@@ -42,6 +46,16 @@ Experiment planted_experiment(const std::string &name,
   return planted_experiment;
 }
 
+Experiment planted_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
+  return planted_experiment(
+      name,
+      node["num_vertices"].as<std::vector<size_t>>(),
+      node["k"].as<size_t>(),
+      node["m2_mult"].as<size_t>(),
+      node["m1_mult"].as<size_t>()
+  );
+}
+
 /**
  * Generate an experiment for uniform planted hypergraphs.
  * @param name
@@ -72,6 +86,17 @@ Experiment planted_uniform_experiment(const std::string &name,
   return experiment;
 }
 
+Experiment planted_constant_rank_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
+  return planted_uniform_experiment(
+      name,
+      node["num_vertices"].as<std::vector<size_t>>(),
+      node["k"].as<size_t>(),
+      node["rank"].as<size_t>(),
+      node["m2_mult"].as<size_t>(),
+      node["m1_mult"].as<size_t>()
+  );
+}
+
 Experiment ring_experiment(const std::string &name,
                            const std::vector<size_t> &num_vertices,
                            size_t edge_mult,
@@ -89,52 +114,77 @@ Experiment ring_experiment(const std::string &name,
   return experiment;
 }
 
+Experiment ring_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
+  return ring_experiment(
+      name,
+      node["num_vertices"].as<std::vector<size_t>>(),
+      node["edge_mult"].as<size_t>(),
+      node["radius"].as<size_t>()
+  );
 }
 
-int main() {
+}
+
+int main(int argc, char **argv) {
   using namespace std::string_literals;
 
-  // Can't use initializer list, std::apply not working
-  // std::vector<size_t> ns = {100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475, 500};
-  std::vector<size_t> ns = {110, 120, 130, 140, 150};
+  TCLAP::CmdLine cmd("Hypergraph experiment runner", ' ', "0.1");
 
-  std::vector<Experiment> experiments;
-  /*
-  // Make planted experiments
-  for (size_t k = 2; k < 4; ++k) {
-    std::string name = "planted_"s + std::to_string(k) + "_"s + std::to_string(10);
-    Experiment experiment = planted_experiment(name, ns, k, 10, 10);
-    experiments.emplace_back(std::move(experiment));
+  TCLAP::UnlabeledValueArg<std::string> configFileArg(
+      "config",
+      "A path to the configuration file",
+      true,
+      "",
+      "A path to a valid configuration file",
+      cmd);
+
+  TCLAP::UnlabeledValueArg<std::string> destArg(
+      "dest",
+      "Output directory for experiment artifacts",
+      true,
+      "",
+      "A folder name",
+      cmd);
+
+  cmd.parse(argc, argv);
+
+  if (std::filesystem::exists(destArg.getValue())) {
+    std::cerr << "Error: " << destArg.getValue() << " already exists" << std::endl;
+    return 1;
   }
 
-  // Make uniform planted experiments
-  for (size_t k = 2; k < 4; ++k) {
-    size_t rank = 3;
-    std::string name =
-        "uniformplanted_"s + std::to_string(k) + "_"s + std::to_string(10) + "_"s + std::to_string(rank);
-    Experiment experiment = planted_uniform_experiment(name, ns, k, rank, 10, 10);
-    experiments.emplace_back(std::move(experiment));
-  }
-   */
+  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
+  const std::map<std::string, ExperimentGenerator> gens = {
+      {"planted", planted_experiment_from_yaml},
+      {"constant_rank_planted", planted_constant_rank_experiment_from_yaml},
+      {"ring", ring_experiment_from_yaml}
+  };
 
-  // Make ring experiments
-  {
-    size_t hyperedge_radius = 30;
-    std::string name = "ring_"s + std::to_string(hyperedge_radius);
-    Experiment experiment = ring_experiment(name, ns, 10, 30);
-    experiments.emplace_back(std::move(experiment));
+  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
+
+  auto experiment_type = node["type"].as<std::string>();
+  auto it = gens.find(experiment_type);
+  if (it == gens.end()) {
+    std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
+    return 1;
   }
 
-  for (auto &experiment : experiments) {
-    auto store = std::make_unique<SqliteStore>();
-    if (!store->open("3_16_20.db")) {
-      std::cout << "Failed to open store" << std::endl;
-      return 1;
-    }
-    auto &[name, generators, compare_kk, planted] = experiment;
-    KDiscoveryRunner runner(name, std::move(generators), std::move(store), compare_kk, planted, 1);
-    runner.run();
+  if (!std::filesystem::create_directory(destArg.getValue())) {
+    std::cerr << "Failed to create output directory '" << destArg.getValue() << "'" << std::endl;
+    return 1;
   }
+  std::filesystem::path db_path = std::filesystem::path(destArg.getValue()) / "data.db";
+
+  auto store = std::make_unique<SqliteStore>();
+  if (!store->open(db_path)) {
+    std::cerr << "Failed to open store" << std::endl;
+    return 1;
+  }
+
+  auto experiment = it->second(destArg.getValue(), node);
+  auto &[name, generators, compare_kk, planted] = experiment;
+  KDiscoveryRunner runner(name, std::move(generators), std::move(store), compare_kk, planted, 1);
+  runner.run();
 
   return 0;
 }

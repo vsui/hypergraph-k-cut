@@ -2,6 +2,8 @@ add_subdirectory(sqlite)
 
 set(CMAKE_CXX_FLAGS " -pthread ")
 
+include(FetchContent)
+
 add_executable(hexperiment
         main.cpp
         common.hpp
@@ -15,7 +17,14 @@ add_executable(hexperiment
         store.cpp
         store.hpp)
 
-target_link_libraries(hexperiment hypergraph sqlite3)
+set(YAML_CPP_BUILD_TESTS OFF)
+FetchContent_Declare(yaml
+        GIT_REPOSITORY "https://github.com/jbeder/yaml-cpp"
+        GIT_TAG "yaml-cpp-0.6.3")
+FetchContent_MakeAvailable(yaml)
+set(target_compile_options yaml-cpp PRIVATE -Wno-everything)
+
+target_link_libraries(hexperiment hypergraph sqlite3 yaml-cpp tclap)
 
 #add_executable(hgenerate generate.cpp generators.cpp)
 #target_link_libraries(hgenerate hypergraph)
