@@ -17,10 +17,10 @@ add_executable(hexperiment
         store.cpp
         store.hpp)
 
-set(YAML_CPP_BUILD_TESTS OFF)
 FetchContent_Declare(yaml
         GIT_REPOSITORY "https://github.com/jbeder/yaml-cpp"
         GIT_TAG "yaml-cpp-0.6.3")
+set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Enable testing" FORCE)
 FetchContent_MakeAvailable(yaml)
 set(target_compile_options yaml-cpp PRIVATE -Wno-everything)
 
