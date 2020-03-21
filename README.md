@@ -32,7 +32,7 @@ The following problem instances can be generated with `./hgen`:
 
 ### Type 1
 
-Informally, this generator produces a hypergraph with hyperdges and edge weights chosen in a random manner. 
+Informally, this generator produces a hypergraph with hyperedges and edge weights chosen in a random manner. 
 
 It takes the following parameters:
 - `n`: the number of vertices in the hypergraph
