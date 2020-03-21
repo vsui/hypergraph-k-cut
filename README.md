@@ -1,4 +1,4 @@
-# Hypergraph partitioning algorithms
+# Hypergraph k-cut algorithms
 
 ## Building
 
@@ -11,48 +11,43 @@ cmake ..
 make
 ```
 
+## Testing
+
+To run the tests, run `make test`. The tests will run several cut algorithms on small problems and verify that everything is working correctly.
+
 ## Usage
 
-To generate hypergraphs, run `./hgen <num_vertices> <num_edges> <sampling percentage>`
+To generate hypergraphs, run `./hgen <num_vertices> <num_edges> <sampling percentage>`. Scroll down to see available generators. 
 
-To run the algorithm, run `./hcut <input file> <k> <algorithm>`. For example, if you want to run the approximate
-algorithm from [CX'18], you would run `./hcut <input file> 2 CX`.
+To run the algorithm, run `./hcut <input file> <k> <algorithm>`. For example, if you want to run the algorithm from [CX'18], you would run `./hcut <input file> 2 CX`. Scroll down to the bottom for a list of algorithms. 
 
-To generate sparse certificates, run `./hsparsify <input file> <c>`, to generate a sparse certificate of the hypergraph in the input file
-with cut values preserved up to `c`. The output hypergraph will be written to a file with the same name as the input file except
-with `sparse_` prefixed to it, i.e. `sparse_<input file>`.
+To generate sparse certificates (from CX '18), run `./hsparsify <input file> <c>`, to generate a sparse certificate of the hypergraph in the input file with cut values preserved up to `c`. The output hypergraph will be written to a file with the same name as the input file except with `sparse_` prefixed to it, i.e. `sparse_<input file>`.
 
 The list of algorithms is available below. Note that some algorithms only work for k = 2 and some will prompt for extra
 parameters (such as an approximation factor).
 
-## Testing
+## Hypergraph Generators
 
-To run the tests, run `make test`. The tests will run several cut algorithms on small
-problems and verify that everything is working correctly.
-
-## Problem Families
-
-The following problem families can be generated with `./hgen`:
+The following problem instances can be generated with `./hgen`:
 
 ### Type 1
 
-This generator produces a hypergraph with hyperedges and edge weights chosen
-in a uniform way. It takes the following parameters:
+Informally, this generator produces a hypergraph with hyperdges and edge weights chosen in a random manner. 
+
+It takes the following parameters:
 - `n`: the number of vertices in the hypergraph
 - `m`: the number of hyperedges in the hypergraph
 - `p`: the sampling probability
 
-This generator chooses a hyperedge by sampling each vertex with probability `p`.
-It chooses `m` hyperedges this way. Hyperedge weights are sampled uniformly in
-[1, 100].
+For each hyperedge `e`, it includes each vertex into `e` with probability `p`. Hyperedge weights are sampled uniformly in [1, 100].
 
-For example, with `n = 100`, `m = 200`, and `p = 0.5` will create a hypergraph with 100 vertices and 200 hyperedges,
-where each vertex has a 50% chance of being in each edge.
+For example, using `n = 100`, `m = 200`, and `p = 0.5` will create a hypergraph with `100` vertices and `200` hyperedges, where each vertex has a `50%` chance of being in each hyperedge.
 
 ### Type 2
 
-This generator attempts to produce strongly-connected clusters with interesting
-cuts. It takes the following parameters:
+Informally, this generator produces well-connected clusters of reasonably large size. 
+
+It takes the following parameters:
 - `n`: number of vertices
 - `m`: number of hyperedges
 - `p`: sampling probability
@@ -61,13 +56,11 @@ cuts. It takes the following parameters:
 
 In this generator the vertices are divided into `k` uniform clusters.
 
-The process for generation is similar to Type 1, except that there is an additional
-check for whether or not a hyperedge is completely contained within some cluster.
-If it is, then its edge weight is multiplied by `P`.
+The generating process is similar to Type 1, except that there is an additional check for whether a hyperedge is completely contained within some cluster. If so, then its weight is multiplied by `P`.
 
-For example, for `n = 99`, `m = 200`, `p = 0.3`, `k = 3`, and `P = 100` will generate a hypergraph with 100 vertices,
-200 edges, where the vertices are partitioned into three clusters of 33 vertices each, each vertex has a 30% chance of
-being in any hyperedge, and the weight of an edge that is entirely within a cluster is multiplied by 100.
+For example, using `n = 99`, `m = 200`, `p = 0.3`, `k = 3`, and `P = 100` will generate a hypergraph with `100` vertices,
+`200` hyperedges, where the vertices are partitioned into three clusters of `~33` vertices each, each vertex has a 30% chance of
+being in any hyperedge, and the weight of all hyperedges that are entirely within a cluster is multiplied by 100.
 
 ### Type 3
 
@@ -76,14 +69,13 @@ This generator produces constant rank hypergraphs. It takes the following parame
 - `m`: number of hyperedges
 - `r`: rank
 
-A hyperedge is generated by sampling `r` vertices without replacement. This process
-is repeated for `m` hyperedges. Note that hyperedges may contain self-loops.
+A hyperedge is generated by sampling `r` vertices without replacement. This process is repeated for `m` hyperedges. Note that hyperedges may contain self-loops.
 
-For `n = 100`, `m = 200`, and `r = 3`, this will generate a hypergraph of rank 3 with 100 vertices and 200 edges.
+For example, using `n = 100`, `m = 200`, and `r = 3`, will generate a hypergraph of rank 3 with 100 vertices and 200 hyperedges.
 
 ### Type 4
 
-Creates a hypergraph with uniform clusters such that no hyperedges span the clusters.
+This generator produces hypergraphs with uniformly random equal-sized clusters such that no hyperedges span the clusters.
 It takes the following parameters:
 - `n`: number of vertices
 - `d`: number of hyperedges per cluster
@@ -91,50 +83,40 @@ It takes the following parameters:
 - `p`: sampling probability
 - `P`: edge weights in range [1, 100P]
 
-Generation is similar to type 1, except that for each hyperedge vertices are only
-sampled from one cluster of `n/k` vertices.
+Generation is similar to type 1, except that for each hyperedge vertices are only sampled from one cluster of `n/k` vertices.
 
-For `n = 100`, `d = 200`, `k = 3`, `p = 0.5`, `P = 10` will create a hypergraph with 100 vertices, 600 edges, and 3 clusters,
-with 200 edges in each cluster. The chance that any vertex appears within an edge in the same cluster is 50%, and edge
-weights are in range [1, 1000].
+For example, using `n = 100`, `d = 200`, `k = 3`, `p = 0.5`, `P = 10` will generate a hypergraph with 100 vertices, 600 edges, and 3 clusters, with 200 edges in each cluster. The chance that any vertex appears within a hyperedge in the same cluster is 50%, and hyperedge weights are in the range [1, 1000].
 
 ### Type 5
 
-This generator groups every vertex into components, and samples some hyperedges from within each component (so each
-hyperedge is contained completely by a component) and sample some hyperedges from all vertices. The generator assigns
-higher edge weights to hyperedges that are completely contained in components compared to hyperedges that span components.
-This encourages non-trivial cuts.
+This generator groups the vertices into clusters, and samples some hyperedges from within each cluster (inter-cluster hyperedges) and samples some hyperedges from all vertices. The generator assigns larger weight to hyperedges that are completely contained in clusters compared to hyperedges that span components. This encourages non-trivial min-cuts.
 
 It takes the following parameters:
 - `n` : number of vertices
 - `m1`: number of hyperedges that lie entirely within each cluster
-- `p1`: sampling probability for m1 edges
+- `p1`: sampling probability for m1 inter-cluster hyperedges
 - `m2`: number of hyperedges that are sampled from all vertices
-- `p2`: sampling probability for m2 edges
+- `p2`: sampling probability for m2 hyperedges
 - `k` : number of clusters
-- `P` : weight multiplier for edges that are entirely contained within a single component
+- `P` : weight multiplier for hyperedges that are entirely contained within a single component
 
-As of now this is the most straight-forward way to generate interesting hypergraphs with non-skewed cuts. Some care in
-the choice of parameters must be taken though, specifically the expected number of hyperedges that a vertex is in should
-be much greater than the weight of an edge crossing a component.
-That is, `E[# hyperedges that contain v] * P >> weight of hyperedge that crosses between components`.
+This seems to be the most straight-forward way to generate interesting hypergraphs with non-skewed min k-cuts. Some care in
+the choice of parameters must be taken though: specifically, the expected number of hyperedges that a vertex is present should
+be much greater than the weight of a hyperedge crossing a component. That is, `E[# hyperedges that contain v] * P >> weight of hyperedge that crosses between components`.
 
-For `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, `k=3`, `P = 10` will generate a hypergraph with 100 vertices,
-20 edges lying entirely in each cluster that samples within the cluster with probability 0.3, 10 edges that are sampled from
-all vertices with probability 0.4, three clusters, and all edges that are entirely within a cluster have weight multiplied by 10. Weights are ignored for unweighted graphs.
+For example, using `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, `k=3`, `P = 10` will generate a hypergraph with 100 vertices, three equal sized clusters, 20 hyperedges lying entirely within each cluster that samples within the cluster with probability 0.3, 10 hyperedges that are sampled from all vertices with probability 0.4, and all hyperedges that are entirely within a cluster have weight multiplied by 10. Weights are ignored for unweighted hypergraphs.
 
 
 ### Type 6
 
-This generator lies out the vertices in a ring, and creates `n - 1` hyperedges of `r` adjacent hyperedges. This creates
+This generator lays out the vertices in a ring, and creates `n - 1` hyperedges of `r` adjacent hyperedges. This creates
 hypergraphs with predictable cuts.
 
 It takes the following parameters:
 - `n` : number of vertices
 - `r` : size of each hyperedge
 
-For `n = 100` and `r = 3`, this will create a hypergraph with 100 vertices and 99 edges, where each edge is of the form
-`{v_i, v_{i+1}, ..., v_{i+r-1}}` for vertices 1 through 99.
+For example, using `n = 100` and `r = 3` will create a hypergraph with 100 vertices and 99 edges, where each edge is of the form `{v_i, v_{i+1}, ..., v_{i+r-1}}` for vertices 1 through 99.
 
 ## Algorithms
 
@@ -144,25 +126,25 @@ Q: The hypergraph min-cut algorithm described in [Q'98]. Based on vertex orderin
 
 MW: The hypergraph min-cut algorithm described in [MW'00]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/order.hpp`.
 
-CXY: The hypergraph k-cut algorithm described in [CXY'18]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/cxy.hpp`.
+CXY: The hypergraph min k-cut algorithm described in [CXY'18]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/cxy.hpp`.
 
-FPZ: The hypergraph k-cut algorithm described in [FPZ'19]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/fpz.hpp`.
+FPZ: The hypergraph min k-cut algorithm described in [FPZ'19]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/fpz.hpp`.
 
-CX: The (2+epsilon) approximate hypergraph min-cut algorithm described in [CX'18]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/approx.hpp`.
+CX: The (2+epsilon)-approximate hypergraph min-cut algorithm described in [CX'18]. Based on vertex orderings. Implemented in `hypergraph/include/hypergraph/approx.hpp`.
 
-KK: The (1+epsilon) approximate min-cut algorithm for uniform (constant rank) hypergraphs described in [KK'14]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/kk.hpp`.
+KK: The (1+epsilon)-approximate min-cut algorithm for constant rank hypergraphs described in [KK'14]. Based on random contractions. Implemented in `hypergraph/include/hypergraph/kk.hpp`.
 
 Hypergraph min-cut on unweighted hypergraphs may use the sparse certificate detailed in [CX'18]. It is implemented in `hypergraph/include/hypergraph/certificate.hpp`.
 
-## Input
+## Input format
 
-The input file should be in the hMETIS hypergraph format.
+The input file containing the hypergraph instance should be in hMETIS hypergraph format.
 
 For unweighted graphs the input should look like:
 ```
 <number of hyperedges> <number of vertices>
-<edge>
-<edge>
+<hyperedge>
+<hyperedge>
 ...
 ```
 
@@ -171,24 +153,30 @@ With real numbers, this would look like:
 3 6
 0 1
 1 2 3
-2 3 4 5 6
+2 3 4 5
+2 4 5
+4 5 3 0
+3 2 1 5
 ```
 
 For weighted graphs the input file should look like:
 ```
 <number of hyperedges> <number of vertices> 1
-<edge weight> <edge>
-<edge weight> <edge>
-<edge weight> <edge>
+<hyperedge weight> <hyperedge>
+<hyperedge weight> <hyperedge>
+<hyperedge weight> <hyperedge>
 ...
 ```
 
-Here, the edge weight can be a non-negative decimal number:
+Here, the hyperedge weight can be a non-negative decimal number:
 ```
 3 6
 0.342 0 1
 1.23 1 2 3
-10.34 2 3 4 5 6
+10.34 2 3 4 5
+2351 2 4 5
+5.172 4 5 3 0
+3 3 2 1 5
 ```
 
 ## References
