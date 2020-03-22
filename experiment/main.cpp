@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
   using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
   const std::map<std::string, ExperimentGenerator> gens = {
       {"planted", planted_experiment_from_yaml},
-      {"constant_rank_planted", planted_constant_rank_experiment_from_yaml},
+      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
       {"ring", ring_experiment_from_yaml}
   };
 
@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
     std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
     return 1;
   }
-  size_t num_runs = node["num_runs"].as<size_t>();
+  auto num_runs = node["num_runs"].as<size_t>();
 
   if (!std::filesystem::create_directory(destArg.getValue())) {
     std::cerr << "Failed to create output directory '" << destArg.getValue() << "'" << std::endl;
