@@ -12,4 +12,3 @@ project(HypergraphPartitioning)
 
 add_subdirectory(hypergraph)
 add_subdirectory(app)
-add_subdirectory(experiment)
