@@ -9,6 +9,9 @@
 #include "store.hpp"
 #include "generators.hpp"
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+
 #include <hypergraph/cut.hpp>
 #include <hypergraph/order.hpp>
 #include <hypergraph/hypergraph.hpp>
@@ -107,6 +110,7 @@ KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
                                                       num_runs_(num_runs) {}
 
 void KDiscoveryRunner::run() {
+  spdlog::info("Beginning experiment");
   for (const auto &gen : src_) {
     const auto[hgraph, planted_cut_optional] = gen->generate();
     HypergraphWrapper hypergraph;
@@ -119,19 +123,19 @@ void KDiscoveryRunner::run() {
 
     ReportStatus status = store_->report(hypergraph);
     if (status == ReportStatus::ERROR) {
-      std::cout << "Failed to put hypergraph info in DB" << std::endl;
+      spdlog::error("Failed to put hypergraph info in DB");
       continue;
     }
 
     const CutInfo planted_cut = planted_ ? planted_cut_optional.value() : CutInfo{2, MW_min_cut(temp)};
     const size_t k = planted_cut.k;
     const size_t cut_value = planted_cut.cut_value;
-    std::cout << hypergraph.name << "..." << std::endl;
+    spdlog::info("Processing {}", hypergraph.name);
 
     uint64_t planted_cut_id;
     std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
     if (status == ReportStatus::ERROR) {
-      std::cout << "Failed to put planted cut info in DB" << std::endl;
+      spdlog::error("Failed to put planted cut info in DB");
       continue;
     }
 
@@ -147,7 +151,7 @@ void KDiscoveryRunner::run() {
         {"cxy", [k, cut_value](Hypergraph *h,
                                uint64_t seed,
                                hypergraph_util::ContractionStats &stats) {
-          return cxy::discover_stats<Hypergraph, 1>(*h,
+          return cxy::discover_stats<Hypergraph, 0>(*h,
                                                     k,
                                                     cut_value,
                                                     stats,
@@ -156,7 +160,7 @@ void KDiscoveryRunner::run() {
         {"fpz", [k, cut_value](Hypergraph *h,
                                uint64_t seed,
                                hypergraph_util::ContractionStats &stats) {
-          return fpz::discover_stats<Hypergraph, 1>(*h,
+          return fpz::discover_stats<Hypergraph, 0>(*h,
                                                     k,
                                                     cut_value,
                                                     stats,
@@ -168,7 +172,7 @@ void KDiscoveryRunner::run() {
         {"cxyval", [k, cut_value](Hypergraph *h,
                                   uint64_t seed,
                                   hypergraph_util::ContractionStats &stats) {
-          return cxy::discover_value<Hypergraph, 1>(*h,
+          return cxy::discover_value<Hypergraph, 0>(*h,
                                                     k,
                                                     cut_value,
                                                     stats,
@@ -177,7 +181,7 @@ void KDiscoveryRunner::run() {
         {"fpzval", [k, cut_value](Hypergraph *h,
                                   uint64_t seed,
                                   hypergraph_util::ContractionStats &stats) {
-          return fpz::discover_value<Hypergraph, 1>(*h,
+          return fpz::discover_value<Hypergraph, 0>(*h,
                                                     k,
                                                     cut_value,
                                                     stats,
@@ -211,13 +215,13 @@ void KDiscoveryRunner::run() {
                                              uint64_t seed,
                                              hypergraph_util::ContractionStats &stats) {
         return kk::discover_stats<Hypergraph,
-                                  1>(*h, k, cut_value, stats, seed);
+                                  0>(*h, k, cut_value, stats, seed);
       }});
       cutval_funcs.insert({"kkval", [k, cut_value](Hypergraph *h,
                                                    uint64_t seed,
                                                    hypergraph_util::ContractionStats &stats) {
         return kk::discover_value<Hypergraph,
-                                  1>(*h, k, cut_value, stats, seed);
+                                  0>(*h, k, cut_value, stats, seed);
       }});
     }
 
@@ -228,7 +232,7 @@ void KDiscoveryRunner::run() {
     for (int i = 0; i < num_runs_; ++i) {
       for (const auto &[func_name, func] : cut_funcs) {
         Hypergraph temp(*hypergraph_ptr);
-        std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
+        spdlog::info("Running {} on {}", func_name, hypergraph.name);
         hypergraph_util::ContractionStats stats{};
 
         auto start = std::chrono::high_resolution_clock::now();
@@ -246,26 +250,21 @@ void KDiscoveryRunner::run() {
         // Check if found cut was the planted cut
         uint64_t found_cut_id;
         if (found_cut_info == planted_cut) {
-          std::cout << "Found the planted cut" << std::endl;
+          spdlog::info("Found the planted cut");
           found_cut_id = planted_cut_id;
         } else {
           // Otherwise we need to report this cut to the DB to get its ID
           if (found_cut_info.cut_value == planted_cut.cut_value) {
-            std::cout << "Found cut has same value as planted cut (" << planted_cut.cut_value
-                      << ") but different partitions:";
-            for (const auto &partition : found_cut_info.partitions) {
-              std::cout << " " << partition.size();
-            }
-            std::cout << std::endl;
+            spdlog::warn("Found cut has same value as planted cut ({}) but for different partition sizes");
           } else {
-            std::cout << "Found cut value " << found_cut_info.cut_value << " < planted cut value "
-                      << planted_cut.cut_value
-                      << std::endl;
+            spdlog::warn("Found cut value {} is not the planted cut value {}",
+                         found_cut_info.cut_value,
+                         planted_cut.cut_value);
           }
           ReportStatus status;
           std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
           if (status == ReportStatus::ERROR) {
-            std::cout << "Failed to report found cut" << std::endl;
+            spdlog::error("Failed to report found cut");
             return;
           }
         }
@@ -276,20 +275,20 @@ void KDiscoveryRunner::run() {
                            stats.num_runs,
                            stats.num_contractions)
             == ReportStatus::ERROR) {
-          std::cout << "Failed to report run" << std::endl;
+          spdlog::error("Failed to report run");
         }
       };
 
       for (const auto &[func_name, func] : cutval_funcs) {
         Hypergraph temp(*hypergraph_ptr);
-        std::cout << "Running " << func_name << " on " << hypergraph.name << std::endl;
+        spdlog::info("Running {} on {}", func_name, hypergraph.name);
         hypergraph_util::ContractionStats stats{};
         auto start = std::chrono::high_resolution_clock::now();
         size_t cutval = func(&temp, dis(rgen), stats);
         auto stop = std::chrono::high_resolution_clock::now();
 
         if (cutval < planted_cut.cut_value) {
-          std::cout << "Found cut value has lesser value than planted cut" << std::endl;
+          spdlog::warn("Found cut has lesser value than the planted cut ({} < {})", cutval, planted_cut.cut_value);
         }
 
         CutInfo found_cut_info(k, cut_value);
@@ -305,7 +304,7 @@ void KDiscoveryRunner::run() {
                            stats.num_runs,
                            stats.num_contractions)
             == ReportStatus::ERROR) {
-          std::cout << "Failed to report run" << std::endl;
+          spdlog::error("Failed to report run");
         }
       }
     }
