@@ -169,6 +169,7 @@ int main(int argc, char **argv) {
     std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
     return 1;
   }
+  size_t num_runs = node["num_runs"].as<size_t>();
 
   if (!std::filesystem::create_directory(destArg.getValue())) {
     std::cerr << "Failed to create output directory '" << destArg.getValue() << "'" << std::endl;
@@ -184,7 +185,7 @@ int main(int argc, char **argv) {
 
   auto experiment = it->second(destArg.getValue(), node);
   auto &[name, generators, compare_kk, planted] = experiment;
-  KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, 1);
+  KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
   runner.run();
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
@@ -194,7 +195,6 @@ int main(int argc, char **argv) {
              << (here / ".." / "scripts/sqlplot.py") << " "
              << destArg.getValue();
 
-  std::cout << python_cmd.str() << std::endl;
   std::system(python_cmd.str().c_str());
 
   return 0;
