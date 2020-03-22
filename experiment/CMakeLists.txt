@@ -21,6 +21,7 @@ FetchContent_Declare(yaml
         GIT_REPOSITORY "https://github.com/jbeder/yaml-cpp"
         GIT_TAG "yaml-cpp-0.6.3")
 set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Enable testing" FORCE)
+set(YAML_CPP_INSTALL OFF CACHE BOOL "Build yaml-cpp shared library" FORCE)
 FetchContent_MakeAvailable(yaml)
 set(target_compile_options yaml-cpp PRIVATE -Wno-everything)
 
@@ -32,5 +33,5 @@ target_compile_options(spdlog PRIVATE -Wno-everything)
 
 target_link_libraries(hexperiment hypergraph sqlite3 yaml-cpp spdlog::spdlog tclap)
 
-#add_executable(hgenerate generate.cpp generators.cpp)
-#target_link_libraries(hgenerate hypergraph)
+install(TARGETS hexperiment
+        RUNTIME DESTINATION bin)

@@ -19,5 +19,8 @@ target_link_libraries(hsparsify hypergraph)
 add_executable(hkcore kcore.cpp)
 target_link_libraries(hkcore hypergraph)
 
+install(TARGETS hgen hcut hkcore hsparsify
+        RUNTIME DESTINATION bin)
+
 add_subdirectory(experiment)
 
