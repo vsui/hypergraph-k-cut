@@ -45,7 +45,7 @@ class KDiscoveryRunner {
 public:
   KDiscoveryRunner(const std::string &id,
                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
-                   std::unique_ptr<CutInfoStore> &&store,
+                   std::shared_ptr<CutInfoStore> store,
                    bool compare_kk,
                    bool planted,
                    size_t num_runs = 20);
@@ -53,7 +53,7 @@ public:
 private:
   std::string id_;
   std::vector<std::unique_ptr<HypergraphGenerator>> src_;
-  std::unique_ptr<CutInfoStore> store_;
+  std::shared_ptr<CutInfoStore> store_;
   bool compare_kk_;
   size_t num_runs_;
   bool planted_;

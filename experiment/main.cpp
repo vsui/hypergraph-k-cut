@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <memory>
+#include <cstdlib>
 
 #include <yaml-cpp/yaml.h>
 #include <tclap/CmdLine.h>
@@ -175,7 +176,7 @@ int main(int argc, char **argv) {
   }
   std::filesystem::path db_path = std::filesystem::path(destArg.getValue()) / "data.db";
 
-  auto store = std::make_unique<SqliteStore>();
+  auto store = std::make_shared<SqliteStore>();
   if (!store->open(db_path)) {
     std::cerr << "Failed to open store" << std::endl;
     return 1;
@@ -183,8 +184,18 @@ int main(int argc, char **argv) {
 
   auto experiment = it->second(destArg.getValue(), node);
   auto &[name, generators, compare_kk, planted] = experiment;
-  KDiscoveryRunner runner(name, std::move(generators), std::move(store), compare_kk, planted, 1);
+  KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, 1);
   runner.run();
+
+  std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
+
+  std::stringstream python_cmd;
+  python_cmd << "python3 "s
+             << (here / ".." / "scripts/sqlplot.py") << " "
+             << destArg.getValue();
+
+  std::cout << python_cmd.str() << std::endl;
+  std::system(python_cmd.str().c_str());
 
   return 0;
 }

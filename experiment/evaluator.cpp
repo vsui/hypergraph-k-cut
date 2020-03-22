@@ -96,7 +96,7 @@ void MinimumCutFinder::evaluate() {
 
 KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
                                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
-                                   std::unique_ptr<CutInfoStore> &&store,
+                                   std::shared_ptr<CutInfoStore> store,
                                    bool compare_kk,
                                    bool planted,
                                    size_t num_runs) : id_(id),
@@ -117,12 +117,17 @@ void KDiscoveryRunner::run() {
     assert(hypergraph_ptr != nullptr);
     Hypergraph temp(*hypergraph_ptr);
 
+    ReportStatus status = store_->report(hypergraph);
+    if (status == ReportStatus::ERROR) {
+      std::cout << "Failed to put hypergraph info in DB" << std::endl;
+      continue;
+    }
+
     const CutInfo planted_cut = planted_ ? planted_cut_optional.value() : CutInfo{2, MW_min_cut(temp)};
     const size_t k = planted_cut.k;
     const size_t cut_value = planted_cut.cut_value;
     std::cout << hypergraph.name << "..." << std::endl;
 
-    ReportStatus status;
     uint64_t planted_cut_id;
     std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
     if (status == ReportStatus::ERROR) {
