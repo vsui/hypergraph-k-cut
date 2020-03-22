@@ -1,5 +1,3 @@
-add_subdirectory(sqlite)
-
 set(CMAKE_CXX_FLAGS " -pthread ")
 
 include(FetchContent)
@@ -30,6 +28,11 @@ FetchContent_Declare(spdloglib
         GIT_TAG "v1.x")
 FetchContent_MakeAvailable(spdloglib)
 target_compile_options(spdlog PRIVATE -Wno-everything)
+
+FetchContent_Declare(sqlite-amalgamation
+        GIT_REPOSITORY "https://github.com/vsui/sqlite-amalgamation")
+FetchContent_MakeAvailable(sqlite-amalgamation)
+target_compile_options(sqlite3 PRIVATE -Wno-everything)
 
 target_link_libraries(hexperiment hypergraph sqlite3 yaml-cpp spdlog::spdlog tclap)
 
