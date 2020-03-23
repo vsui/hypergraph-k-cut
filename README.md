@@ -4,12 +4,18 @@
 
 You will need cmake, boost, and a c++17 compiler.
 
+If you don't have boost, you can install it by running `./install-deps.sh`.
+
 ```
 mkdir build
 cd build
 cmake ..
 make
 ```
+
+## Installing
+
+You can install all the binaries with `make install`.
 
 ## Testing
 

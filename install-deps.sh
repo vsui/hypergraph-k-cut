@@ -1,0 +1,1 @@
+apt-get update && apt-get install -yf libboost-all-dev
