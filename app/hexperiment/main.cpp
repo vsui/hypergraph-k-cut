@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 
   std::stringstream python_cmd;
   python_cmd << "python3 "s
-             << (here / ".." / "scripts/sqlplot.py") << " "
+             << (here / ".." / ".." / "scripts/sqlplot.py") << " "
              << destArg.getValue();
 
   std::system(python_cmd.str().c_str());
