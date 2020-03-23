@@ -1,45 +1,19 @@
-# Download and unpack googletest at configure time
-configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
-execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-        RESULT_VARIABLE result
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download)
-if (result)
-    message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-endif ()
-execute_process(COMMAND ${CMAKE_COMMAND} --build .
-        RESULT_VARIABLE result
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download)
-if (result)
-    message(FATAL_ERROR "Build step for googletest failed: ${result}")
-endif ()
+FetchContent_Declare(googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG 482ac6ee63429af2aa9c44f4e6427873fb68fb1f)
+FetchContent_MakeAvailable(googletest)
 
 # Prevent overriding the parent project's compiler/linker
 # settings on Windows
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-# Add googletest directly to our build. This defines
-# the gtest and gtest_main targets.
-add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-        ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-        EXCLUDE_FROM_ALL)
-
-# The gtest/gtest_main targets carry header search path
-# dependencies automatically when using CMake 2.8.11 or
-# later. Otherwise we have to add them here ourselves.
-if (CMAKE_VERSION VERSION_LESS 2.8.11)
-    include_directories("${gtest_SOURCE_DIR}/include")
-endif ()
-
-add_executable(hypergraph_test test.cpp metatest.cpp test_cut.cpp)
-target_link_libraries(hypergraph_test PUBLIC gtest_main gmock_main hypergraph)
-
-# Add warnings
-#target_compile_options(
-#        hypergraph_test
-#        PRIVATE
-#        $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Werror -pedantic-errors -Wextra -Wconversion -Wsign-conversion>
-#        $<$<CXX_COMPILER_ID:MSVC>:/W4 /W4>
-#)
+add_executable(hypergraph_test
+        suite.hpp
+        testutil.hpp
+        test.cpp
+        metatest.cpp
+        test_cut.cpp)
+target_link_libraries(hypergraph_test gtest_main gmock_main hypergraph)
 
 add_custom_target(test hypergraph_test)
 
