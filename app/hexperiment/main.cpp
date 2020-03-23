@@ -195,6 +195,8 @@ int main(int argc, char **argv) {
              << (here / ".." / ".." / "scripts/sqlplot.py") << " "
              << destArg.getValue();
 
+  std::cout << "Done, writing artifacts to " << destArg.getValue() << std::endl;
+
   std::system(python_cmd.str().c_str());
 
   return 0;
