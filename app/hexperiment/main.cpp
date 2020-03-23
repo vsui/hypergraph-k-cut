@@ -4,6 +4,9 @@
 
 #include <yaml-cpp/yaml.h>
 #include <tclap/CmdLine.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "generators.hpp"
 #include "source.hpp"
@@ -149,11 +152,27 @@ int main(int argc, char **argv) {
 
   cmd.parse(argc, argv);
 
+  // Prepare output directory
   if (std::filesystem::exists(destArg.getValue())) {
     std::cerr << "Error: " << destArg.getValue() << " already exists" << std::endl;
     return 1;
   }
+  if (!std::filesystem::create_directory(destArg.getValue())) {
+    std::cerr << "Failed to create output directory '" << destArg.getValue() << "'" << std::endl;
+    return 1;
+  }
+  std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
+  std::filesystem::path db_path = dest_path / "data.db";
 
+  // Prepare logger
+  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(dest_path / "log.txt", true);
+  auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+
+  std::shared_ptr<spdlog::logger> logger(new spdlog::logger("multi_sink", {file_sink, console_sink}));
+
+  spdlog::set_default_logger(logger);
+
+  // Parse config file
   using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
   const std::map<std::string, ExperimentGenerator> gens = {
       {"planted", planted_experiment_from_yaml},
@@ -171,18 +190,14 @@ int main(int argc, char **argv) {
   }
   auto num_runs = node["num_runs"].as<size_t>();
 
-  if (!std::filesystem::create_directory(destArg.getValue())) {
-    std::cerr << "Failed to create output directory '" << destArg.getValue() << "'" << std::endl;
-    return 1;
-  }
-  std::filesystem::path db_path = std::filesystem::path(destArg.getValue()) / "data.db";
-
+  // Prepare sqlite database
   auto store = std::make_shared<SqliteStore>();
   if (!store->open(db_path)) {
     std::cerr << "Failed to open store" << std::endl;
     return 1;
   }
 
+  // Run experiment
   auto experiment = it->second(destArg.getValue(), node);
   auto &[name, generators, compare_kk, planted] = experiment;
   KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
