@@ -94,7 +94,9 @@ inline std::vector<TestCaseInstance<HypergraphType>> tests_in_folder(std::string
   std::string directory = get_directory() / folder_name;
   for (const auto &p : std::filesystem::directory_iterator(directory)) {
     TestCase<HypergraphType> tc;
-    assert(tc.from_file(p.path()));
+    if (!tc.from_file(p.path())) {
+      exit(1);
+    }
     const auto instances = tc.split();
     tests.insert(std::end(tests), std::begin(instances), std::end(instances));
   }
