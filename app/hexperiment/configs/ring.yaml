@@ -1,0 +1,10 @@
+type: ring
+num_runs: 5
+num_vertices:
+  - 50
+  - 75
+  - 100
+  - 125
+  - 150
+edge_mult: 10
+radius: 15

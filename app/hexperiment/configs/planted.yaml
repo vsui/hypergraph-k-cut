@@ -1,0 +1,11 @@
+type: planted
+num_runs: 5
+num_vertices:
+  - 50
+  - 75
+  - 100
+  - 125
+  - 150
+k: 2
+m2_mult: 10
+m1_mult: 10

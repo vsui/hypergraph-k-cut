@@ -4,20 +4,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 project(HypergraphPartitioning)
 
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+
+include(extern)
+
 add_subdirectory(hypergraph)
-
-add_executable(hcut main.cpp)
-target_include_directories(hcut PRIVATE ${CMAKE_SOURCE_DIR}/ext)
-target_link_libraries(hcut hypergraph)
-
-add_executable(hgen gen.cpp)
-target_link_libraries(hgen hypergraph)
-
-add_executable(hsparsify sparsify.cpp)
-target_link_libraries(hsparsify hypergraph)
-
-add_executable(hkcore kcore.cpp)
-target_link_libraries(hkcore hypergraph)
-
-add_subdirectory(experiment)
-
+add_subdirectory(app)
