@@ -1,5 +1,8 @@
 # Hypergraph k-cut algorithms
 
+This repository contains implementations of hypergraph min-cut and hypergraph k-cut algorithms as well as tools to
+assess their performance.
+
 ## Building
 
 You will need cmake, boost, and a c++17 compiler.
@@ -20,6 +23,15 @@ You can install all the binaries with `make install`.
 ## Testing
 
 To run the tests, run `make test`. The tests will run several cut algorithms on small problems and verify that everything is working correctly.
+
+## Usage
+
+This repository is a collection of various tools for computing cuts in hypergraphs:
+
+- `hcut`: A CLI for computing hypergraph cuts.
+- `hexperiment`: Collects benchmark data on cut algorithms. See [`hexperiment` README](app/hexperiment/README.md)
+- `hgen`: A tool for generating hypergraph problem instances.
+- `hsparsify`: A tool for generating sparse certificates (from CX '18).
 
 ## Usage
 

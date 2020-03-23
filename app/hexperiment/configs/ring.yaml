@@ -1,10 +1,19 @@
+# Generate instances of the ring hypergraph family
 type: ring
+
+# Number of times to repeat each algorithm
 num_runs: 5
+
+# Generate instances with these number of vertices
 num_vertices:
   - 50
   - 75
   - 100
   - 125
   - 150
+
+# Generate `edge_mult * n` hyperedges where `n` is the number of vertices
 edge_mult: 10
+
+# The radius of each hyperedge in degrees
 radius: 15
