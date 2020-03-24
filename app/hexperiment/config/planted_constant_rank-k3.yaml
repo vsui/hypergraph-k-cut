@@ -1,0 +1,39 @@
+# Generate instances of the planted constant rank hypergraph family
+type: planted_constant_rank
+
+# Number of times to repeat each algorithm
+num_runs: 20
+
+# Generate instances with these number of vertices
+num_vertices:
+  - 50
+  - 75
+  - 100
+  - 125
+  - 150
+  - 175
+  - 200
+  - 225
+  - 250
+  - 275
+  - 300
+  - 325
+  - 350
+  - 375
+  - 400
+  - 425
+  - 450
+  - 475
+  - 500
+
+# Number of clusters
+k: 3
+
+# Rank of each hyperedge
+rank: 3
+
+# Set `m2` (number of crossing hyperedges) to `n / m2_mult`
+m2_mult: 10
+
+# Set `m1` (number of non-crossing hyperedges) to `m2 * m1_mult`
+m1_mult: 100
