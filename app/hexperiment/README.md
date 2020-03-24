@@ -17,4 +17,5 @@ For examples of valid config files see the [`configs` directory](configs).
 - `data.db`: a SQLite database containing individual runs of the algorithm as well as hypergraphs and cuts
 - `data.csv`: A CSV file containing averages for the run times of each algorithm on each hypergraph
 - `log.txt`: A log of the experiment
+- `config.yaml`: The config file of the experiment
 - Various plots

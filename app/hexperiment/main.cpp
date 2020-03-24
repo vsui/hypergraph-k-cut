@@ -157,11 +157,11 @@ int main(int argc, char **argv) {
     std::cerr << "Error: " << destArg.getValue() << " already exists" << std::endl;
     return 1;
   }
-  if (!std::filesystem::create_directory(destArg.getValue())) {
-    std::cerr << "Failed to create output directory '" << destArg.getValue() << "'" << std::endl;
+  std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
+  if (!std::filesystem::create_directory(dest_path)) {
+    std::cerr << "Failed to create output directory '" << dest_path << "'" << std::endl;
     return 1;
   }
-  std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
   std::filesystem::path db_path = dest_path / "data.db";
 
   // Prepare logger
@@ -173,14 +173,15 @@ int main(int argc, char **argv) {
   spdlog::set_default_logger(logger);
 
   // Parse config file
+  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
+  std::filesystem::path config_path(configFileArg.getValue());
+
   using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
   const std::map<std::string, ExperimentGenerator> gens = {
       {"planted", planted_experiment_from_yaml},
       {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
       {"ring", ring_experiment_from_yaml}
   };
-
-  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
 
   auto experiment_type = node["type"].as<std::string>();
   auto it = gens.find(experiment_type);
@@ -189,6 +190,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   auto num_runs = node["num_runs"].as<size_t>();
+
+  std::filesystem::copy_file(config_path, dest_path / "config.yaml");
 
   // Prepare sqlite database
   auto store = std::make_shared<SqliteStore>();
