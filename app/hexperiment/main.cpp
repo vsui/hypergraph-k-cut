@@ -4,6 +4,9 @@
 
 #include <yaml-cpp/yaml.h>
 #include <tclap/CmdLine.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "generators.hpp"
 #include "source.hpp"
@@ -149,10 +152,29 @@ int main(int argc, char **argv) {
 
   cmd.parse(argc, argv);
 
+  // Prepare output directory
   if (std::filesystem::exists(destArg.getValue())) {
     std::cerr << "Error: " << destArg.getValue() << " already exists" << std::endl;
     return 1;
   }
+  std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
+  if (!std::filesystem::create_directory(dest_path)) {
+    std::cerr << "Failed to create output directory '" << dest_path << "'" << std::endl;
+    return 1;
+  }
+  std::filesystem::path db_path = dest_path / "data.db";
+
+  // Prepare logger
+  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(dest_path / "log.txt", true);
+  auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+
+  std::shared_ptr<spdlog::logger> logger(new spdlog::logger("multi_sink", {file_sink, console_sink}));
+
+  spdlog::set_default_logger(logger);
+
+  // Parse config file
+  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
+  std::filesystem::path config_path(configFileArg.getValue());
 
   using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
   const std::map<std::string, ExperimentGenerator> gens = {
@@ -160,8 +182,6 @@ int main(int argc, char **argv) {
       {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
       {"ring", ring_experiment_from_yaml}
   };
-
-  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
 
   auto experiment_type = node["type"].as<std::string>();
   auto it = gens.find(experiment_type);
@@ -171,18 +191,16 @@ int main(int argc, char **argv) {
   }
   auto num_runs = node["num_runs"].as<size_t>();
 
-  if (!std::filesystem::create_directory(destArg.getValue())) {
-    std::cerr << "Failed to create output directory '" << destArg.getValue() << "'" << std::endl;
-    return 1;
-  }
-  std::filesystem::path db_path = std::filesystem::path(destArg.getValue()) / "data.db";
+  std::filesystem::copy_file(config_path, dest_path / "config.yaml");
 
+  // Prepare sqlite database
   auto store = std::make_shared<SqliteStore>();
   if (!store->open(db_path)) {
     std::cerr << "Failed to open store" << std::endl;
     return 1;
   }
 
+  // Run experiment
   auto experiment = it->second(destArg.getValue(), node);
   auto &[name, generators, compare_kk, planted] = experiment;
   KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
@@ -194,6 +212,8 @@ int main(int argc, char **argv) {
   python_cmd << "python3 "s
              << (here / ".." / ".." / "scripts/sqlplot.py") << " "
              << destArg.getValue();
+
+  std::cout << "Done, writing artifacts to " << destArg.getValue() << std::endl;
 
   std::system(python_cmd.str().c_str());
 
