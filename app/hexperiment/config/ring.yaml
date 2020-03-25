@@ -5,19 +5,20 @@ type: ring
 num_runs: 20
 
 # Generate instances with these number of vertices. The largest size will be ~50k.
+# Hypergraphs with skewed cuts are commented out
 num_vertices:
-  - 100
+  # - 100
   - 112
   - 125
-  # - 137 skewed
+  # - 137
   - 150
-  # - 162 skewed
+  # - 162
   - 175
   - 187
-  # - 200 skewed
+  # - 200
   - 217
   - 225
-  # - 250 skewed
+  # - 250
 
 # Generate `edge_mult * n` hyperedges where `n` is the number of vertices
 edge_mult: 30
