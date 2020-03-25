@@ -135,6 +135,25 @@ void KDiscoveryRunner::run() {
     }
 
     const CutInfo planted_cut = planted_ ? planted_cut_optional.value() : CutInfo{2, MW_min_cut(temp)};
+
+    if (!planted_) {
+      // Skip if the cut is uninteresting or skewed
+      if (planted_cut.cut_value == 0) {
+        spdlog::warn("Skipping {}, hypergraph is disconnected", hypergraph.name);
+        continue;
+      }
+      // We are assuming here that there are two partitions since as of now there is no way to get a cut efficiently
+      // where k>2
+      double_t skew = static_cast<double>(planted_cut.partitions[0].size()) / hgraph.num_vertices();
+      if (skew < 0.1 || skew > 0.9) {
+        spdlog::warn("Skipping {}, cut is skewed ({}, {})",
+                     hypergraph.name,
+                     planted_cut.partitions.at(0).size(),
+                     planted_cut.partitions.at(1).size());
+        continue;
+      }
+    }
+
     const size_t k = planted_cut.k;
     const size_t cut_value = planted_cut.cut_value;
     spdlog::info("Processing {}", hypergraph.name);
