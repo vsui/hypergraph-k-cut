@@ -156,7 +156,7 @@ void KDiscoveryRunner::run() {
 
     const size_t k = planted_cut.k;
     const size_t cut_value = planted_cut.cut_value;
-    spdlog::info("Processing {}", hypergraph.name);
+    spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
 
     uint64_t planted_cut_id;
     std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
@@ -255,10 +255,11 @@ void KDiscoveryRunner::run() {
     std::random_device rd;
     std::mt19937_64 rgen(rd());
     std::uniform_int_distribution<uint64_t> dis;
-    for (int i = 0; i < num_runs_; ++i) {
-      for (const auto &[func_name, func] : cut_funcs) {
+    for (const auto &[func_name, func] : cut_funcs) {
+      spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
+      for (int i = 0; i < num_runs_; ++i) {
         Hypergraph temp(*hypergraph_ptr);
-        spdlog::info("Running {} on {}", func_name, hypergraph.name);
+        spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs_);
         hypergraph_util::ContractionStats stats{};
 
         auto start = std::chrono::high_resolution_clock::now();
@@ -276,7 +277,6 @@ void KDiscoveryRunner::run() {
         // Check if found cut was the planted cut
         uint64_t found_cut_id;
         if (found_cut_info == planted_cut) {
-          spdlog::info("Found the planted cut");
           found_cut_id = planted_cut_id;
         } else {
           // Otherwise we need to report this cut to the DB to get its ID
@@ -305,9 +305,12 @@ void KDiscoveryRunner::run() {
         }
       };
 
-      for (const auto &[func_name, func] : cutval_funcs) {
+    }
+    for (const auto &[func_name, func] : cutval_funcs) {
+      spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
+      for (int i = 0; i < num_runs_; ++i) {
+        spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs_);
         Hypergraph temp(*hypergraph_ptr);
-        spdlog::info("Running {} on {}", func_name, hypergraph.name);
         hypergraph_util::ContractionStats stats{};
         auto start = std::chrono::high_resolution_clock::now();
         size_t cutval = func(&temp, dis(rgen), stats);
