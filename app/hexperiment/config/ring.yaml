@@ -9,11 +9,18 @@ num_vertices:
   - 100
   - 112
   - 125
-  - 137
+  # - 137 skewed
   - 150
+  # - 162 skewed
+  - 175
+  - 187
+  # - 200 skewed
+  - 217
+  - 225
+  # - 250 skewed
 
 # Generate `edge_mult * n` hyperedges where `n` is the number of vertices
-edge_mult: 20
+edge_mult: 30
 
 # The radius of each hyperedge in degrees
-radius: 30
+radius: 15
