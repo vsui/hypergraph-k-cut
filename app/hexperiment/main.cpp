@@ -147,10 +147,45 @@ int main(int argc, char **argv) {
       "Output directory for experiment artifacts",
       true,
       "",
-      "A folder name",
-      cmd);
+      "A folder name");
+
+  TCLAP::SwitchArg listSizesArg(
+      "s",
+      "sizes",
+      "List sizes of generated hypergraphs");
+
+  cmd.xorAdd(destArg, listSizesArg);
 
   cmd.parse(argc, argv);
+
+  // Parse config file
+  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
+  std::filesystem::path config_path(configFileArg.getValue());
+
+  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
+  const std::map<std::string, ExperimentGenerator> gens = {
+      {"planted", planted_experiment_from_yaml},
+      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
+      {"ring", ring_experiment_from_yaml}
+  };
+
+  auto experiment_type = node["type"].as<std::string>();
+  auto it = gens.find(experiment_type);
+  if (it == gens.end()) {
+    std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
+    return 1;
+  }
+  auto num_runs = node["num_runs"].as<size_t>();
+  auto experiment = it->second(destArg.getValue(), node);
+  auto &[name, generators, compare_kk, planted] = experiment;
+
+  if (listSizesArg.isSet()) {
+    for (const auto &gen : generators) {
+      auto[hgraph, planted] = gen->generate();
+      std::cout << hgraph.num_vertices() << "," << hgraph.size() << std::endl;
+    }
+    return 0;
+  }
 
   // Prepare output directory
   if (std::filesystem::exists(destArg.getValue())) {
@@ -172,25 +207,6 @@ int main(int argc, char **argv) {
 
   spdlog::set_default_logger(logger);
 
-  // Parse config file
-  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
-  std::filesystem::path config_path(configFileArg.getValue());
-
-  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
-  const std::map<std::string, ExperimentGenerator> gens = {
-      {"planted", planted_experiment_from_yaml},
-      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
-      {"ring", ring_experiment_from_yaml}
-  };
-
-  auto experiment_type = node["type"].as<std::string>();
-  auto it = gens.find(experiment_type);
-  if (it == gens.end()) {
-    std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
-    return 1;
-  }
-  auto num_runs = node["num_runs"].as<size_t>();
-
   std::filesystem::copy_file(config_path, dest_path / "config.yaml");
 
   // Prepare sqlite database
@@ -201,8 +217,6 @@ int main(int argc, char **argv) {
   }
 
   // Run experiment
-  auto experiment = it->second(destArg.getValue(), node);
-  auto &[name, generators, compare_kk, planted] = experiment;
   KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
   runner.run();
 
