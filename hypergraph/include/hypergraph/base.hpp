@@ -76,6 +76,18 @@ public:
     })->second.size();
   }
 
+  void remove_singleton_and_empty_hyperedges() {
+    while (true) {
+      auto it = std::find_if(std::begin(edges()), std::end(edges()), [](auto &&pair) {
+        return pair.second.size() < 2;
+      });
+      if (it == std::end(edges())) {
+        return;
+      }
+      remove_hyperedge(it->first);
+    }
+  }
+
   [[nodiscard]]
   size_t degree(const int vertex_id) const {
     auto it = vertices_.find(vertex_id);

@@ -228,6 +228,7 @@ template<typename HypergraphType, ordering_t<HypergraphType> Ordering, bool Retu
 auto vertex_ordering_minimum_cut_start_vertex(HypergraphType &hypergraph,
                                               const int a) -> typename HypergraphCutRet<HypergraphType,
                                                                                         ReturnPartitions>::T {
+  hypergraph.remove_singleton_and_empty_hyperedges();
   auto min_cut_of_phase = HypergraphCutRet<HypergraphType, ReturnPartitions>::max();
   while (hypergraph.num_vertices() > 1) {
     auto ordering = Ordering(hypergraph, a);
