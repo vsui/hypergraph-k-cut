@@ -2,18 +2,26 @@
 type: ring
 
 # Number of times to repeat each algorithm
-num_runs: 5
+num_runs: 20
 
-# Generate instances with these number of vertices
+# Generate instances with these number of vertices. The largest size will be ~50k.
 num_vertices:
-  - 50
-  - 75
   - 100
+  - 112
   - 125
+  - 137
   - 150
+  - 162
+  - 175
+  - 187
+  - 200
+  - 212
+  - 225
+  - 237
+  - 250
 
 # Generate `edge_mult * n` hyperedges where `n` is the number of vertices
 edge_mult: 10
 
 # The radius of each hyperedge in degrees
-radius: 15
+radius: 30

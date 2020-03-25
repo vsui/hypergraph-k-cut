@@ -111,6 +111,13 @@ KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
 
 void KDiscoveryRunner::run() {
   spdlog::info("Beginning experiment");
+
+  // Log the sizes of each hypergraph so we can decide whether or not we want to do this...
+  for (const auto &gen : src_) {
+    const auto[hgraph, planted_cut_optional] = gen->generate();
+    spdlog::info("size of {}: {}", gen->name(), hgraph.size());
+  }
+
   for (const auto &gen : src_) {
     const auto[hgraph, planted_cut_optional] = gen->generate();
     HypergraphWrapper hypergraph;
