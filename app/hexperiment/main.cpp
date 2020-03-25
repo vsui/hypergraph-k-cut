@@ -7,6 +7,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <hypergraph/order.hpp>
 
 #include "generators.hpp"
 #include "source.hpp"
@@ -154,7 +155,14 @@ int main(int argc, char **argv) {
       "sizes",
       "List sizes of generated hypergraphs");
 
-  cmd.xorAdd(destArg, listSizesArg);
+  TCLAP::SwitchArg checkCutsArg(
+      "c",
+      "check-cuts",
+      "Check that cuts are not skewed or trivial");
+
+  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg};
+
+  cmd.xorAdd(xor_list);
 
   cmd.parse(argc, argv);
 
@@ -183,6 +191,29 @@ int main(int argc, char **argv) {
     for (const auto &gen : generators) {
       auto[hgraph, planted] = gen->generate();
       std::cout << hgraph.num_vertices() << "," << hgraph.size() << std::endl;
+    }
+    return 0;
+  } else if (checkCutsArg.isSet()) {
+    if (node["type"].as<std::string>() != "ring" && node["k"].as<size_t>() > 2) {
+      std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
+      return 1;
+    }
+    for (const auto &gen : generators) {
+      auto[hgraph, planted] = gen->generate();
+      std::cout << "Checking " << gen->name() << std::endl;
+      auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
+      auto cut = MW_min_cut(hgraph);
+      if (cut.value == 0) {
+        std::cout << gen->name() << " is disconnected" << std::endl;
+      }
+      auto skew = static_cast<double>(cut.partitions[0].size()) / num_vertices;
+      if (skew < 0.1 || skew > 0.9) {
+        std::cout << gen->name() << " has a skewed min cut (" << cut.partitions.at(0).size() << ", "
+                  << cut.partitions.at(1).size() << ")" << std::endl;
+      } else {
+        std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
+                  << cut.partitions.at(1).size() << ")" << std::endl;
+      }
     }
     return 0;
   }

@@ -25,3 +25,10 @@ an experiment.
 You can do this with the `-s` flag:
 
 ```hexperiment <config> -s```
+
+For experiments with non-planted instances, you may want to check that the hypergraphs all have interesting cuts.
+You can do this with the `-c` flag:
+
+```hexperiment <config> -c```
+
+Note that the experiment runner will automatically discard instances with uninteresting cuts.
