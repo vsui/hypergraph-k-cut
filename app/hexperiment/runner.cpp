@@ -4,7 +4,7 @@
 
 #include <unistd.h>
 
-#include "evaluator.hpp"
+#include "runner.hpp"
 #include "source.hpp"
 #include "store.hpp"
 #include "generators.hpp"
@@ -29,7 +29,7 @@ std::string hostname() {
 
 }
 
-KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
+ExperimentRunner::ExperimentRunner(const std::string &id,
                                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                                    std::shared_ptr<CutInfoStore> store,
                                    bool compare_kk,
@@ -41,7 +41,7 @@ KDiscoveryRunner::KDiscoveryRunner(const std::string &id,
                                                       planted_(planted),
                                                       num_runs_(num_runs) {}
 
-void KDiscoveryRunner::run() {
+void ExperimentRunner::run() {
   spdlog::info("Beginning experiment");
 
   // Log the sizes of each hypergraph so we can decide whether or not we want to do this...

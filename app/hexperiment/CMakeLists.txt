@@ -3,8 +3,8 @@ set(CMAKE_CXX_FLAGS " -pthread ")
 add_executable(hexperiment
         main.cpp
         common.hpp
-        evaluator.cpp
-        evaluator.hpp
+        runner.cpp
+        runner.hpp
         generators.cpp
         generators.hpp
         source.cpp

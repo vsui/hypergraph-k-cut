@@ -13,9 +13,9 @@ class CutInfoStore;
 class HypergraphSource;
 class HypergraphGenerator;
 
-class KDiscoveryRunner {
+class ExperimentRunner {
 public:
-  KDiscoveryRunner(const std::string &id,
+  ExperimentRunner(const std::string &id,
                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                    std::shared_ptr<CutInfoStore> store,
                    bool compare_kk,

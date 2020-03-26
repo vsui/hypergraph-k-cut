@@ -12,7 +12,7 @@
 #include "generators.hpp"
 #include "source.hpp"
 #include "store.hpp"
-#include "evaluator.hpp"
+#include "runner.hpp"
 
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;
@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
   }
 
   // Run experiment
-  KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
+  ExperimentRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
   runner.run();
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
