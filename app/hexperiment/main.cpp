@@ -10,7 +10,6 @@
 #include <hypergraph/order.hpp>
 
 #include "generators.hpp"
-#include "source.hpp"
 #include "store.hpp"
 #include "runner.hpp"
 

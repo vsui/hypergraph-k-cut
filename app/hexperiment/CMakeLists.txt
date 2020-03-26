@@ -7,8 +7,6 @@ add_executable(hexperiment
         runner.hpp
         generators.cpp
         generators.hpp
-        source.cpp
-        source.hpp
         sqlutil.hpp
         store.cpp
         store.hpp)
