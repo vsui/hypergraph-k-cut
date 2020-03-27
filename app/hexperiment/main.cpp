@@ -221,8 +221,16 @@ int main(int argc, char **argv) {
 
   // Prepare output directory
   if (std::filesystem::exists(destArg.getValue())) {
-    std::cerr << "Error: " << destArg.getValue() << " already exists" << std::endl;
-    return 1;
+    std::cout << destArg.getValue() << " already exists. Overwrite? [yN]" << std::endl;
+
+    char c;
+    while (std::cin.read(&c, 1)) {
+      if (c == 'y') { break; }
+      else if (c == 'N') { return 0; }
+      else { std::cout << "Enter one of [yN]" << std::endl;}
+    }
+
+    std::filesystem::remove_all(destArg.getValue());
   }
   std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
   if (!std::filesystem::create_directory(dest_path)) {

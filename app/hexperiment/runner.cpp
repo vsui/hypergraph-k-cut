@@ -249,7 +249,7 @@ std::map<std::string, HypergraphCutValFunc> cutval_cutoff_funcs(const size_t mw_
   std::map<std::string, HypergraphCutValFunc> funcs;
   for (const auto percentage : cutoff_percentages) {
     funcs.insert({"cxyval_cutoff_" + std::to_string(percentage),
-                  [percentage, mw_time](Hypergraph *h,
+                  [percentage, mw_time, discovery_val](Hypergraph *h,
                                         uint64_t seed,
                                         hypergraph_util::ContractionStats &stats) {
                     std::mt19937_64 gen(seed);
@@ -264,7 +264,7 @@ std::map<std::string, HypergraphCutValFunc> cutval_cutoff_funcs(const size_t mw_
                                                                                                         * mw_time});
                   }});
     funcs.insert({"fpzval_cutoff_" + std::to_string(percentage),
-                  [percentage, mw_time](Hypergraph *h,
+                  [percentage, mw_time, discovery_val](Hypergraph *h,
                                         uint64_t seed,
                                         hypergraph_util::ContractionStats &stats) {
                     std::mt19937_64 gen(seed);
