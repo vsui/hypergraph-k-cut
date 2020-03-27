@@ -48,12 +48,15 @@ auto repeat_contraction(const HypergraphType &hypergraph,
     auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
     auto start_run = std::chrono::high_resolution_clock::now();
     if constexpr (ContractImpl::pass_discovery_value) {
+      // This essentially means  'is FPZ'
       cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
                                                                                          k,
                                                                                          random_generator,
                                                                                          stats,
                                                                                          0,
-                                                                                         discovery_value);
+                                                                                         discovery_value,
+                                                                                         time_limit_ms_opt,
+                                                                                         start_run);
     } else {
       cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
                                                                                          k,
@@ -65,6 +68,11 @@ auto repeat_contraction(const HypergraphType &hypergraph,
 
     if (std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start).count() > time_limit_ms_opt.value()) {
       // The result of the previous run ran over time, so return the result of the run before that
+      if constexpr (ContractImpl::pass_discovery_value) {
+        // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
+        // to get the value up to call stack, so be lenient and let it return the most recent call.
+        min_so_far = std::min(min_so_far, cut);
+      }
       if constexpr (ReturnPartitions) {
         return min_so_far;
       } else {
