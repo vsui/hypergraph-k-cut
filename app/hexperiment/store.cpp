@@ -236,10 +236,10 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
 
   std::string table_name = "cuts"s + std::to_string(info.k);
   std::string columns = "(hypergraph_id, val, planted";
-  for (int i = 0; i < info.k; ++i) {
+  for (int i = 0; i < info.partitions.size(); ++i) {
     columns += ", size_p"s + std::to_string(i + 1);
   }
-  for (int i = 0; i < info.k; ++i) {
+  for (int i = 0; i < info.partitions.size(); ++i) {
     columns += ", blob_p"s + std::to_string(i + 1);
   }
   columns += ")";
@@ -341,7 +341,8 @@ std::optional<std::tuple<bool, uint64_t>> SqliteStore::has_cut(const std::string
   std::string table_name = "cuts"s + std::to_string(info.k);
 
   std::stringstream query;
-  query << "SELECT id FROM " << table_name << " WHERE hypergraph_id = '" << hypergraph_id << "'";
+  query << "SELECT id FROM " << table_name << " WHERE hypergraph_id = '" << hypergraph_id << "'" << " AND val = "
+        << info.cut_value;
   for (int i = 0; i < info.partitions.size(); ++i) {
     const auto &partition = info.partitions[i];
     query << " AND " << "size_p" << std::to_string(i + 1) << " = " << partition.size()
