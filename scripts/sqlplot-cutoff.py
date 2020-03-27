@@ -55,7 +55,12 @@ for hypergraph in hypergraphs:
   plt.xlabel('Cutoff percentage')
   plt.ylabel('Cut factor')
   for alg_name in cutoffs:
-    plt.plot(percentages, cutoffs[alg_name], label=alg_name)
+    zipped = zip(percentages, cutoffs[alg_name])
+    zipped = [e for e in zipped if e[1] < 1000]
+    percentages2 = [e[0] for e in zipped]
+    cutoffsss = [e[1] for e in zipped]
+
+    plt.plot(percentages2, cutoffsss, label=alg_name)
   plt.legend()
   plt.savefig(f'cutoff_{hypergraph}.pdf')
   plt.close()
