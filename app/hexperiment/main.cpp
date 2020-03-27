@@ -176,6 +176,8 @@ int main(int argc, char **argv) {
       {"ring", ring_experiment_from_yaml}
   };
 
+  bool cutoff = node["cutoff"] && node["cutoff"].as<bool>();
+
   auto experiment_type = node["type"].as<std::string>();
   auto it = gens.find(experiment_type);
   if (it == gens.end()) {
@@ -247,14 +249,19 @@ int main(int argc, char **argv) {
   }
 
   // Run experiment
-  ExperimentRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
+  ExperimentRunner runner(name, std::move(generators), store, compare_kk, planted, cutoff, num_runs);
+
+  if (cutoff) {
+    runner.set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());
+  }
+
   runner.run();
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
 
   std::stringstream python_cmd;
   python_cmd << "python3 "s
-             << (here / ".." / ".." / "scripts/sqlplot.py") << " "
+             << (here / ".." / ".." / (cutoff ? "scripts/sqlplot-cutoff.py" : "scripts/sqlplot.py")) << " "
              << destArg.getValue();
 
   std::cout << "Done, writing artifacts to " << destArg.getValue() << std::endl;

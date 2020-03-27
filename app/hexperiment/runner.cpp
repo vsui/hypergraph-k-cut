@@ -290,11 +290,13 @@ ExperimentRunner::ExperimentRunner(const std::string &id,
                                    std::shared_ptr<CutInfoStore> store,
                                    bool compare_kk,
                                    bool planted,
+                                   bool cutoff,
                                    size_t num_runs) : id_(id),
                                                       src_(std::move(source)),
                                                       store_(std::move(store)),
                                                       compare_kk_(compare_kk),
                                                       planted_(planted),
+                                                      cutoff_(cutoff),
                                                       num_runs_(num_runs) {}
 
 void ExperimentRunner::run() {
@@ -358,7 +360,7 @@ void ExperimentRunner::run() {
     std::uniform_int_distribution<uint64_t> dis;
 
     // Preliminary work done, start experiments
-    if (true || cutoff_) {
+    if (cutoff_) {
       spdlog::info("{}: Calculating cutoff time", hypergraph.name);
       double mw_time = 0;
       for (int i = 0; i < num_runs_; ++i) {
@@ -373,7 +375,7 @@ void ExperimentRunner::run() {
       mw_time /= num_runs_;
       spdlog::info("Cutoff time is {}", mw_time);
 
-      for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, {50, 40, 30, 20, 10})) {
+      for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, cutoff_percentages_)) {
         ::run < false, true > (gen,
             func_name,
             func,
@@ -386,8 +388,7 @@ void ExperimentRunner::run() {
             dis,
             k);
       }
-
-      return;
+      continue;
     }
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
     for (const auto &[func_name, func] : cut_funcs(k, compare_kk_, cut_value)) {
@@ -419,3 +420,6 @@ void ExperimentRunner::run() {
   }
 }
 
+void ExperimentRunner::set_cutoff_percentages(const std::vector<size_t> &cutoffs) {
+  cutoff_percentages_ = cutoffs;
+}
