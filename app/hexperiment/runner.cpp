@@ -374,47 +374,47 @@ void ExperimentRunner::run() {
       spdlog::info("Cutoff time is {}", mw_time);
 
       for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, {50, 40, 30, 20, 10})) {
-        ::template run<false, true>(gen,
-                                    func_name,
-                                    func,
-                                    store_.get(),
-                                    num_runs_,
-                                    id_,
-                                    planted_cut,
-                                    planted_cut_id,
-                                    rgen,
-                                    dis,
-                                    k);
+        ::run < false, true > (gen,
+            func_name,
+            func,
+            store_.get(),
+            num_runs_,
+            id_,
+            planted_cut,
+            planted_cut_id,
+            rgen,
+            dis,
+            k);
       }
 
       return;
     }
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
     for (const auto &[func_name, func] : cut_funcs(k, compare_kk_, cut_value)) {
-      ::template run<true>(gen,
-                           func_name,
-                           func,
-                           store_.get(),
-                           num_runs_,
-                           id_,
-                           planted_cut,
-                           planted_cut_id,
-                           rgen,
-                           dis,
-                           k);
+      ::run < true > (gen,
+          func_name,
+          func,
+          store_.get(),
+          num_runs_,
+          id_,
+          planted_cut,
+          planted_cut_id,
+          rgen,
+          dis,
+          k);
     }
     for (const auto &[func_name, func] : cutval_funcs(k, compare_kk_, cut_value)) {
-      ::template run<false>(gen,
-                            func_name,
-                            func,
-                            store_.get(),
-                            num_runs_,
-                            id_,
-                            planted_cut,
-                            planted_cut_id,
-                            rgen,
-                            dis,
-                            k);
+      ::run < false > (gen,
+          func_name,
+          func,
+          store_.get(),
+          num_runs_,
+          id_,
+          planted_cut,
+          planted_cut_id,
+          rgen,
+          dis,
+          k);
     }
   }
 }
