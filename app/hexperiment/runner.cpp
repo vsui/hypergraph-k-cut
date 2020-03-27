@@ -143,8 +143,6 @@ void run(const std::unique_ptr<HypergraphGenerator> &gen,
         return;
       }
 
-      std::cout << found_cut_id << " is found cut" << std::endl;
-
       if (store_->report(hypergraph.name,
                          found_cut_id,
                          run_info,
@@ -246,6 +244,7 @@ std::map<std::string, HypergraphCutValFunc> cutval_funcs(const size_t k, const b
 }
 
 std::map<std::string, HypergraphCutValFunc> cutval_cutoff_funcs(const size_t mw_time,
+                                                                const size_t discovery_val,
                                                                 const std::vector<size_t> &cutoff_percentages) {
   std::map<std::string, HypergraphCutValFunc> funcs;
   for (const auto percentage : cutoff_percentages) {
@@ -259,7 +258,7 @@ std::map<std::string, HypergraphCutValFunc> cutval_cutoff_funcs(const size_t mw_
                                                                                                    gen,
                                                                                                    stats,
                                                                                                    std::nullopt,
-                                                                                                   std::nullopt,
+                                                                                                   {discovery_val},
                                                                                                    {(static_cast<double>(percentage)
                                                                                                        / 100)
                                                                                                         * mw_time});
@@ -375,7 +374,7 @@ void ExperimentRunner::run() {
       mw_time /= num_runs_;
       spdlog::info("Cutoff time is {}", mw_time);
 
-      for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, cutoff_percentages_)) {
+      for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, cut_value, cutoff_percentages_)) {
         ::run < false, true > (gen,
             func_name,
             func,
