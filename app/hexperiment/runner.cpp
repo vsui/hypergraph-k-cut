@@ -130,7 +130,94 @@ void run(const std::unique_ptr<HypergraphGenerator> &gen,
       }
     }
   };
+}
 
+std::map<std::string, HypergraphCutFunc> cut_funcs(const size_t k, const bool add_kk, const size_t cut_value) {
+  std::map<std::string, HypergraphCutFunc> cut_funcs = {
+      {"cxy", [k, cut_value](Hypergraph *h,
+                             uint64_t seed,
+                             hypergraph_util::ContractionStats &stats) {
+        return cxy::discover_stats<Hypergraph, 0>(*h,
+                                                  k,
+                                                  cut_value,
+                                                  stats,
+                                                  seed);
+      }},
+      {"fpz", [k, cut_value](Hypergraph *h,
+                             uint64_t seed,
+                             hypergraph_util::ContractionStats &stats) {
+        return fpz::discover_stats<Hypergraph, 0>(*h,
+                                                  k,
+                                                  cut_value,
+                                                  stats,
+                                                  seed);
+      }},
+  };
+
+  if (k == 2) {
+    cut_funcs.insert({"mw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+      return MW_min_cut<Hypergraph>(*h);
+    }});
+    cut_funcs.insert({"q", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+      return Q_min_cut<Hypergraph>(*h);
+    }});
+    cut_funcs.insert({"kw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+      return KW_min_cut<Hypergraph>(*h);
+    }});
+  }
+
+  if (add_kk) {
+    cut_funcs.insert({"kk", [k, cut_value](Hypergraph *h,
+                                           uint64_t seed,
+                                           hypergraph_util::ContractionStats &stats) {
+      return kk::discover_stats<Hypergraph,
+                                0>(*h, k, cut_value, stats, seed);
+    }});
+  }
+  return cut_funcs;
+}
+
+std::map<std::string, HypergraphCutValFunc> cutval_funcs(const size_t k, const bool add_kk, const size_t cut_value) {
+  std::map<std::string, HypergraphCutValFunc> cutval_funcs = {
+      {"cxyval", [k, cut_value](Hypergraph *h,
+                                uint64_t seed,
+                                hypergraph_util::ContractionStats &stats) {
+        return cxy::discover_value<Hypergraph, 0>(*h,
+                                                  k,
+                                                  cut_value,
+                                                  stats,
+                                                  seed);
+      }},
+      {"fpzval", [k, cut_value](Hypergraph *h,
+                                uint64_t seed,
+                                hypergraph_util::ContractionStats &stats) {
+        return fpz::discover_value<Hypergraph, 0>(*h,
+                                                  k,
+                                                  cut_value,
+                                                  stats,
+                                                  seed);
+      }},
+  };
+  if (k == 2) {
+    cutval_funcs.insert({"mwval", [](Hypergraph *h,
+                                     uint64_t seed,
+                                     hypergraph_util::ContractionStats &stats) { return MW_min_cut_value<Hypergraph>(*h); }});
+    cutval_funcs.insert({"qval", [](Hypergraph *h,
+                                    uint64_t seed,
+                                    hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }});
+    cutval_funcs.insert({"kwval", [](Hypergraph *h,
+                                     uint64_t seed,
+                                     hypergraph_util::ContractionStats &stats) { return KW_min_cut_value<Hypergraph>(*h); }});
+  }
+  if (add_kk) {
+    cutval_funcs.insert({"kkval", [k, cut_value](Hypergraph *h,
+                                                 uint64_t seed,
+                                                 hypergraph_util::ContractionStats &stats) {
+      return kk::discover_value<Hypergraph,
+                                0>(*h, k, cut_value, stats, seed);
+    }});
+  }
+  return cutval_funcs;
 }
 
 }
@@ -203,90 +290,12 @@ void ExperimentRunner::run() {
       continue;
     }
 
-    std::map<std::string, HypergraphCutFunc> cut_funcs = {
-        {"cxy", [k, cut_value](Hypergraph *h,
-                               uint64_t seed,
-                               hypergraph_util::ContractionStats &stats) {
-          return cxy::discover_stats<Hypergraph, 0>(*h,
-                                                    k,
-                                                    cut_value,
-                                                    stats,
-                                                    seed);
-        }},
-        {"fpz", [k, cut_value](Hypergraph *h,
-                               uint64_t seed,
-                               hypergraph_util::ContractionStats &stats) {
-          return fpz::discover_stats<Hypergraph, 0>(*h,
-                                                    k,
-                                                    cut_value,
-                                                    stats,
-                                                    seed);
-        }},
-    };
-
-    std::map<std::string, HypergraphCutValFunc> cutval_funcs = {
-        {"cxyval", [k, cut_value](Hypergraph *h,
-                                  uint64_t seed,
-                                  hypergraph_util::ContractionStats &stats) {
-          return cxy::discover_value<Hypergraph, 0>(*h,
-                                                    k,
-                                                    cut_value,
-                                                    stats,
-                                                    seed);
-        }},
-        {"fpzval", [k, cut_value](Hypergraph *h,
-                                  uint64_t seed,
-                                  hypergraph_util::ContractionStats &stats) {
-          return fpz::discover_value<Hypergraph, 0>(*h,
-                                                    k,
-                                                    cut_value,
-                                                    stats,
-                                                    seed);
-        }},
-    };
-
-    if (k == 2) {
-      cut_funcs.insert({"mw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
-        return MW_min_cut<Hypergraph>(*h);
-      }});
-      cut_funcs.insert({"q", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
-        return Q_min_cut<Hypergraph>(*h);
-      }});
-      cut_funcs.insert({"kw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
-        return KW_min_cut<Hypergraph>(*h);
-      }});
-      cutval_funcs.insert({"mwval", [](Hypergraph *h,
-                                       uint64_t seed,
-                                       hypergraph_util::ContractionStats &stats) { return MW_min_cut_value<Hypergraph>(*h); }});
-      cutval_funcs.insert({"qval", [](Hypergraph *h,
-                                      uint64_t seed,
-                                      hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }});
-      cutval_funcs.insert({"kwval", [](Hypergraph *h,
-                                       uint64_t seed,
-                                       hypergraph_util::ContractionStats &stats) { return KW_min_cut_value<Hypergraph>(*h); }});
-    }
-
-    if (compare_kk_) {
-      cut_funcs.insert({"kk", [k, cut_value](Hypergraph *h,
-                                             uint64_t seed,
-                                             hypergraph_util::ContractionStats &stats) {
-        return kk::discover_stats<Hypergraph,
-                                  0>(*h, k, cut_value, stats, seed);
-      }});
-      cutval_funcs.insert({"kkval", [k, cut_value](Hypergraph *h,
-                                                   uint64_t seed,
-                                                   hypergraph_util::ContractionStats &stats) {
-        return kk::discover_value<Hypergraph,
-                                  0>(*h, k, cut_value, stats, seed);
-      }});
-    }
-
     // Do them in order
     std::random_device rd;
     std::mt19937_64 rgen(rd());
     std::uniform_int_distribution<uint64_t> dis;
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
-    for (const auto &[func_name, func] : cut_funcs) {
+    for (const auto &[func_name, func] : cut_funcs(k, compare_kk_, cut_value)) {
       ::template run<true>(gen,
                            func_name,
                            func,
@@ -299,7 +308,7 @@ void ExperimentRunner::run() {
                            dis,
                            k);
     }
-    for (const auto &[func_name, func] : cutval_funcs) {
+    for (const auto &[func_name, func] : cutval_funcs(k, compare_kk_, cut_value)) {
       ::template run<false>(gen,
                             func_name,
                             func,
