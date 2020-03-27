@@ -13,43 +13,19 @@ class CutInfoStore;
 class HypergraphSource;
 class HypergraphGenerator;
 
-class CutEvaluator {
+class ExperimentRunner {
 public:
-  CutEvaluator(std::unique_ptr<HypergraphSource> &&source, std::unique_ptr<CutInfoStore> &&store);
-
-  /**
-   * Evaluate cuts.
-   */
-  virtual void run() = 0;
-
-  /**
-   * Evaluate a single cut and send any relevant data to the data store.
-   */
-  virtual void evaluate() = 0;
-
-  virtual ~CutEvaluator() = default;
-
-protected:
-  std::unique_ptr<CutInfoStore> store_;
-  std::unique_ptr<HypergraphSource> source_;
-};
-
-class MinimumCutFinder : public CutEvaluator {
-public:
-  using CutEvaluator::CutEvaluator;
-  void run() override;
-  void evaluate() override;
-};
-
-class KDiscoveryRunner {
-public:
-  KDiscoveryRunner(const std::string &id,
+  ExperimentRunner(const std::string &id,
                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                    std::shared_ptr<CutInfoStore> store,
                    bool compare_kk,
                    bool planted,
+                   bool cutoff,
                    size_t num_runs = 20);
   void run();
+
+  void set_cutoff_percentages(const std::vector<size_t> &cutoffs);
+
 private:
   std::string id_;
   std::vector<std::unique_ptr<HypergraphGenerator>> src_;
@@ -57,6 +33,8 @@ private:
   bool compare_kk_;
   size_t num_runs_;
   bool planted_;
+  bool cutoff_;
+  std::vector<size_t> cutoff_percentages_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP

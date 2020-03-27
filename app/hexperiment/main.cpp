@@ -7,11 +7,11 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <hypergraph/order.hpp>
 
 #include "generators.hpp"
-#include "source.hpp"
 #include "store.hpp"
-#include "evaluator.hpp"
+#include "runner.hpp"
 
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;
@@ -147,15 +147,90 @@ int main(int argc, char **argv) {
       "Output directory for experiment artifacts",
       true,
       "",
-      "A folder name",
-      cmd);
+      "A folder name");
+
+  TCLAP::SwitchArg listSizesArg(
+      "s",
+      "sizes",
+      "List sizes of generated hypergraphs");
+
+  TCLAP::SwitchArg checkCutsArg(
+      "c",
+      "check-cuts",
+      "Check that cuts are not skewed or trivial");
+
+  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg};
+
+  cmd.xorAdd(xor_list);
 
   cmd.parse(argc, argv);
 
+  // Parse config file
+  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
+  std::filesystem::path config_path(configFileArg.getValue());
+
+  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
+  const std::map<std::string, ExperimentGenerator> gens = {
+      {"planted", planted_experiment_from_yaml},
+      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
+      {"ring", ring_experiment_from_yaml}
+  };
+
+  bool cutoff = node["cutoff"] && node["cutoff"].as<bool>();
+
+  auto experiment_type = node["type"].as<std::string>();
+  auto it = gens.find(experiment_type);
+  if (it == gens.end()) {
+    std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
+    return 1;
+  }
+  auto num_runs = node["num_runs"].as<size_t>();
+  auto experiment = it->second(destArg.getValue(), node);
+  auto &[name, generators, compare_kk, planted] = experiment;
+
+  if (listSizesArg.isSet()) {
+    for (const auto &gen : generators) {
+      auto[hgraph, planted] = gen->generate();
+      std::cout << hgraph.num_vertices() << "," << hgraph.size() << std::endl;
+    }
+    return 0;
+  } else if (checkCutsArg.isSet()) {
+    if (node["type"].as<std::string>() != "ring" && node["k"].as<size_t>() > 2) {
+      std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
+      return 1;
+    }
+    for (const auto &gen : generators) {
+      auto[hgraph, planted] = gen->generate();
+      std::cout << "Checking " << gen->name() << std::endl;
+      auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
+      auto cut = MW_min_cut(hgraph);
+      if (cut.value == 0) {
+        std::cout << gen->name() << " is disconnected" << std::endl;
+      }
+      auto skew = static_cast<double>(cut.partitions[0].size()) / num_vertices;
+      if (skew < 0.1 || skew > 0.9) {
+        std::cout << gen->name() << " has a skewed min cut (" << cut.partitions.at(0).size() << ", "
+                  << cut.partitions.at(1).size() << ")" << std::endl;
+      } else {
+        std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
+                  << cut.partitions.at(1).size() << ")" << std::endl;
+      }
+    }
+    return 0;
+  }
+
   // Prepare output directory
   if (std::filesystem::exists(destArg.getValue())) {
-    std::cerr << "Error: " << destArg.getValue() << " already exists" << std::endl;
-    return 1;
+    std::cout << destArg.getValue() << " already exists. Overwrite? [yN]" << std::endl;
+
+    char c;
+    while (std::cin.read(&c, 1)) {
+      if (c == 'y') { break; }
+      else if (c == 'N') { return 0; }
+      else { std::cout << "Enter one of [yN]" << std::endl;}
+    }
+
+    std::filesystem::remove_all(destArg.getValue());
   }
   std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
   if (!std::filesystem::create_directory(dest_path)) {
@@ -172,25 +247,6 @@ int main(int argc, char **argv) {
 
   spdlog::set_default_logger(logger);
 
-  // Parse config file
-  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
-  std::filesystem::path config_path(configFileArg.getValue());
-
-  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
-  const std::map<std::string, ExperimentGenerator> gens = {
-      {"planted", planted_experiment_from_yaml},
-      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
-      {"ring", ring_experiment_from_yaml}
-  };
-
-  auto experiment_type = node["type"].as<std::string>();
-  auto it = gens.find(experiment_type);
-  if (it == gens.end()) {
-    std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
-    return 1;
-  }
-  auto num_runs = node["num_runs"].as<size_t>();
-
   std::filesystem::copy_file(config_path, dest_path / "config.yaml");
 
   // Prepare sqlite database
@@ -201,16 +257,19 @@ int main(int argc, char **argv) {
   }
 
   // Run experiment
-  auto experiment = it->second(destArg.getValue(), node);
-  auto &[name, generators, compare_kk, planted] = experiment;
-  KDiscoveryRunner runner(name, std::move(generators), store, compare_kk, planted, num_runs);
+  ExperimentRunner runner(name, std::move(generators), store, compare_kk, planted, cutoff, num_runs);
+
+  if (cutoff) {
+    runner.set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());
+  }
+
   runner.run();
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
 
   std::stringstream python_cmd;
   python_cmd << "python3 "s
-             << (here / ".." / ".." / "scripts/sqlplot.py") << " "
+             << (here / ".." / ".." / (cutoff ? "scripts/sqlplot-cutoff.py" : "scripts/sqlplot.py")) << " "
              << destArg.getValue();
 
   std::cout << "Done, writing artifacts to " << destArg.getValue() << std::endl;

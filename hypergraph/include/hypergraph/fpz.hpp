@@ -45,8 +45,10 @@ struct FpzImpl {
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
                                                                      hypergraph_util::ContractionStats &stats,
-                                                                     typename HypergraphType::EdgeWeight accumulated = 0,
-                                                                     typename HypergraphType::EdgeWeight discovery_value = 0) {
+                                                                     typename HypergraphType::EdgeWeight accumulated,
+                                                                     typename HypergraphType::EdgeWeight discovery_value,
+                                                                     std::optional<size_t> time_limit_ms_opt,
+                                                                     std::chrono::time_point<std::chrono::high_resolution_clock> start) {
     // Remove k-spanning hyperedges from hypergraph
     std::vector<int> k_spanning_hyperedges;
     for (const auto &[edge_id, vertices] : hypergraph.edges()) {
@@ -122,8 +124,16 @@ struct FpzImpl {
                                                                 random_generator,
                                                                 stats,
                                                                 accumulated,
-                                                                discovery_value);
+                                                                discovery_value,
+                                                                time_limit_ms_opt,
+                                                                start);
       if (cut.value <= discovery_value) {
+        return cut;
+      }
+
+      // May need to early-exit
+      if (time_limit_ms_opt.has_value() && std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::high_resolution_clock::now() - start).count() > time_limit_ms_opt.value()) {
         return cut;
       }
       return std::min(cut,
@@ -132,14 +142,18 @@ struct FpzImpl {
                                                                             random_generator,
                                                                             stats,
                                                                             accumulated,
-                                                                            discovery_value));
+                                                                            discovery_value,
+                                                                            time_limit_ms_opt,
+                                                                            start));
     } else {
       return contract<HypergraphType, ReturnPartitions, Verbosity>(contracted,
                                                                    k,
                                                                    random_generator,
                                                                    stats,
                                                                    accumulated,
-                                                                   discovery_value);
+                                                                   discovery_value,
+                                                                   time_limit_ms_opt,
+                                                                   start);
     }
   }
 

@@ -1,0 +1,36 @@
+# Generate instances of the planted hypergraph family
+type: planted
+
+# Do a cutoff experiment
+cutoff: True
+
+# Perform cutoff at these percentages of the MW running time
+percentages:
+  - 8
+  - 10
+  - 12
+  - 15
+  - 17
+  - 20
+  - 12
+  - 25
+  - 33
+  - 50
+  - 100
+  - 200
+
+# Number of times to repeat each algorithm
+num_runs: 20
+
+# Generate instances with these number of vertices
+num_vertices:
+  - 500
+
+# Number of clusters
+k: 2
+
+# Set `m2` (number of crossing hyperedges) to `n / m2_mult` where `n` is the number of vertices
+m2_mult: 10
+
+# Set `m1` (number of non-crossing hyperedges) to `m2 * m1_mult`
+m1_mult: 10

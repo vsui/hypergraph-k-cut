@@ -27,8 +27,9 @@ auto repeat_contraction(const HypergraphType &hypergraph,
                         std::mt19937_64 &random_generator,
                         ContractionStats &stats,
                         std::optional<size_t> max_num_runs_opt,
-                        std::optional<size_t> discovery_value_opt) -> typename HypergraphCutRet<HypergraphType,
-                                                                                                ReturnPartitions>::T {
+                        std::optional<size_t> discovery_value_opt,
+                        std::optional<size_t> time_limit_ms_opt = {}) -> typename HypergraphCutRet<HypergraphType,
+                                                                                                   ReturnPartitions>::T {
   // Since we are very likely to find the discovery value within `default_num_runs` runs this should not conflict
   // with discovery times.
   size_t max_num_runs = max_num_runs_opt.value_or(ContractImpl::default_num_runs(hypergraph, k));
@@ -45,14 +46,17 @@ auto repeat_contraction(const HypergraphType &hypergraph,
     ++stats.num_runs;
     HypergraphType copy(hypergraph);
     auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start_run = std::chrono::high_resolution_clock::now();
     if constexpr (ContractImpl::pass_discovery_value) {
+      // This essentially means  'is FPZ'
       cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
                                                                                          k,
                                                                                          random_generator,
                                                                                          stats,
                                                                                          0,
-                                                                                         discovery_value);
+                                                                                         discovery_value,
+                                                                                         time_limit_ms_opt,
+                                                                                         start_run);
     } else {
       cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
                                                                                          k,
@@ -60,12 +64,28 @@ auto repeat_contraction(const HypergraphType &hypergraph,
                                                                                          stats,
                                                                                          0);
     }
-    auto stop = std::chrono::high_resolution_clock::now();
+    auto stop_run = std::chrono::high_resolution_clock::now();
+
+    if (time_limit_ms_opt.has_value() && std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start).count()
+        > time_limit_ms_opt.value()) {
+      // The result of the previous run ran over time, so return the result of the run before that
+      if constexpr (ContractImpl::pass_discovery_value) {
+        // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
+        // to get the value up to call stack, so be lenient and let it return the most recent call.
+        min_so_far = std::min(min_so_far, cut);
+      }
+      if constexpr (ReturnPartitions) {
+        return min_so_far;
+      } else {
+        return min_so_far.value;
+      }
+    }
+
     min_so_far = std::min(min_so_far, cut);
 
     if constexpr (Verbosity > 0) {
       std::cout << "[" << ++i << "] took "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count()
+                << std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start_run).count()
                 << " milliseconds, got " << cut.value << ", min is " << min_so_far.value << ", discovery value is "
                 << discovery_value << "\n";
     }
