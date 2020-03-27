@@ -66,7 +66,8 @@ auto repeat_contraction(const HypergraphType &hypergraph,
     }
     auto stop_run = std::chrono::high_resolution_clock::now();
 
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start).count() > time_limit_ms_opt.value()) {
+    if (time_limit_ms_opt.has_value() && std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start).count()
+        > time_limit_ms_opt.value()) {
       // The result of the previous run ran over time, so return the result of the run before that
       if constexpr (ContractImpl::pass_discovery_value) {
         // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
