@@ -32,6 +32,8 @@ using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
 
 using HypergraphCutValFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &)>;
 
+using CutValCutOffFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &, size_t)>;
+
 template<bool ReturnsPartitions>
 struct CutFunc;
 
@@ -47,7 +49,7 @@ struct CutFunc<false> {
 
 // This should probably be a private method of ExperimentRunner but it would be annoying to have to change the inferface
 // to include all of the arguments.
-template<bool ReturnsPartitions>
+template<bool ReturnsPartitions, bool CutOff = false>
 void run(const std::unique_ptr<HypergraphGenerator> &gen,
          const std::string &func_name,
          typename CutFunc<ReturnsPartitions>::T func,
@@ -58,6 +60,8 @@ void run(const std::unique_ptr<HypergraphGenerator> &gen,
          const uint64_t planted_cut_id,
          std::mt19937_64 &rgen,
          std::uniform_int_distribution<uint64_t> &dis, size_t k) {
+  static_assert(!CutOff || (CutOff && !ReturnsPartitions));
+
   const auto[hgraph, planted_cut_optional] = gen->generate();
   HypergraphWrapper hypergraph;
   hypergraph.h = hgraph;
@@ -119,9 +123,30 @@ void run(const std::unique_ptr<HypergraphGenerator> &gen,
       }
     } else {
       // Check if found cut value was lower than the planted cut
-      spdlog::warn("Found cut has lesser value than the planted cut");
+      if (cut < planted_cut.cut_value) {
+        spdlog::warn("Found cut has lesser value than the planted cut");
+      }
+
+      if (cut > planted_cut.cut_value) {
+        if constexpr (CutOff) {
+          spdlog::info("Cut off at {} {}", cut, planted_cut.cut_value);
+        } else {
+          spdlog::error("Found cut has greater value than planted cut (should not be possible)");
+        }
+      }
+
+      ReportStatus status;
+      uint64_t found_cut_id;
+      std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
+      if (status == ReportStatus::ERROR) {
+        spdlog::error("Failed to report found cut");
+        return;
+      }
+
+      std::cout << found_cut_id << " is found cut" << std::endl;
 
       if (store_->report(hypergraph.name,
+                         found_cut_id,
                          run_info,
                          stats.num_runs,
                          stats.num_contractions)
@@ -220,6 +245,44 @@ std::map<std::string, HypergraphCutValFunc> cutval_funcs(const size_t k, const b
   return cutval_funcs;
 }
 
+std::map<std::string, HypergraphCutValFunc> cutval_cutoff_funcs(const size_t mw_time,
+                                                                const std::vector<size_t> &cutoff_percentages) {
+  std::map<std::string, HypergraphCutValFunc> funcs;
+  for (const auto percentage : cutoff_percentages) {
+    funcs.insert({"cxyval_cutoff_" + std::to_string(percentage),
+                  [percentage, mw_time](Hypergraph *h,
+                                        uint64_t seed,
+                                        hypergraph_util::ContractionStats &stats) {
+                    std::mt19937_64 gen(seed);
+                    return hypergraph_util::repeat_contraction<Hypergraph, cxy::CxyImpl, false, 0>(*h,
+                                                                                                   2,
+                                                                                                   gen,
+                                                                                                   stats,
+                                                                                                   std::nullopt,
+                                                                                                   std::nullopt,
+                                                                                                   {(static_cast<double>(percentage)
+                                                                                                       / 100)
+                                                                                                        * mw_time});
+                  }});
+    funcs.insert({"fpzval_cutoff_" + std::to_string(percentage),
+                  [percentage, mw_time](Hypergraph *h,
+                                        uint64_t seed,
+                                        hypergraph_util::ContractionStats &stats) {
+                    std::mt19937_64 gen(seed);
+                    return hypergraph_util::repeat_contraction<Hypergraph, fpz::FpzImpl, false, 0>(*h,
+                                                                                                   2,
+                                                                                                   gen,
+                                                                                                   stats,
+                                                                                                   std::nullopt,
+                                                                                                   std::nullopt,
+                                                                                                   {(static_cast<double>(percentage)
+                                                                                                       / 100)
+                                                                                                        * mw_time});
+                  }});
+  }
+  return funcs;
+}
+
 }
 
 ExperimentRunner::ExperimentRunner(const std::string &id,
@@ -290,10 +353,42 @@ void ExperimentRunner::run() {
       continue;
     }
 
-    // Do them in order
     std::random_device rd;
     std::mt19937_64 rgen(rd());
     std::uniform_int_distribution<uint64_t> dis;
+
+    // Preliminary work done, start experiments
+    if (true || cutoff_) {
+      spdlog::info("{}: Calculating cutoff time", hypergraph.name);
+      double mw_time = 0;
+      for (int i = 0; i < num_runs_; ++i) {
+        Hypergraph temp(*hypergraph_ptr);
+        auto start = std::chrono::high_resolution_clock::now();
+        auto cut = MW_min_cut_value(temp);
+        auto stop = std::chrono::high_resolution_clock::now();
+        size_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+        mw_time += ms;
+        spdlog::info("[{}/{}] took {} milliseconds", i + 1, num_runs_, ms);
+      }
+      mw_time /= num_runs_;
+      spdlog::info("Cutoff time is {}", mw_time);
+
+      for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, {50, 40, 30, 20, 10})) {
+        ::template run<false, true>(gen,
+                                    func_name,
+                                    func,
+                                    store_.get(),
+                                    num_runs_,
+                                    id_,
+                                    planted_cut,
+                                    planted_cut_id,
+                                    rgen,
+                                    dis,
+                                    k);
+      }
+
+      return;
+    }
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
     for (const auto &[func_name, func] : cut_funcs(k, compare_kk_, cut_value)) {
       ::template run<true>(gen,

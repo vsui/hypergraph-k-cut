@@ -29,6 +29,7 @@ private:
   bool compare_kk_;
   size_t num_runs_;
   bool planted_;
+  bool cutoff_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP
