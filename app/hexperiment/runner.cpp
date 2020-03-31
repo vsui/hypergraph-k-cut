@@ -62,16 +62,12 @@ void ExperimentRunner::run() {
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
 
     for (const auto &[func_name, func] : getCutAlgos(k, cut_value)) {
-      spdlog::info("Before", hypergraph.name);
       doRun<true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
-      spdlog::info("After", hypergraph.name);
     }
     for (const auto &[func_name, func] : getCutValAlgos(hypergraph, k, cut_value)) {
       if (cutoff_) {
-        spdlog::info("here", hypergraph.name);
         doRun<false, true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
       } else {
-        spdlog::info("here2", hypergraph.name);
         doRun<false, false>(*gen, func_name, func, planted_cut, planted_cut_id, k);
       }
     }
