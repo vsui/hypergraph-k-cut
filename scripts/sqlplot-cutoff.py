@@ -53,7 +53,7 @@ for hypergraph in hypergraphs:
 
   plt.title(hypergraph)
   plt.xlabel('Cutoff percentage')
-  plt.ylabel('Cut factor')
+  plt.ylabel('Suboptimality factor')
   for alg_name in cutoffs:
     zipped = zip(percentages, cutoffs[alg_name])
     zipped = [e for e in zipped if e[1] < 1000]
