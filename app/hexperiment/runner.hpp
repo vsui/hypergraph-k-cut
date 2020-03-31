@@ -33,7 +33,8 @@ public:
                    std::shared_ptr<CutInfoStore> store,
                    bool planted,
                    bool cutoff,
-                   size_t num_runs = 20);
+                   size_t num_runs,
+                   const std::vector<std::string> &func_names);
   void run();
 
   void set_cutoff_percentages(const std::vector<size_t> &cutoffs);

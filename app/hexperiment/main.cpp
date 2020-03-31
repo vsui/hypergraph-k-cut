@@ -179,6 +179,11 @@ int main(int argc, char **argv) {
 
   bool cutoff = node["cutoff"] && node["cutoff"].as<bool>();
 
+  std::vector<std::string> algos = {};
+  if (node["algos"]) {
+    algos = node["algos"].as<std::vector<std::string>>();
+  }
+
   auto experiment_type = node["type"].as<std::string>();
   auto it = gens.find(experiment_type);
   if (it == gens.end()) {
@@ -258,7 +263,7 @@ int main(int argc, char **argv) {
   }
 
   // Run experiment
-  ExperimentRunner runner(name, std::move(generators), store, planted, cutoff, num_runs);
+  ExperimentRunner runner(name, std::move(generators), store, planted, cutoff, num_runs, algos);
 
   if (cutoff) {
     runner.set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());

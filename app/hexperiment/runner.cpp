@@ -33,12 +33,14 @@ ExperimentRunner::ExperimentRunner(const std::string &id,
                                    std::shared_ptr<CutInfoStore> store,
                                    bool planted,
                                    bool cutoff,
-                                   size_t num_runs) : id_(id),
-                                                      src_(std::move(source)),
-                                                      store_(std::move(store)),
-                                                      planted_(planted),
-                                                      cutoff_(cutoff),
-                                                      num_runs_(num_runs) {}
+                                   size_t num_runs,
+                                   const std::vector<std::string> &func_names) : id_(id),
+                                                                                 src_(std::move(source)),
+                                                                                 store_(std::move(store)),
+                                                                                 planted_(planted),
+                                                                                 cutoff_(cutoff),
+                                                                                 num_runs_(num_runs),
+                                                                                 funcnames_(func_names) {}
 
 void ExperimentRunner::run() {
   spdlog::info("Beginning experiment");
@@ -60,12 +62,16 @@ void ExperimentRunner::run() {
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
 
     for (const auto &[func_name, func] : getCutAlgos(k, cut_value)) {
+      spdlog::info("Before", hypergraph.name);
       doRun<true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
+      spdlog::info("After", hypergraph.name);
     }
     for (const auto &[func_name, func] : getCutValAlgos(hypergraph, k, cut_value)) {
       if (cutoff_) {
+        spdlog::info("here", hypergraph.name);
         doRun<false, true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
       } else {
+        spdlog::info("here2", hypergraph.name);
         doRun<false, false>(*gen, func_name, func, planted_cut, planted_cut_id, k);
       }
     }
@@ -303,7 +309,7 @@ std::vector<std::pair<std::string, HypergraphCutFunc>> ExperimentRunner::getCutA
   };
   cut_funcs.erase(std::remove_if(std::begin(cut_funcs),
                                  std::end(cut_funcs),
-                                 [this](auto &f) { return notInFuncNames(f); }));
+                                 [this](auto &f) { return notInFuncNames(f); }), std::end(cut_funcs));
   return cut_funcs;
 }
 
@@ -424,7 +430,7 @@ std::vector<std::pair<std::string,
   };
   cutval_funcs.erase(std::remove_if(std::begin(cutval_funcs),
                                     std::end(cutval_funcs),
-                                    [this](auto &f) { return notInFuncNames(f); }));
+                                    [this](auto &f) { return notInFuncNames(f); }), std::end(cutval_funcs));
   return cutval_funcs;
 }
 
@@ -434,6 +440,6 @@ bool ExperimentRunner::notInFuncNames(T &&f) {
     return false;
   }
   const auto &[name, func] = f;
-  return std::find(std::cbegin(funcnames_), std::cend(funcnames_), name) == std::end(funcnames_);
+  return std::find(std::cbegin(funcnames_), std::cend(funcnames_), name) == std::cend(funcnames_);
 }
 
