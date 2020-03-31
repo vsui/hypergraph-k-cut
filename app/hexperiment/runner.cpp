@@ -26,52 +26,6 @@ std::string hostname() {
   return {hostname.data()};
 }
 
-std::vector<std::pair<std::string, HypergraphCutFunc>> cut_funcs(const size_t k, const size_t cut_value) {
-  //@formatter:off
-  std::vector<std::pair<std::string, HypergraphCutFunc>> cut_funcs = {
-      {"cxy", [k, cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return cxy::discover_stats<Hypergraph, 0>(*h, k, cut_value, stats, seed); }},
-      {"fpz", [k, cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return fpz::discover_stats<Hypergraph, 0>(*h, k, cut_value, stats, seed); }},
-      {"kk", [k, cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return kk::discover_stats<Hypergraph, 0>(*h, k, cut_value, stats, seed); }}
-  };
-  if (k == 2) {
-    cut_funcs.push_back({"mw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return MW_min_cut<Hypergraph>(*h); }});
-    cut_funcs.push_back({"q", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return Q_min_cut<Hypergraph>(*h); }});
-    cut_funcs.push_back({"kw", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return KW_min_cut<Hypergraph>(*h); }});
-  }
-  //@formatter.on
-  return cut_funcs;
-}
-
-std::vector<std::pair<std::string, HypergraphCutValFunc>> cutval_funcs(const size_t k, const size_t cut_value) {
-  //@formatter:off
-  std::vector<std::pair<std::string, HypergraphCutValFunc>> cutval_funcs = {
-      {"cxyval", [k, cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return cxy::discover_value<Hypergraph, 0>(*h, k, cut_value, stats, seed); }},
-      {"fpzval", [k, cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return fpz::discover_value<Hypergraph, 0>(*h, k, cut_value, stats, seed); }},
-      {"kkval", [k, cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return kk::discover_value<Hypergraph, 0>(*h, k, cut_value, stats, seed); }}
-  };
-  if (k == 2) {
-    cutval_funcs.push_back({"mwval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return MW_min_cut_value<Hypergraph>(*h); }});
-    cutval_funcs.push_back({"qval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }});
-    cutval_funcs.push_back({"kwval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return KW_min_cut_value<Hypergraph>(*h); }});
-  }
-  //@formatter:on
-  return cutval_funcs;
-}
-
-std::vector<std::pair<std::string, HypergraphCutValFunc>> cutval_cutoff_funcs(const size_t mw_time,
-                                                                              const size_t discovery_val,
-                                                                              const std::vector<size_t> &cutoff_percentages) {
-  std::vector<std::pair<std::string, HypergraphCutValFunc>> funcs;
-  //@formatter:off
-  for (const auto percentage : cutoff_percentages) {
-    funcs.push_back({"cxyval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, cxy::CxyImpl, false, 0>(*h, 2, std::mt19937_64{seed}, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
-    funcs.push_back({"fpzval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, fpz::FpzImpl, false, 0>(*h, 2, std::mt19937_64{seed}, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
-    funcs.push_back({"kkval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, kk::KkImpl, false, 0>(*h, 2, std::mt19937_64{seed}, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
-  }
-  //@formatter:on
-  return funcs;
-}
-
 }
 
 ExperimentRunner::ExperimentRunner(const std::string &id,
@@ -97,60 +51,23 @@ void ExperimentRunner::run() {
 
   for (const auto &gen : src_) {
     const auto init = doInitialize(*gen);
-
     if (!init) {
       spdlog::error("Failed to initialize {}", gen->name());
       continue;
     }
-
     const auto &[k, cut_value, planted_cut_id, hypergraph, planted_cut] = init.value();
 
-
-    // Run experiment
-    // Preliminary work done, start experiments
-    if (cutoff_) {
-      spdlog::info("{}: Calculating cutoff time", hypergraph.name);
-      double mw_time = 0;
-      for (int i = 0; i < num_runs_; ++i) {
-        // TODO make this unnecessary
-        // Avoid this variant foolishness for now
-        const Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
-
-        Hypergraph temp(*hypergraph_ptr);
-        auto start = std::chrono::high_resolution_clock::now();
-        auto cut = MW_min_cut_value(temp);
-        auto stop = std::chrono::high_resolution_clock::now();
-        size_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-        mw_time += ms;
-        spdlog::info("[{}/{}] took {} milliseconds", i + 1, num_runs_, ms);
-      }
-      mw_time /= num_runs_;
-      spdlog::info("Cutoff time is {}", mw_time);
-
-      for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, cut_value, cutoff_percentages_)) {
-        doRun<false, true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
-      }
-      continue;
-    }
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
 
-    auto cut_fs = cut_funcs(k, cut_value);
-    cut_fs.erase(std::remove_if(std::begin(cut_fs), std::end(cut_fs), [this](auto &f) {
-      const auto &[name, func] = f;
-      return std::find(std::cbegin(funcnames_), std::cend(funcnames_), name) == std::end(funcnames_);
-    }));
-
-    auto cutval_fs = cutval_funcs(k, cut_value);
-    cutval_fs.erase(std::remove_if(std::begin(cutval_fs), std::end(cutval_fs), [this](auto &f) {
-      const auto &[name, func] = f;
-      return std::find(std::cbegin(funcnames_), std::cend(funcnames_), name) == std::end(funcnames_);
-    }));
-
-    for (const auto &[func_name, func] : cut_fs) {
+    for (const auto &[func_name, func] : getCutAlgos(k, cut_value)) {
       doRun<true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
     }
-    for (const auto &[func_name, func] : cutval_fs) {
-      doRun<false>(*gen, func_name, func, planted_cut, planted_cut_id, k);
+    for (const auto &[func_name, func] : getCutValAlgos(hypergraph, k, cut_value)) {
+      if (cutoff_) {
+        doRun<false, true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
+      } else {
+        doRun<false, false>(*gen, func_name, func, planted_cut, planted_cut_id, k);
+      }
     }
   }
 }
@@ -338,5 +255,182 @@ std::optional<uint64_t> ExperimentRunner::doReportCut<false>(const HypergraphWra
   }
 
   return found_cut_id;
+}
+
+std::vector<std::pair<std::string, HypergraphCutFunc>> ExperimentRunner::getCutAlgos(const size_t k,
+                                                                                     const size_t cut_value) {
+  if (cutoff_) {
+    return {};
+  }
+  // TODO I should be checking somehow to make sure that ordering based functions are not called for k != 2
+  std::vector<std::pair<std::string, HypergraphCutFunc>> cut_funcs = {
+      {"cxy", [k, cut_value](Hypergraph *h,
+                             uint64_t seed,
+                             hypergraph_util::ContractionStats &stats) {
+        return cxy::discover_stats<Hypergraph, 0>(*h,
+                                                  k,
+                                                  cut_value,
+                                                  stats,
+                                                  seed);
+      }},
+      {"fpz", [k, cut_value](Hypergraph *h,
+                             uint64_t seed,
+                             hypergraph_util::ContractionStats &stats) {
+        return fpz::discover_stats<Hypergraph, 0>(*h,
+                                                  k,
+                                                  cut_value,
+                                                  stats,
+                                                  seed);
+      }},
+      {"kk", [k, cut_value](Hypergraph *h,
+                            uint64_t seed,
+                            hypergraph_util::ContractionStats &stats) {
+        return kk::discover_stats<Hypergraph, 0>(*h,
+                                                 k,
+                                                 cut_value,
+                                                 stats,
+                                                 seed);
+      }},
+      {"mw", [](Hypergraph *h,
+                uint64_t seed,
+                hypergraph_util::ContractionStats &stats) { return MW_min_cut<Hypergraph>(*h); }},
+      {"q", [](Hypergraph *h,
+               uint64_t seed,
+               hypergraph_util::ContractionStats &stats) { return Q_min_cut<Hypergraph>(*h); }},
+      {"kw", [](Hypergraph *h,
+                uint64_t seed,
+                hypergraph_util::ContractionStats &stats) { return KW_min_cut<Hypergraph>(*h); }}
+  };
+  cut_funcs.erase(std::remove_if(std::begin(cut_funcs),
+                                 std::end(cut_funcs),
+                                 [this](auto &f) { return notInFuncNames(f); }));
+  return cut_funcs;
+}
+
+std::vector<std::pair<std::string,
+                      HypergraphCutValFunc>> ExperimentRunner::getCutValAlgos(const HypergraphWrapper &hypergraph,
+                                                                              const size_t k,
+                                                                              const size_t cut_value) {
+  if (cutoff_) {
+    size_t discovery_val = cut_value;
+    spdlog::info("{}: Calculating cutoff time", hypergraph.name);
+    double mw_time = 0;
+    for (int i = 0; i < num_runs_; ++i) {
+      // TODO make this unnecessary
+      // Avoid this variant foolishness for now
+      const Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+
+      Hypergraph temp(*hypergraph_ptr);
+      auto start = std::chrono::high_resolution_clock::now();
+      auto cut = MW_min_cut_value(temp);
+      auto stop = std::chrono::high_resolution_clock::now();
+      size_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+      mw_time += ms;
+      spdlog::info("[{}/{}] took {} milliseconds", i + 1, num_runs_, ms);
+    }
+
+    mw_time /= num_runs_;
+    spdlog::info("Cutoff time is {}", mw_time);
+    std::vector<std::pair<std::string, HypergraphCutValFunc>> funcs;
+    for (const auto percentage : cutoff_percentages_) {
+      funcs.push_back({"cxyval_cutoff_" + std::to_string(percentage),
+                       [percentage, mw_time, discovery_val](Hypergraph *h,
+                                                            uint64_t seed,
+                                                            hypergraph_util::ContractionStats &stats) {
+                         return hypergraph_util::repeat_contraction<Hypergraph,
+                                                                    cxy::CxyImpl,
+                                                                    false,
+                                                                    0>(*h,
+                                                                       2,
+                                                                       std::mt19937_64{seed},
+                                                                       stats,
+                                                                       std::nullopt,
+                                                                       {discovery_val},
+                                                                       {(static_cast<double>(percentage) / 100)
+                                                                            * mw_time});
+                       }});
+      funcs.push_back({"fpzval_cutoff_" + std::to_string(percentage),
+                       [percentage, mw_time, discovery_val](Hypergraph *h,
+                                                            uint64_t seed,
+                                                            hypergraph_util::ContractionStats &stats) {
+                         return hypergraph_util::repeat_contraction<Hypergraph,
+                                                                    fpz::FpzImpl,
+                                                                    false,
+                                                                    0>(*h,
+                                                                       2,
+                                                                       std::mt19937_64{seed},
+                                                                       stats,
+                                                                       std::nullopt,
+                                                                       {discovery_val},
+                                                                       {(static_cast<double>(percentage) / 100)
+                                                                            * mw_time});
+                       }});
+      funcs.push_back({"kkval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h,
+                                                                                                          uint64_t seed,
+                                                                                                          hypergraph_util::ContractionStats &stats) {
+        return hypergraph_util::repeat_contraction<Hypergraph,
+                                                   kk::KkImpl,
+                                                   false,
+                                                   0>(*h,
+                                                      2,
+                                                      std::mt19937_64{seed},
+                                                      stats,
+                                                      std::nullopt,
+                                                      {discovery_val},
+                                                      {(static_cast<double>(percentage) / 100) * mw_time});
+      }});
+    }
+    return funcs;
+  }
+  std::vector<std::pair<std::string, HypergraphCutValFunc>> cutval_funcs = {
+      {"cxyval", [k, cut_value](Hypergraph *h,
+                                uint64_t seed,
+                                hypergraph_util::ContractionStats &stats) {
+        return cxy::discover_value<Hypergraph,
+                                   0>(*h,
+                                      k,
+                                      cut_value,
+                                      stats,
+                                      seed);
+      }},
+      {"fpzval", [k, cut_value](Hypergraph *h,
+                                uint64_t seed,
+                                hypergraph_util::ContractionStats &stats) {
+        return fpz::discover_value<Hypergraph,
+                                   0>(*h,
+                                      k,
+                                      cut_value,
+                                      stats,
+                                      seed);
+      }},
+      {"kkval", [k, cut_value](Hypergraph *h,
+                               uint64_t seed,
+                               hypergraph_util::ContractionStats &stats) {
+        return kk::discover_value<Hypergraph, 0>(*h,
+                                                 k,
+                                                 cut_value,
+                                                 stats,
+                                                 seed);
+      }},
+      {"mwval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return MW_min_cut_value<Hypergraph>(*h);
+      }},
+      {"qval", [](Hypergraph *h,
+                  uint64_t seed,
+                  hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }},
+      {"kwval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return KW_min_cut_value<Hypergraph>(*h);
+      }}
+  };
+  cutval_funcs.erase(std::remove_if(std::begin(cutval_funcs),
+                                    std::end(cutval_funcs),
+                                    [this](auto &f) { return notInFuncNames(f); }));
+  return cutval_funcs;
+}
+
+template<typename T>
+bool ExperimentRunner::notInFuncNames(T &&f) {
+  const auto &[name, func] = f;
+  return std::find(std::cbegin(funcnames_), std::cend(funcnames_), name) == std::end(funcnames_);
 }
 

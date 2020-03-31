@@ -26,8 +26,6 @@ using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
 
 using HypergraphCutValFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &)>;
 
-using CutValCutOffFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &, size_t)>;
-
 class ExperimentRunner {
 public:
   ExperimentRunner(const std::string &id,
@@ -83,6 +81,15 @@ private:
                                       const CutInfo &planted_cut,
                                       uint64_t planted_cut_id,
                                       bool cut_off);
+
+  std::vector<std::pair<std::string, HypergraphCutFunc>> getCutAlgos(size_t k, size_t cut_value);
+
+  std::vector<std::pair<std::string, HypergraphCutValFunc>> getCutValAlgos(const HypergraphWrapper &hypergraph,
+                                                                           size_t k,
+                                                                           size_t cut_value);
+
+  template<typename T>
+  bool notInFuncNames(T &&f);
 
   // The functions to use
   std::vector<std::string> funcnames_;
