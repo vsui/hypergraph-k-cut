@@ -66,6 +66,7 @@ void run(const std::unique_ptr<HypergraphGenerator> &gen,
   HypergraphWrapper hypergraph;
   hypergraph.h = hgraph;
   hypergraph.name = gen->name();
+  // TODO make this unnecessary
   // Avoid this variant foolishness for now
   Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
   assert(hypergraph_ptr != nullptr);
@@ -193,9 +194,9 @@ std::vector<std::pair<std::string, HypergraphCutValFunc>> cutval_cutoff_funcs(co
   std::vector<std::pair<std::string, HypergraphCutValFunc>> funcs;
   //@formatter:off
   for (const auto percentage : cutoff_percentages) {
-    funcs.push_back({"cxyval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, cxy::CxyImpl, false, 0>(*h, 2, { seed }, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
-    funcs.push_back({"fpzval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, fpz::FpzImpl, false, 0>(*h, 2, { seed }, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
-    funcs.push_back({"kkval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, kk::KkImpl, false, 0>(*h, 2, { seed }, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
+    funcs.push_back({"cxyval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, cxy::CxyImpl, false, 0>(*h, 2, std::mt19937_64{seed}, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
+    funcs.push_back({"fpzval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, fpz::FpzImpl, false, 0>(*h, 2, std::mt19937_64{seed}, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
+    funcs.push_back({"kkval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) { return hypergraph_util::repeat_contraction<Hypergraph, kk::KkImpl, false, 0>(*h, 2, std::mt19937_64{seed}, stats, std::nullopt, {discovery_val}, {(static_cast<double>(percentage) / 100) * mw_time}); }});
   }
   //@formatter:on
   return funcs;
@@ -225,51 +226,14 @@ void ExperimentRunner::run() {
   }
 
   for (const auto &gen : src_) {
-    // Do initial processing (put hypergraph in DB)
-    const auto[hgraph, planted_cut_optional] = gen->generate();
-    HypergraphWrapper hypergraph;
-    hypergraph.h = hgraph;
-    hypergraph.name = gen->name();
-    // Avoid this variant foolishness for now
-    Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
-    assert(hypergraph_ptr != nullptr);
-    Hypergraph temp(*hypergraph_ptr);
+    const auto init = doInitialize(*gen);
 
-    ReportStatus status = store_->report(hypergraph);
-    if (status == ReportStatus::ERROR) {
-      spdlog::error("Failed to put hypergraph info in DB");
+    if (!init) {
+      spdlog::error("Failed to initialize {}", gen->name());
       continue;
     }
 
-    const CutInfo planted_cut = planted_ ? planted_cut_optional.value() : CutInfo{2, MW_min_cut(temp)};
-
-    if (!planted_) {
-      // Skip if the cut is uninteresting or skewed
-      if (planted_cut.cut_value == 0) {
-        spdlog::warn("Skipping {}, hypergraph is disconnected", hypergraph.name);
-        continue;
-      }
-      // We are assuming here that there are two partitions since as of now there is no way to get a cut efficiently
-      // where k>2
-      double_t skew = static_cast<double>(planted_cut.partitions[0].size()) / hgraph.num_vertices();
-      if (skew < 0.1 || skew > 0.9) {
-        spdlog::warn("Skipping {}, cut is skewed ({}, {})",
-                     hypergraph.name,
-                     planted_cut.partitions.at(0).size(),
-                     planted_cut.partitions.at(1).size());
-        continue;
-      }
-    }
-
-    const size_t k = planted_cut.k;
-    const size_t cut_value = planted_cut.cut_value;
-
-    uint64_t planted_cut_id;
-    std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
-    if (status == ReportStatus::ERROR) {
-      spdlog::error("Failed to put planted cut info in DB");
-      continue;
-    }
+    const auto &[k, cut_value, planted_cut_id, hypergraph, planted_cut] = init.value();
 
     std::random_device rd;
     std::mt19937_64 rgen(rd());
@@ -280,6 +244,10 @@ void ExperimentRunner::run() {
       spdlog::info("{}: Calculating cutoff time", hypergraph.name);
       double mw_time = 0;
       for (int i = 0; i < num_runs_; ++i) {
+        // TODO make this unnecessary
+        // Avoid this variant foolishness for now
+        const Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+
         Hypergraph temp(*hypergraph_ptr);
         auto start = std::chrono::high_resolution_clock::now();
         auto cut = MW_min_cut_value(temp);
@@ -347,6 +315,66 @@ void ExperimentRunner::run() {
           k);
     }
   }
+}
+
+std::optional<ExperimentRunner::InitializeRet> ExperimentRunner::doInitialize(const HypergraphGenerator &gen) {
+  const auto[hgraph, planted_cut_optional] = gen.generate();
+  HypergraphWrapper hypergraph = {.h = hgraph, .name = gen.name()};
+
+  ReportStatus status = store_->report(hypergraph);
+  if (status == ReportStatus::ERROR) {
+    spdlog::error("Failed to put hypergraph info in DB");
+    return {};
+  }
+
+  // Need to do this since planted_cut does not have a default constructor
+  CutInfo planted_cut = planted_ ? planted_cut_optional.value() :
+                        [&hypergraph]() {
+                          Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+                          if (hypergraph_ptr == nullptr) {
+                            throw std::runtime_error("Hypergraph is null");
+                          }
+                          // Copy to call MW_min_cut since it can write to the hypergraph
+                          Hypergraph temp(*hypergraph_ptr);
+                          return CutInfo{2, MW_min_cut(temp)};
+                        }();
+
+  if (!planted_) {
+    // Skip if the cut is uninteresting or skewed
+    if (planted_cut.cut_value == 0) {
+      spdlog::warn("Skipping {}, hypergraph is disconnected", hypergraph.name);
+      return {};
+    }
+    // We are assuming here that there are two partitions since as of now there is no way to get a cut efficiently
+    // where k>2
+    double_t skew = static_cast<double>(planted_cut.partitions[0].size()) / hgraph.num_vertices();
+    if (skew < 0.1 || skew > 0.9) {
+      spdlog::warn("Skipping {}, cut is skewed ({}, {})",
+                   hypergraph.name,
+                   planted_cut.partitions.at(0).size(),
+                   planted_cut.partitions.at(1).size());
+      return {};
+    }
+  }
+
+  const auto k = planted_cut.k;
+  const auto cut_value = planted_cut.cut_value;
+
+  uint64_t planted_cut_id;
+  std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
+  if (status == ReportStatus::ERROR) {
+    spdlog::error("Failed to put planted cut info in DB");
+    return {};
+  }
+
+  InitializeRet ret{
+      .k = planted_cut.k,
+      .cut_value = planted_cut.cut_value,
+      .planted_cut_id = planted_cut_id,
+      .hypergraph = hypergraph,
+      .planted_cut = planted_cut
+  };
+  return {ret};
 }
 
 void ExperimentRunner::set_cutoff_percentages(const std::vector<size_t> &cutoffs) {

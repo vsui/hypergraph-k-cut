@@ -8,6 +8,9 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <optional>
+
+#include "common.hpp"
 
 class CutInfoStore;
 class HypergraphSource;
@@ -26,6 +29,18 @@ public:
   void set_cutoff_percentages(const std::vector<size_t> &cutoffs);
 
 private:
+  struct InitializeRet {
+    size_t k;
+    size_t cut_value;
+    uint64_t planted_cut_id;
+    HypergraphWrapper hypergraph;
+    CutInfo planted_cut;
+  };
+
+  // Initializes the hypergraph by adding it to the database. Also adds the cut.
+  // Returns an empty optional if an operation fails.
+  std::optional<InitializeRet> doInitialize(const HypergraphGenerator &gen);
+
   // The functions to use
   std::vector<std::string> funcnames_;
 

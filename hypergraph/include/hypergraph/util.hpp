@@ -24,7 +24,7 @@ struct ContractionStats {
 template<typename HypergraphType, typename ContractImpl, bool ReturnPartitions, uint8_t Verbosity>
 auto repeat_contraction(const HypergraphType &hypergraph,
                         size_t k,
-                        std::mt19937_64 &random_generator,
+                        std::mt19937_64 random_generator,
                         ContractionStats &stats,
                         std::optional<size_t> max_num_runs_opt,
                         std::optional<size_t> discovery_value_opt,
