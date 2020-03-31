@@ -13,6 +13,9 @@ add_executable(hypergraph_test
         test.cpp
         metatest.cpp
         test_cut.cpp)
+set_target_properties(hypergraph_test PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED YES)
 target_link_libraries(hypergraph_test gtest_main gmock_main hypergraph)
 
 add_custom_target(test hypergraph_test)
