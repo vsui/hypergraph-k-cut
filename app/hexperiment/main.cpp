@@ -15,6 +15,7 @@
 
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;
+// TODO remove compare_kk
 using Experiment = std::tuple<std::string, HyGenPtrs, bool /* compare_kk */, bool /* planted */>;
 
 namespace {
@@ -257,7 +258,7 @@ int main(int argc, char **argv) {
   }
 
   // Run experiment
-  ExperimentRunner runner(name, std::move(generators), store, compare_kk, planted, cutoff, num_runs);
+  ExperimentRunner runner(name, std::move(generators), store, planted, cutoff, num_runs);
 
   if (cutoff) {
     runner.set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());

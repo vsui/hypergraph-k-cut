@@ -18,7 +18,6 @@ public:
   ExperimentRunner(const std::string &id,
                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                    std::shared_ptr<CutInfoStore> store,
-                   bool compare_kk,
                    bool planted,
                    bool cutoff,
                    size_t num_runs = 20);
@@ -27,10 +26,12 @@ public:
   void set_cutoff_percentages(const std::vector<size_t> &cutoffs);
 
 private:
+  // The functions to use
+  std::vector<std::string> funcnames_;
+
   std::string id_;
   std::vector<std::unique_ptr<HypergraphGenerator>> src_;
   std::shared_ptr<CutInfoStore> store_;
-  bool compare_kk_;
   size_t num_runs_;
   bool planted_;
   bool cutoff_;
