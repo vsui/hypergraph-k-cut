@@ -26,136 +26,6 @@ std::string hostname() {
   return {hostname.data()};
 }
 
-using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
-                                                              uint64_t,
-                                                              hypergraph_util::ContractionStats &)>;
-
-using HypergraphCutValFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &)>;
-
-using CutValCutOffFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &, size_t)>;
-
-template<bool ReturnsPartitions>
-struct CutFunc;
-
-template<>
-struct CutFunc<true> {
-  using T = HypergraphCutFunc;
-};
-
-template<>
-struct CutFunc<false> {
-  using T = HypergraphCutValFunc;
-};
-
-// This should probably be a private method of ExperimentRunner but it would be annoying to have to change the inferface
-// to include all of the arguments.
-template<bool ReturnsPartitions, bool CutOff = false>
-void run(const std::unique_ptr<HypergraphGenerator> &gen,
-         const std::string &func_name,
-         typename CutFunc<ReturnsPartitions>::T func,
-         CutInfoStore *store_,
-         size_t num_runs_,
-         const std::string &id_,
-         const CutInfo &planted_cut,
-         const uint64_t planted_cut_id,
-         std::mt19937_64 &rgen,
-         std::uniform_int_distribution<uint64_t> &dis, size_t k) {
-  static_assert(!CutOff || (CutOff && !ReturnsPartitions));
-
-  const auto[hgraph, planted_cut_optional] = gen->generate();
-  HypergraphWrapper hypergraph;
-  hypergraph.h = hgraph;
-  hypergraph.name = gen->name();
-  // TODO make this unnecessary
-  // Avoid this variant foolishness for now
-  Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
-  assert(hypergraph_ptr != nullptr);
-
-  Hypergraph temp(*hypergraph_ptr);
-  spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
-  for (int i = 0; i < num_runs_; ++i) {
-    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs_);
-
-    // We have to make a copy of the hypergraph since some algorithms write to it
-    Hypergraph temp(*hypergraph_ptr);
-    hypergraph_util::ContractionStats stats{};
-
-    auto start = std::chrono::high_resolution_clock::now();
-    auto cut = func(&temp, dis(rgen), stats);
-    auto stop = std::chrono::high_resolution_clock::now();
-
-    CutInfo found_cut_info(k, cut);
-
-    CutRunInfo run_info(id_, found_cut_info);
-    run_info.algorithm = func_name;
-    run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-    run_info.machine = hostname();
-    run_info.commit = "n/a";
-
-    if constexpr (ReturnsPartitions) {
-      // Check if found cut was the planted cut
-      uint64_t found_cut_id;
-      if (found_cut_info == planted_cut) {
-        found_cut_id = planted_cut_id;
-      } else {
-        // Otherwise we need to report this cut to the DB to get its ID
-        if (found_cut_info.cut_value == planted_cut.cut_value) {
-          spdlog::warn("Found cut has same value as planted cut ({}) but for different partition sizes");
-        } else {
-          spdlog::warn("Found cut value {} is not the planted cut value {}",
-                       found_cut_info.cut_value,
-                       planted_cut.cut_value);
-        }
-        ReportStatus status;
-        std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
-        if (status == ReportStatus::ERROR) {
-          spdlog::error("Failed to report found cut");
-          return;
-        }
-      }
-
-      if (store_->report(hypergraph.name,
-                         found_cut_id,
-                         run_info,
-                         stats.num_runs,
-                         stats.num_contractions)
-          == ReportStatus::ERROR) {
-        spdlog::error("Failed to report run");
-      }
-    } else {
-      // Check if found cut value was lower than the planted cut
-      if (cut < planted_cut.cut_value) {
-        spdlog::warn("Found cut has lesser value than the planted cut");
-      }
-
-      if (cut > planted_cut.cut_value) {
-        if constexpr (CutOff) {
-          spdlog::info("Cut off at {} {}", cut, planted_cut.cut_value);
-        } else {
-          spdlog::error("Found cut has greater value than planted cut (should not be possible)");
-        }
-      }
-
-      ReportStatus status;
-      uint64_t found_cut_id;
-      std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
-      if (status == ReportStatus::ERROR) {
-        spdlog::error("Failed to report found cut");
-        return;
-      }
-
-      if (store_->report(hypergraph.name,
-                         found_cut_id,
-                         run_info,
-                         stats.num_runs,
-                         stats.num_contractions)
-          == ReportStatus::ERROR) {
-        spdlog::error("Failed to report run");
-      }
-    }
-  };
-}
-
 std::vector<std::pair<std::string, HypergraphCutFunc>> cut_funcs(const size_t k, const size_t cut_value) {
   //@formatter:off
   std::vector<std::pair<std::string, HypergraphCutFunc>> cut_funcs = {
@@ -235,10 +105,8 @@ void ExperimentRunner::run() {
 
     const auto &[k, cut_value, planted_cut_id, hypergraph, planted_cut] = init.value();
 
-    std::random_device rd;
-    std::mt19937_64 rgen(rd());
-    std::uniform_int_distribution<uint64_t> dis;
 
+    // Run experiment
     // Preliminary work done, start experiments
     if (cutoff_) {
       spdlog::info("{}: Calculating cutoff time", hypergraph.name);
@@ -260,17 +128,7 @@ void ExperimentRunner::run() {
       spdlog::info("Cutoff time is {}", mw_time);
 
       for (const auto &[func_name, func] : cutval_cutoff_funcs(mw_time, cut_value, cutoff_percentages_)) {
-        ::run < false, true > (gen,
-            func_name,
-            func,
-            store_.get(),
-            num_runs_,
-            id_,
-            planted_cut,
-            planted_cut_id,
-            rgen,
-            dis,
-            k);
+        doRun<false, true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
       }
       continue;
     }
@@ -289,30 +147,10 @@ void ExperimentRunner::run() {
     }));
 
     for (const auto &[func_name, func] : cut_fs) {
-      ::run < true > (gen,
-          func_name,
-          func,
-          store_.get(),
-          num_runs_,
-          id_,
-          planted_cut,
-          planted_cut_id,
-          rgen,
-          dis,
-          k);
+      doRun<true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
     }
     for (const auto &[func_name, func] : cutval_fs) {
-      ::run < false > (gen,
-          func_name,
-          func,
-          store_.get(),
-          num_runs_,
-          id_,
-          planted_cut,
-          planted_cut_id,
-          rgen,
-          dis,
-          k);
+      doRun<false>(*gen, func_name, func, planted_cut, planted_cut_id, k);
     }
   }
 }
@@ -380,3 +218,113 @@ std::optional<ExperimentRunner::InitializeRet> ExperimentRunner::doInitialize(co
 void ExperimentRunner::set_cutoff_percentages(const std::vector<size_t> &cutoffs) {
   cutoff_percentages_ = cutoffs;
 }
+
+template<bool ReturnsPartitions, bool CutOff>
+void ExperimentRunner::doRun(const HypergraphGenerator &gen,
+                             const std::string &func_name,
+                             typename CutFunc<ReturnsPartitions>::T func,
+                             const CutInfo &planted_cut,
+                             const uint64_t planted_cut_id,
+                             size_t k) {
+  static_assert(!CutOff || (CutOff && !ReturnsPartitions));
+
+  // Make sources of randomness
+  std::random_device rd;
+  std::mt19937_64 rgen(rd());
+  std::uniform_int_distribution<uint64_t> dis;
+
+  const auto[hgraph, planted_cut_optional] = gen.generate();
+  HypergraphWrapper hypergraph;
+  hypergraph.h = hgraph;
+  hypergraph.name = gen.name();
+  // TODO make this unnecessary
+  // Avoid this variant foolishness for now
+  Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+  assert(hypergraph_ptr != nullptr);
+
+  Hypergraph temp(*hypergraph_ptr);
+  spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
+  for (int i = 0; i < num_runs_; ++i) {
+    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs_);
+
+    // We have to make a copy of the hypergraph since some algorithms write to it
+    Hypergraph temp(*hypergraph_ptr);
+    hypergraph_util::ContractionStats stats{};
+
+    auto start = std::chrono::high_resolution_clock::now();
+    auto cut = func(&temp, dis(rgen), stats);
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    CutInfo found_cut_info(k, cut);
+
+    CutRunInfo run_info(id_, found_cut_info);
+    run_info.algorithm = func_name;
+    run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+    run_info.machine = hostname();
+    run_info.commit = "n/a";
+
+    // doReportCut
+    if constexpr (ReturnsPartitions) {
+      // Check if found cut was the planted cut
+      uint64_t found_cut_id;
+      if (found_cut_info == planted_cut) {
+        found_cut_id = planted_cut_id;
+      } else {
+        // Otherwise we need to report this cut to the DB to get its ID
+        if (found_cut_info.cut_value == planted_cut.cut_value) {
+          spdlog::warn("Found cut has same value as planted cut ({}) but for different partition sizes");
+        } else {
+          spdlog::warn("Found cut value {} is not the planted cut value {}",
+                       found_cut_info.cut_value,
+                       planted_cut.cut_value);
+        }
+        ReportStatus status;
+        std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
+        if (status == ReportStatus::ERROR) {
+          spdlog::error("Failed to report found cut");
+          return;
+        }
+      }
+
+      if (store_->report(hypergraph.name,
+                         found_cut_id,
+                         run_info,
+                         stats.num_runs,
+                         stats.num_contractions)
+          == ReportStatus::ERROR) {
+        spdlog::error("Failed to report run");
+      }
+    } else {
+      // Check if found cut value was lower than the planted cut
+      if (cut < planted_cut.cut_value) {
+        spdlog::warn("Found cut has lesser value than the planted cut");
+      }
+
+      if (cut > planted_cut.cut_value) {
+        if constexpr (CutOff) {
+          spdlog::info("Cut off at {} {}", cut, planted_cut.cut_value);
+        } else {
+          spdlog::error("Found cut has greater value than planted cut (should not be possible)");
+        }
+      }
+
+      ReportStatus status;
+      uint64_t found_cut_id;
+      std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
+      if (status == ReportStatus::ERROR) {
+        spdlog::error("Failed to report found cut");
+        return;
+      }
+
+      if (store_->report(hypergraph.name,
+                         found_cut_id,
+                         run_info,
+                         stats.num_runs,
+                         stats.num_contractions)
+          == ReportStatus::ERROR) {
+        spdlog::error("Failed to report run");
+      }
+    }
+  };
+}
+

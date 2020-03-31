@@ -12,9 +12,21 @@
 
 #include "common.hpp"
 
+namespace hypergraph_util {
+class ContractionStats;
+}
+
 class CutInfoStore;
 class HypergraphSource;
 class HypergraphGenerator;
+
+using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
+                                                              uint64_t,
+                                                              hypergraph_util::ContractionStats &)>;
+
+using HypergraphCutValFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &)>;
+
+using CutValCutOffFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &, size_t)>;
 
 class ExperimentRunner {
 public:
@@ -29,6 +41,20 @@ public:
   void set_cutoff_percentages(const std::vector<size_t> &cutoffs);
 
 private:
+
+  template<bool ReturnsPartitions>
+  struct CutFunc;
+
+  template<>
+  struct CutFunc<true> {
+    using T = HypergraphCutFunc;
+  };
+
+  template<>
+  struct CutFunc<false> {
+    using T = HypergraphCutValFunc;
+  };
+
   struct InitializeRet {
     size_t k;
     size_t cut_value;
@@ -40,6 +66,15 @@ private:
   // Initializes the hypergraph by adding it to the database. Also adds the cut.
   // Returns an empty optional if an operation fails.
   std::optional<InitializeRet> doInitialize(const HypergraphGenerator &gen);
+
+  // Add relevant data point to database
+  template<bool ReturnsPartitions, bool CutOff = false>
+  void doRun(const HypergraphGenerator &gen,
+             const std::string &func_name,
+             typename CutFunc<ReturnsPartitions>::T func,
+             const CutInfo &planted_cut,
+             const uint64_t planted_cut_id,
+             size_t k);
 
   // The functions to use
   std::vector<std::string> funcnames_;
