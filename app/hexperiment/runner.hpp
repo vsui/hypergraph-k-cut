@@ -76,6 +76,14 @@ private:
              const uint64_t planted_cut_id,
              size_t k);
 
+  // Report cut to database, return cut ID or empty on failure
+  template<bool ReturnsPartitions>
+  std::optional<uint64_t> doReportCut(const HypergraphWrapper &hypergraph,
+                                      const CutInfo &found_cut,
+                                      const CutInfo &planted_cut,
+                                      uint64_t planted_cut_id,
+                                      bool cut_off);
+
   // The functions to use
   std::vector<std::string> funcnames_;
 

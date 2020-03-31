@@ -263,68 +263,80 @@ void ExperimentRunner::doRun(const HypergraphGenerator &gen,
     run_info.machine = hostname();
     run_info.commit = "n/a";
 
-    // doReportCut
-    if constexpr (ReturnsPartitions) {
-      // Check if found cut was the planted cut
-      uint64_t found_cut_id;
-      if (found_cut_info == planted_cut) {
-        found_cut_id = planted_cut_id;
-      } else {
-        // Otherwise we need to report this cut to the DB to get its ID
-        if (found_cut_info.cut_value == planted_cut.cut_value) {
-          spdlog::warn("Found cut has same value as planted cut ({}) but for different partition sizes");
-        } else {
-          spdlog::warn("Found cut value {} is not the planted cut value {}",
-                       found_cut_info.cut_value,
-                       planted_cut.cut_value);
-        }
-        ReportStatus status;
-        std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
-        if (status == ReportStatus::ERROR) {
-          spdlog::error("Failed to report found cut");
-          return;
-        }
-      }
+    auto found_cut_id =
+        doReportCut<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id, CutOff);
+    if (!found_cut_id) {
+      spdlog::error("Failed to get cut ID");
+      return;
+    }
 
-      if (store_->report(hypergraph.name,
-                         found_cut_id,
-                         run_info,
-                         stats.num_runs,
-                         stats.num_contractions)
-          == ReportStatus::ERROR) {
-        spdlog::error("Failed to report run");
-      }
-    } else {
-      // Check if found cut value was lower than the planted cut
-      if (cut < planted_cut.cut_value) {
-        spdlog::warn("Found cut has lesser value than the planted cut");
-      }
-
-      if (cut > planted_cut.cut_value) {
-        if constexpr (CutOff) {
-          spdlog::info("Cut off at {} {}", cut, planted_cut.cut_value);
-        } else {
-          spdlog::error("Found cut has greater value than planted cut (should not be possible)");
-        }
-      }
-
-      ReportStatus status;
-      uint64_t found_cut_id;
-      std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut_info, false);
-      if (status == ReportStatus::ERROR) {
-        spdlog::error("Failed to report found cut");
-        return;
-      }
-
-      if (store_->report(hypergraph.name,
-                         found_cut_id,
-                         run_info,
-                         stats.num_runs,
-                         stats.num_contractions)
-          == ReportStatus::ERROR) {
-        spdlog::error("Failed to report run");
-      }
+    if (store_->report(hypergraph.name,
+                       found_cut_id.value(),
+                       run_info,
+                       stats.num_runs,
+                       stats.num_contractions)
+        == ReportStatus::ERROR) {
+      spdlog::error("Failed to report run");
     }
   };
+}
+
+template<>
+std::optional<uint64_t> ExperimentRunner::doReportCut<true>(const HypergraphWrapper &hypergraph,
+                                                            const CutInfo &found_cut,
+                                                            const CutInfo &planted_cut,
+                                                            uint64_t planted_cut_id,
+                                                            bool cut_off) {
+  // Check if found cut was the planted cut
+  uint64_t found_cut_id;
+  if (found_cut == planted_cut) {
+    found_cut_id = planted_cut_id;
+  } else {
+    // Otherwise we need to report this cut to the DB to get its ID
+    if (found_cut.cut_value == planted_cut.cut_value) {
+      spdlog::warn("Found cut has same value as planted cut ({}) but for different partition sizes");
+    } else {
+      spdlog::warn("Found cut value {} is not the planted cut value {}",
+                   found_cut.cut_value,
+                   planted_cut.cut_value);
+    }
+    ReportStatus status;
+    std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut, false);
+    if (status == ReportStatus::ERROR) {
+      spdlog::error("Failed to report found cut");
+      return {};
+    }
+  }
+  return found_cut_id;
+}
+
+template<>
+std::optional<uint64_t> ExperimentRunner::doReportCut<false>(const HypergraphWrapper &hypergraph,
+                                                             const CutInfo &found_cut,
+                                                             const CutInfo &planted_cut,
+                                                             uint64_t,
+                                                             bool cut_off) {
+  // Check if found cut value was lower than the planted cut
+  if (found_cut.cut_value < planted_cut.cut_value) {
+    spdlog::warn("Found cut has lesser value than the planted cut");
+  }
+
+  if (found_cut.cut_value > planted_cut.cut_value) {
+    if (cut_off) {
+      spdlog::info("Cut off at {} {}", found_cut.cut_value, planted_cut.cut_value);
+    } else {
+      spdlog::error("Found cut has greater value than planted cut (should not be possible)");
+    }
+  }
+
+  ReportStatus status;
+  uint64_t found_cut_id;
+  std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut, false);
+  if (status == ReportStatus::ERROR) {
+    spdlog::error("Failed to report found cut");
+    return {};
+  }
+
+  return found_cut_id;
 }
 
