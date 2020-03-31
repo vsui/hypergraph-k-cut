@@ -91,7 +91,7 @@ private:
   template<typename T>
   bool notInFuncNames(T &&f);
 
-  // The functions to use
+  // The functions to use. If empty then use all functions
   std::vector<std::string> funcnames_;
 
   std::string id_;

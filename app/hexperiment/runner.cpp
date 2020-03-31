@@ -430,6 +430,9 @@ std::vector<std::pair<std::string,
 
 template<typename T>
 bool ExperimentRunner::notInFuncNames(T &&f) {
+  if (funcnames_.empty()) {
+    return false;
+  }
   const auto &[name, func] = f;
   return std::find(std::cbegin(funcnames_), std::cend(funcnames_), name) == std::end(funcnames_);
 }
