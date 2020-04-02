@@ -43,11 +43,12 @@ struct FpzImpl {
     std::mt19937_64 random_generator;
     HypergraphCut<typename HypergraphType::EdgeWeight> min_so_far;
     const std::chrono::time_point<std::chrono::high_resolution_clock> start;
-
-    // FPZ specific
     hypergraph_util::ContractionStats stats;
     const typename HypergraphType::EdgeWeight discovery_value;
+    size_t max_num_runs;
     const std::optional<size_t> time_limit_ms_opt;
+
+    // Unique to FPZ
     std::deque<LocalContext<HypergraphType>> branches;
 
     Context(const HypergraphType &hypergraph,
@@ -55,10 +56,12 @@ struct FpzImpl {
             const std::mt19937_64 &random_generator,
             typename HypergraphType::EdgeWeight discovery_value,
             std::optional<size_t> time_limit_ms_opt,
+            size_t max_num_runs,
             std::chrono::time_point<std::chrono::high_resolution_clock> start)
         : hypergraph(std::move(hypergraph)), k(k), random_generator(std::move(random_generator)),
           min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), stats(),
-          discovery_value(discovery_value), time_limit_ms_opt(time_limit_ms_opt), start(start), branches() {}
+          discovery_value(discovery_value), time_limit_ms_opt(time_limit_ms_opt), max_num_runs(max_num_runs),
+          start(start), branches() {}
   };
 
 /**
@@ -110,16 +113,15 @@ struct FpzImpl {
   }
 
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
-  static void contract_(Context<HypergraphType> &global_ctx,
+  static void contract_(Context<HypergraphType> &ctx,
                         LocalContext<HypergraphType> &local_ctx) {
-    auto &[_, k, random_generator, min_so_far, start, stats, discovery_value, time_limit_ms_opt, branches] = global_ctx;
     auto &[hypergraph, accumulated] = local_ctx;
 
     // Remove k-spanning hyperedges from hypergraph
     std::vector<int> k_spanning_hyperedges;
     for (const auto &[edge_id, vertices] : hypergraph.edges()) {
       // TODO overflow here?
-      if (vertices.size() >= hypergraph.num_vertices() - k + 2) {
+      if (vertices.size() >= hypergraph.num_vertices() - ctx.k + 2) {
         k_spanning_hyperedges.push_back(edge_id);
         accumulated += edge_weight(hypergraph, edge_id);
       }
@@ -132,13 +134,13 @@ struct FpzImpl {
     if (hypergraph.num_edges() == 0) {
       // May terminate early if it finds a zero cost cut with >k partitions, so need
       // to merge partitions.
-      while (hypergraph.num_vertices() > k) {
+      while (hypergraph.num_vertices() > ctx.k) {
         auto begin = std::begin(hypergraph.vertices());
         auto end = std::begin(hypergraph.vertices());
         std::advance(end, 2);
         // Contract two vertices
         hypergraph = hypergraph.template contract<true, ReturnPartitions>(begin, end);
-        ++stats.num_contractions;
+        ++ctx.stats.num_contractions;
       }
 
       if constexpr (ReturnPartitions) {
@@ -154,13 +156,14 @@ struct FpzImpl {
         if constexpr (Verbosity > 1) {
           std::cout << "Got cut of value " << cut.value << std::endl;
         }
-        min_so_far = std::min(min_so_far, cut);
+        ctx.min_so_far = std::min(ctx.min_so_far, cut);
         return;
       } else {
         if constexpr (Verbosity > 1) {
           std::cout << "Got cut of value " << accumulated << std::endl;
         }
-        min_so_far = std::min(min_so_far, HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated});
+        ctx.min_so_far =
+            std::min(ctx.min_so_far, HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated});
         return;
       }
     }
@@ -175,20 +178,20 @@ struct FpzImpl {
       edge_weights.push_back(edge_weight(hypergraph, edge_id));
     }
     std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
-    const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
+    const auto sampled_edge_id = edge_ids.at(distribution(ctx.random_generator));
     const auto sampled_edge = hypergraph.edges().at(sampled_edge_id);
 
     double redo =
-        redo_probability(hypergraph.num_vertices(), sampled_edge.size(), k);
+        redo_probability(hypergraph.num_vertices(), sampled_edge.size(), ctx.k);
 
     HypergraphType contracted = hypergraph.template contract<true, ReturnPartitions>(sampled_edge_id);
-    ++stats.num_contractions;
+    ++ctx.stats.num_contractions;
 
-    if (dis(random_generator) < redo) {
-      branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
-      branches.push_back(local_ctx);
+    if (dis(ctx.random_generator) < redo) {
+      ctx.branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
+      ctx.branches.push_back(local_ctx);
     } else {
-      branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
+      ctx.branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
     }
   }
 

@@ -93,8 +93,7 @@ struct CxyImpl {
  */
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
   static HypergraphCut<typename HypergraphType::EdgeWeight> contract(Context<HypergraphType> &ctx) {
-    auto &[h, k, random_generator, stats, global_min_so_far, start] = ctx;
-    HypergraphType hypergraph(h);
+    HypergraphType hypergraph(ctx.hypergraph);
 
     std::vector<int> candidates = {};
     std::vector<int> edge_ids;
@@ -109,7 +108,7 @@ struct CxyImpl {
       size_t i = 0;
       for (const auto &[edge_id, incidence] : hypergraph.edges()) {
         edge_ids[i] = edge_id;
-        deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k) * edge_weight(hypergraph, edge_id);
+        deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), ctx.k) * edge_weight(hypergraph, edge_id);
         ++i;
       }
 
@@ -122,24 +121,24 @@ struct CxyImpl {
       std::discrete_distribution<size_t> distribution(std::begin(deltas),
                                                       std::end(deltas));
 
-      size_t sampled = distribution(random_generator);
+      size_t sampled = distribution(ctx.random_generator);
       int sampled_id = edge_ids.at(sampled);
 
       hypergraph.template contract_in_place<true, ReturnPartitions>(sampled_id);
-      ++stats.num_contractions;
+      ++ctx.stats.num_contractions;
     }
 
     // May terminate early if it finds a zero cost cut with >k partitions, so need
     // to merge partitions. At this point the sum of deltas is zero, so every
     // remaining hyperedge crosses all components, so we can merge components
     // without changing the cut value.
-    while (hypergraph.num_vertices() > k) {
+    while (hypergraph.num_vertices() > ctx.k) {
       auto begin = std::begin(hypergraph.vertices());
       auto end = std::begin(hypergraph.vertices());
       std::advance(end, 2);
       // Contract two vertices
       hypergraph = hypergraph.template contract<true, ReturnPartitions>(begin, end);
-      ++stats.num_contractions;
+      ++ctx.stats.num_contractions;
     }
 
     if constexpr (ReturnPartitions) {
