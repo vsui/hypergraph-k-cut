@@ -292,13 +292,18 @@ int main(int argc, char **argv) {
   }
 
   // Run experiment
-  ExperimentRunner runner(name, std::move(generators), store, planted, cutoff, num_runs, algos);
+  std::unique_ptr<ExperimentRunner> runner = cutoff ? nullptr : std::make_unique<DiscoveryRunner>(name,
+                                                                                                  std::move(generators),
+                                                                                                  store,
+                                                                                                  planted,
+                                                                                                  num_runs,
+                                                                                                  algos);
 
   if (cutoff) {
-    runner.set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());
+    runner->set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());
   }
 
-  runner.run();
+  runner->run();
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
 

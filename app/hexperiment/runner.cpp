@@ -11,7 +11,6 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
-#include <hypergraph/cut.hpp>
 #include <hypergraph/order.hpp>
 #include <hypergraph/hypergraph.hpp>
 #include <hypergraph/cxy.hpp>
@@ -28,19 +27,15 @@ std::string hostname() {
 
 }
 
-ExperimentRunner::ExperimentRunner(const std::string &id,
+ExperimentRunner::ExperimentRunner(std::string id,
                                    std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                                    std::shared_ptr<CutInfoStore> store,
                                    bool planted,
-                                   bool cutoff,
-                                   size_t num_runs,
-                                   const std::vector<std::string> &func_names) : id_(id),
-                                                                                 src_(std::move(source)),
-                                                                                 store_(std::move(store)),
-                                                                                 planted_(planted),
-                                                                                 cutoff_(cutoff),
-                                                                                 num_runs_(num_runs),
-                                                                                 funcnames_(func_names) {}
+                                   size_t num_runs) : id_(std::move(id)),
+                                                      src_(std::move(source)),
+                                                      store_(std::move(store)),
+                                                      planted_(planted),
+                                                      num_runs_(num_runs) {}
 
 void ExperimentRunner::run() {
   spdlog::info("Beginning experiment");
@@ -61,16 +56,8 @@ void ExperimentRunner::run() {
 
     spdlog::info("[{}] Collecting data for hypergraph", hypergraph.name);
 
-    for (const auto &[func_name, func] : getCutAlgos(k, cut_value)) {
-      doRun<true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
-    }
-    for (const auto &[func_name, func] : getCutValAlgos(hypergraph, k, cut_value)) {
-      if (cutoff_) {
-        doRun<false, true>(*gen, func_name, func, planted_cut, planted_cut_id, k);
-      } else {
-        doRun<false, false>(*gen, func_name, func, planted_cut, planted_cut_id, k);
-      }
-    }
+    // This part is different
+    doProcessHypergraph(*gen, hypergraph, k, cut_value, planted_cut, planted_cut_id);
   }
 }
 
@@ -84,6 +71,9 @@ std::optional<ExperimentRunner::InitializeRet> ExperimentRunner::doInitialize(co
     return {};
   }
 
+  if (!planted_) {
+    spdlog::info("Cut not planted, computing min cut exactly...");
+  }
   // Need to do this since planted_cut does not have a default constructor
   CutInfo planted_cut = planted_ ? planted_cut_optional.value() :
                         [&hypergraph]() {
@@ -114,9 +104,6 @@ std::optional<ExperimentRunner::InitializeRet> ExperimentRunner::doInitialize(co
     }
   }
 
-  const auto k = planted_cut.k;
-  const auto cut_value = planted_cut.cut_value;
-
   uint64_t planted_cut_id;
   std::tie(status, planted_cut_id) = store_->report(hypergraph.name, planted_cut, true);
   if (status == ReportStatus::ERROR) {
@@ -138,15 +125,13 @@ void ExperimentRunner::set_cutoff_percentages(const std::vector<size_t> &cutoffs
   cutoff_percentages_ = cutoffs;
 }
 
-template<bool ReturnsPartitions, bool CutOff>
-void ExperimentRunner::doRun(const HypergraphGenerator &gen,
-                             const std::string &func_name,
-                             typename CutFunc<ReturnsPartitions>::T func,
-                             const CutInfo &planted_cut,
-                             const uint64_t planted_cut_id,
-                             size_t k) {
-  static_assert(!CutOff || (CutOff && !ReturnsPartitions));
-
+template<bool ReturnsPartitions>
+void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
+                                     const std::string &func_name,
+                                     typename CutFunc<ReturnsPartitions>::T func,
+                                     const CutInfo &planted_cut,
+                                     const uint64_t planted_cut_id,
+                                     size_t k) {
   // Make sources of randomness
   std::random_device rd;
   std::mt19937_64 rgen(rd());
@@ -161,10 +146,9 @@ void ExperimentRunner::doRun(const HypergraphGenerator &gen,
   Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
   assert(hypergraph_ptr != nullptr);
 
-  Hypergraph temp(*hypergraph_ptr);
   spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
-  for (int i = 0; i < num_runs_; ++i) {
-    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs_);
+  for (int i = 0; i < num_runs(); ++i) {
+    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs());
 
     // We have to make a copy of the hypergraph since some algorithms write to it
     Hypergraph temp(*hypergraph_ptr);
@@ -176,20 +160,20 @@ void ExperimentRunner::doRun(const HypergraphGenerator &gen,
 
     CutInfo found_cut_info(k, cut);
 
-    CutRunInfo run_info(id_, found_cut_info);
+    CutRunInfo run_info(id(), found_cut_info);
     run_info.algorithm = func_name;
     run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
     run_info.machine = hostname();
     run_info.commit = "n/a";
 
     auto found_cut_id =
-        doReportCut<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id, CutOff);
+        doReportCut<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id);
     if (!found_cut_id) {
       spdlog::error("Failed to get cut ID");
       return;
     }
 
-    if (store_->report(hypergraph.name,
+    if (store().report(hypergraph.name,
                        found_cut_id.value(),
                        run_info,
                        stats.num_runs,
@@ -197,15 +181,42 @@ void ExperimentRunner::doRun(const HypergraphGenerator &gen,
         == ReportStatus::ERROR) {
       spdlog::error("Failed to report run");
     }
-  };
+  }
 }
+void DiscoveryRunner::doProcessHypergraph(const HypergraphGenerator &gen,
+                                          const HypergraphWrapper &hypergraph,
+                                          const size_t k,
+                                          const size_t cut_value,
+                                          const CutInfo &planted_cut,
+                                          const size_t planted_cut_id) {
+  // This should be the new code...
+
+  for (const auto &[func_name, func] : getCutAlgos(k, cut_value)) {
+    doRunDiscovery<true>(gen, func_name, func, planted_cut, planted_cut_id, k);
+  }
+  for (const auto &[func_name, func] : getCutValAlgos(hypergraph, k, cut_value)) {
+    doRunDiscovery<false>(gen, func_name, func, planted_cut, planted_cut_id, k);
+  }
+  // This part is different
+}
+DiscoveryRunner::DiscoveryRunner(std::string id,
+                                 std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
+                                 std::shared_ptr<CutInfoStore> store,
+                                 bool planted,
+                                 size_t num_runs,
+                                 std::vector<std::string> func_names) : ExperimentRunner(std::move(id),
+                                                                                         std::move(source),
+                                                                                         std::move(store),
+                                                                                         planted,
+                                                                                         num_runs),
+                                                                        funcnames_(std::move(func_names)) {}
 
 template<>
 std::optional<uint64_t> ExperimentRunner::doReportCut<true>(const HypergraphWrapper &hypergraph,
                                                             const CutInfo &found_cut,
                                                             const CutInfo &planted_cut,
                                                             uint64_t planted_cut_id,
-                                                            bool cut_off) {
+                                                            bool /* cutoff */) {
   // Check if found cut was the planted cut
   uint64_t found_cut_id;
   if (found_cut == planted_cut) {
@@ -259,11 +270,8 @@ std::optional<uint64_t> ExperimentRunner::doReportCut<false>(const HypergraphWra
   return found_cut_id;
 }
 
-std::vector<std::pair<std::string, HypergraphCutFunc>> ExperimentRunner::getCutAlgos(const size_t k,
-                                                                                     const size_t cut_value) {
-  if (cutoff_) {
-    return {};
-  }
+std::vector<std::pair<std::string, HypergraphCutFunc>> DiscoveryRunner::getCutAlgos(const size_t k,
+                                                                                    const size_t cut_value) {
   // TODO I should be checking somehow to make sure that ordering based functions are not called for k != 2
   std::vector<std::pair<std::string, HypergraphCutFunc>> cut_funcs = {
       {"cxy", [k, cut_value](Hypergraph *h,
@@ -310,80 +318,9 @@ std::vector<std::pair<std::string, HypergraphCutFunc>> ExperimentRunner::getCutA
 }
 
 std::vector<std::pair<std::string,
-                      HypergraphCutValFunc>> ExperimentRunner::getCutValAlgos(const HypergraphWrapper &hypergraph,
-                                                                              const size_t k,
-                                                                              const size_t cut_value) {
-  if (cutoff_) {
-    size_t discovery_val = cut_value;
-    spdlog::info("{}: Calculating cutoff time", hypergraph.name);
-    double mw_time = 0;
-    for (int i = 0; i < num_runs_; ++i) {
-      // TODO make this unnecessary
-      // Avoid this variant foolishness for now
-      const Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
-
-      Hypergraph temp(*hypergraph_ptr);
-      auto start = std::chrono::high_resolution_clock::now();
-      auto cut = MW_min_cut_value(temp);
-      auto stop = std::chrono::high_resolution_clock::now();
-      size_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-      mw_time += ms;
-      spdlog::info("[{}/{}] took {} milliseconds", i + 1, num_runs_, ms);
-    }
-
-    mw_time /= num_runs_;
-    spdlog::info("Cutoff time is {}", mw_time);
-    std::vector<std::pair<std::string, HypergraphCutValFunc>> funcs;
-    for (const auto percentage : cutoff_percentages_) {
-      funcs.push_back({"cxyval_cutoff_" + std::to_string(percentage),
-                       [percentage, mw_time, discovery_val](Hypergraph *h,
-                                                            uint64_t seed,
-                                                            hypergraph_util::ContractionStats &stats) {
-                         return hypergraph_util::repeat_contraction<Hypergraph,
-                                                                    cxy::CxyImpl,
-                                                                    false,
-                                                                    0>(*h,
-                                                                       2,
-                                                                       std::mt19937_64{seed},
-                                                                       stats,
-                                                                       std::nullopt,
-                                                                       {discovery_val},
-                                                                       {(static_cast<double>(percentage) / 100)
-                                                                            * mw_time});
-                       }});
-      funcs.push_back({"fpzval_cutoff_" + std::to_string(percentage),
-                       [percentage, mw_time, discovery_val](Hypergraph *h,
-                                                            uint64_t seed,
-                                                            hypergraph_util::ContractionStats &stats) {
-                         return hypergraph_util::repeat_contraction<Hypergraph,
-                                                                    fpz::FpzImpl,
-                                                                    false,
-                                                                    0>(*h,
-                                                                       2,
-                                                                       std::mt19937_64{seed},
-                                                                       stats,
-                                                                       std::nullopt,
-                                                                       {discovery_val},
-                                                                       {(static_cast<double>(percentage) / 100)
-                                                                            * mw_time});
-                       }});
-      funcs.push_back({"kkval_cutoff_" + std::to_string(percentage), [percentage, mw_time, discovery_val](Hypergraph *h,
-                                                                                                          uint64_t seed,
-                                                                                                          hypergraph_util::ContractionStats &stats) {
-        return hypergraph_util::repeat_contraction<Hypergraph,
-                                                   kk::KkImpl,
-                                                   false,
-                                                   0>(*h,
-                                                      2,
-                                                      std::mt19937_64{seed},
-                                                      stats,
-                                                      std::nullopt,
-                                                      {discovery_val},
-                                                      {(static_cast<double>(percentage) / 100) * mw_time});
-      }});
-    }
-    return funcs;
-  }
+                      HypergraphCutValFunc>> DiscoveryRunner::getCutValAlgos(const HypergraphWrapper &hypergraph,
+                                                                             const size_t k,
+                                                                             const size_t cut_value) {
   std::vector<std::pair<std::string, HypergraphCutValFunc>> cutval_funcs = {
       {"cxyval", [k, cut_value](Hypergraph *h,
                                 uint64_t seed,
@@ -431,7 +368,7 @@ std::vector<std::pair<std::string,
 }
 
 template<typename T>
-bool ExperimentRunner::notInFuncNames(T &&f) {
+bool DiscoveryRunner::notInFuncNames(T &&f) {
   if (funcnames_.empty()) {
     return false;
   }
