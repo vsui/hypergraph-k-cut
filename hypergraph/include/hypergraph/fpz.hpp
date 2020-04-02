@@ -28,14 +28,6 @@ struct FpzImpl {
   static constexpr bool pass_discovery_value = true;
 
   /**
-   * Global context for the entire run
-   */
-  struct Context {
-    std::mt19937_64 rand;
-    std::uniform_int_distribution<size_t> dist;
-  };
-
-  /**
    * Stack context to represent different branches of computation
    */
   template<typename HypergraphType>
@@ -45,15 +37,28 @@ struct FpzImpl {
   };
 
   template<typename HypergraphType>
-  struct GlobalContext {
-    size_t k;
+  struct Context {
+    const HypergraphType hypergraph;
+    const size_t k;
     std::mt19937_64 random_generator;
-    typename HypergraphType::EdgeWeight discovery_value;
-    std::optional<size_t> time_limit_ms_opt;
     HypergraphCut<typename HypergraphType::EdgeWeight> min_so_far;
+    const std::chrono::time_point<std::chrono::high_resolution_clock> start;
+
+    // FPZ specific
     hypergraph_util::ContractionStats stats;
-    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+    const typename HypergraphType::EdgeWeight discovery_value;
+    const std::optional<size_t> time_limit_ms_opt;
     std::deque<LocalContext<HypergraphType>> branches;
+
+    Context(const HypergraphType &hypergraph,
+            size_t k,
+            const std::mt19937_64 &random_generator,
+            typename HypergraphType::EdgeWeight discovery_value,
+            std::optional<size_t> time_limit_ms_opt,
+            std::chrono::time_point<std::chrono::high_resolution_clock> start)
+        : hypergraph(std::move(hypergraph)), k(k), random_generator(std::move(random_generator)),
+          min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), stats(),
+          discovery_value(discovery_value), time_limit_ms_opt(time_limit_ms_opt), start(start), branches() {}
   };
 
 /**
@@ -69,37 +74,24 @@ struct FpzImpl {
  * @return minimum found k cut
  */
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
-  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
-                                                                     size_t k,
-                                                                     std::mt19937_64 &random_generator,
-                                                                     hypergraph_util::ContractionStats &stats,
-                                                                     typename HypergraphType::EdgeWeight discovery_value,
-                                                                     std::optional<size_t> time_limit_ms_opt,
-                                                                     std::chrono::time_point<std::chrono::high_resolution_clock> start) {
-    GlobalContext<HypergraphType> global_ctx = {
-        .k = k,
-        .random_generator = random_generator,
-        .discovery_value = discovery_value,
-        .time_limit_ms_opt = time_limit_ms_opt,
-        .min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max()
-    };
+  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(Context<HypergraphType> &ctx) {
 
-    global_ctx.branches.push_back({.hypergraph = hypergraph, .accumulated = 0});
+    ctx.branches.push_back({.hypergraph = ctx.hypergraph, .accumulated = 0});
 
-    while (!global_ctx.branches.empty()) {
-      auto &local_ctx = global_ctx.branches.front();
+    while (!ctx.branches.empty()) {
+      auto &local_ctx = ctx.branches.front();
 
       // Call internal function with global context. This will update it.
-      contract_<HypergraphType, ReturnPartitions, Verbosity>(global_ctx, local_ctx);
+      contract_<HypergraphType, ReturnPartitions, Verbosity>(ctx, local_ctx);
 
-      if (global_ctx.min_so_far.value <= discovery_value) {
+      if (ctx.min_so_far.value <= ctx.discovery_value) {
         break;
       }
 
-      global_ctx.branches.pop_front();
+      ctx.branches.pop_front();
     }
 
-    return global_ctx.min_so_far;
+    return ctx.min_so_far;
   }
 
   /**
@@ -118,9 +110,9 @@ struct FpzImpl {
   }
 
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
-  static void contract_(GlobalContext<HypergraphType> &global_ctx,
+  static void contract_(Context<HypergraphType> &global_ctx,
                         LocalContext<HypergraphType> &local_ctx) {
-    auto &[k, random_generator, discovery_value, time_limit_ms_opt, min_so_far, stats, start, branches] = global_ctx;
+    auto &[_, k, random_generator, min_so_far, start, stats, discovery_value, time_limit_ms_opt, branches] = global_ctx;
     auto &[hypergraph, accumulated] = local_ctx;
 
     // Remove k-spanning hyperedges from hypergraph

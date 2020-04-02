@@ -83,16 +83,19 @@ inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
 struct CxyImpl {
   static constexpr bool pass_discovery_value = false;
 
+  template<typename HypergraphType>
+  using Context = hypergraph_util::Context<HypergraphType>;
+
 /**
  * The contraction algorithm from [CXY'18]. This returns the minimum cut with some probability.
  *
  * Takes time O(np) where p is the size of the hypergraph.
  */
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
-  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
-                                                                     size_t k,
-                                                                     std::mt19937_64 &random_generator,
-                                                                     hypergraph_util::ContractionStats &stats) {
+  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(Context<HypergraphType> &ctx) {
+    auto &[h, k, random_generator, stats, global_min_so_far, start] = ctx;
+    HypergraphType hypergraph(h);
+
     std::vector<int> candidates = {};
     std::vector<int> edge_ids;
     std::vector<double> deltas;
@@ -149,7 +152,7 @@ struct CxyImpl {
                                                                 std::end(partitions),
                                                                 min_so_far);
     } else {
-      return HypergraphCut<typename HypergraphType::EdgeWeight>{min_so_far};
+      return HypergraphCut<typename HypergraphType::EdgeWeight>(min_so_far);
     }
   }
 

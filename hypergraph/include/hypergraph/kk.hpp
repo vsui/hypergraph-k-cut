@@ -10,6 +10,9 @@ namespace kk {
 struct KkImpl {
   static constexpr bool pass_discovery_value = false;
 
+  template<typename HypergraphType>
+  using Context = hypergraph_util::Context<HypergraphType>;
+
 /**
  * The min-cut algorithm from [KK'14].
  *
@@ -22,10 +25,9 @@ struct KkImpl {
  * @return
  */
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
-  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &h,
-                                                                     size_t k,
-                                                                     std::mt19937_64 &random_generator,
-                                                                     hypergraph_util::ContractionStats &stats) {
+  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(Context<HypergraphType> &ctx) {
+    auto &[hypergraph, k, random_generator, stats, min_so_far, start] = ctx;
+    HypergraphType h(hypergraph);
 
     // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
     double epsilon = 1.0;
