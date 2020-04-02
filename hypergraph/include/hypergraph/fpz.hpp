@@ -65,7 +65,6 @@ struct FpzImpl {
  * @param hypergraph
  * @param k compute the min-`k`-cut
  * @param random_generator  the source of randomness
- * @param accumulated   the size of the hypergraph so far (used as context for recursive calls)
  * @param discovery_value   this function will early-exit if a cut of this value is found.
  * @return minimum found k cut
  */
@@ -74,7 +73,6 @@ struct FpzImpl {
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
                                                                      hypergraph_util::ContractionStats &stats,
-                                                                     typename HypergraphType::EdgeWeight accumulated,
                                                                      typename HypergraphType::EdgeWeight discovery_value,
                                                                      std::optional<size_t> time_limit_ms_opt,
                                                                      std::chrono::time_point<std::chrono::high_resolution_clock> start) {

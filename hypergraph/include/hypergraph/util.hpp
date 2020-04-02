@@ -53,7 +53,6 @@ auto repeat_contraction(const HypergraphType &hypergraph,
                                                                                          k,
                                                                                          random_generator,
                                                                                          stats,
-                                                                                         0,
                                                                                          discovery_value,
                                                                                          time_limit_ms_opt,
                                                                                          start_run);
@@ -61,8 +60,7 @@ auto repeat_contraction(const HypergraphType &hypergraph,
       cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
                                                                                          k,
                                                                                          random_generator,
-                                                                                         stats,
-                                                                                         0);
+                                                                                         stats);
     }
     auto stop_run = std::chrono::high_resolution_clock::now();
 

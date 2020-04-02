@@ -19,15 +19,13 @@ struct KkImpl {
  * @param hypergraph
  * @param k
  * @param random_generator
- * @param accumulated   Unused parameter
  * @return
  */
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
   static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &h,
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
-                                                                     hypergraph_util::ContractionStats &stats,
-                                                                     [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+                                                                     hypergraph_util::ContractionStats &stats) {
 
     // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
     double epsilon = 1.0;

@@ -92,8 +92,7 @@ struct CxyImpl {
   static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
                                                                      size_t k,
                                                                      std::mt19937_64 &random_generator,
-                                                                     hypergraph_util::ContractionStats &stats,
-                                                                     [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+                                                                     hypergraph_util::ContractionStats &stats) {
     std::vector<int> candidates = {};
     std::vector<int> edge_ids;
     std::vector<double> deltas;
