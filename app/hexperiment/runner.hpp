@@ -17,7 +17,6 @@ class ContractionStats;
 }
 
 class CutInfoStore;
-class HypergraphSource;
 class HypergraphGenerator;
 
 using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
