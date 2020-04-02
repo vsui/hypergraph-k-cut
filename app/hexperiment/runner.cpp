@@ -125,6 +125,77 @@ void ExperimentRunner::set_cutoff_percentages(const std::vector<size_t> &cutoffs
   cutoff_percentages_ = cutoffs;
 }
 
+template<>
+std::optional<uint64_t> ExperimentRunner::doReportCut<true>(const HypergraphWrapper &hypergraph,
+                                                            const CutInfo &found_cut,
+                                                            const CutInfo &planted_cut,
+                                                            uint64_t planted_cut_id,
+                                                            bool /* cutoff */) {
+  // Check if found cut was the planted cut
+  uint64_t found_cut_id;
+  if (found_cut == planted_cut) {
+    found_cut_id = planted_cut_id;
+  } else {
+    // Otherwise we need to report this cut to the DB to get its ID
+    if (found_cut.cut_value == planted_cut.cut_value) {
+      spdlog::warn("Found cut has same value as planted cut ({}) but for different partition sizes");
+    } else {
+      spdlog::warn("Found cut value {} is not the planted cut value {}",
+                   found_cut.cut_value,
+                   planted_cut.cut_value);
+    }
+    ReportStatus status;
+    std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut, false);
+    if (status == ReportStatus::ERROR) {
+      spdlog::error("Failed to report found cut");
+      return {};
+    }
+  }
+  return found_cut_id;
+}
+
+template<>
+std::optional<uint64_t> ExperimentRunner::doReportCut<false>(const HypergraphWrapper &hypergraph,
+                                                             const CutInfo &found_cut,
+                                                             const CutInfo &planted_cut,
+                                                             uint64_t,
+                                                             bool cut_off) {
+  // Check if found cut value was lower than the planted cut
+  if (found_cut.cut_value < planted_cut.cut_value) {
+    spdlog::warn("Found cut has lesser value than the planted cut");
+  }
+
+  if (found_cut.cut_value > planted_cut.cut_value) {
+    if (cut_off) {
+      spdlog::info("Cut off at {} {}", found_cut.cut_value, planted_cut.cut_value);
+    } else {
+      spdlog::error("Found cut has greater value than planted cut (should not be possible)");
+    }
+  }
+
+  ReportStatus status;
+  uint64_t found_cut_id;
+  std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut, false);
+  if (status == ReportStatus::ERROR) {
+    spdlog::error("Failed to report found cut");
+    return {};
+  }
+
+  return found_cut_id;
+}
+
+DiscoveryRunner::DiscoveryRunner(std::string id,
+                                 std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
+                                 std::shared_ptr<CutInfoStore> store,
+                                 bool planted,
+                                 size_t num_runs,
+                                 std::vector<std::string> func_names) : ExperimentRunner(std::move(id),
+                                                                                         std::move(source),
+                                                                                         std::move(store),
+                                                                                         planted,
+                                                                                         num_runs),
+                                                                        funcnames_(std::move(func_names)) {}
+
 template<bool ReturnsPartitions>
 void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
                                      const std::string &func_name,
@@ -189,85 +260,12 @@ void DiscoveryRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                                           const size_t cut_value,
                                           const CutInfo &planted_cut,
                                           const size_t planted_cut_id) {
-  // This should be the new code...
-
   for (const auto &[func_name, func] : getCutAlgos(k, cut_value)) {
     doRunDiscovery<true>(gen, func_name, func, planted_cut, planted_cut_id, k);
   }
   for (const auto &[func_name, func] : getCutValAlgos(hypergraph, k, cut_value)) {
     doRunDiscovery<false>(gen, func_name, func, planted_cut, planted_cut_id, k);
   }
-  // This part is different
-}
-DiscoveryRunner::DiscoveryRunner(std::string id,
-                                 std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
-                                 std::shared_ptr<CutInfoStore> store,
-                                 bool planted,
-                                 size_t num_runs,
-                                 std::vector<std::string> func_names) : ExperimentRunner(std::move(id),
-                                                                                         std::move(source),
-                                                                                         std::move(store),
-                                                                                         planted,
-                                                                                         num_runs),
-                                                                        funcnames_(std::move(func_names)) {}
-
-template<>
-std::optional<uint64_t> ExperimentRunner::doReportCut<true>(const HypergraphWrapper &hypergraph,
-                                                            const CutInfo &found_cut,
-                                                            const CutInfo &planted_cut,
-                                                            uint64_t planted_cut_id,
-                                                            bool /* cutoff */) {
-  // Check if found cut was the planted cut
-  uint64_t found_cut_id;
-  if (found_cut == planted_cut) {
-    found_cut_id = planted_cut_id;
-  } else {
-    // Otherwise we need to report this cut to the DB to get its ID
-    if (found_cut.cut_value == planted_cut.cut_value) {
-      spdlog::warn("Found cut has same value as planted cut ({}) but for different partition sizes");
-    } else {
-      spdlog::warn("Found cut value {} is not the planted cut value {}",
-                   found_cut.cut_value,
-                   planted_cut.cut_value);
-    }
-    ReportStatus status;
-    std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut, false);
-    if (status == ReportStatus::ERROR) {
-      spdlog::error("Failed to report found cut");
-      return {};
-    }
-  }
-  return found_cut_id;
-}
-
-template<>
-std::optional<uint64_t> ExperimentRunner::doReportCut<false>(const HypergraphWrapper &hypergraph,
-                                                             const CutInfo &found_cut,
-                                                             const CutInfo &planted_cut,
-                                                             uint64_t,
-                                                             bool cut_off) {
-  // Check if found cut value was lower than the planted cut
-  if (found_cut.cut_value < planted_cut.cut_value) {
-    spdlog::warn("Found cut has lesser value than the planted cut");
-  }
-
-  if (found_cut.cut_value > planted_cut.cut_value) {
-    if (cut_off) {
-      spdlog::info("Cut off at {} {}", found_cut.cut_value, planted_cut.cut_value);
-    } else {
-      spdlog::error("Found cut has greater value than planted cut (should not be possible)");
-    }
-  }
-
-  ReportStatus status;
-  uint64_t found_cut_id;
-  std::tie(status, found_cut_id) = store_->report(hypergraph.name, found_cut, false);
-  if (status == ReportStatus::ERROR) {
-    spdlog::error("Failed to report found cut");
-    return {};
-  }
-
-  return found_cut_id;
 }
 
 std::vector<std::pair<std::string, HypergraphCutFunc>> DiscoveryRunner::getCutAlgos(const size_t k,
