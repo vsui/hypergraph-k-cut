@@ -27,6 +27,35 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
 struct FpzImpl {
   static constexpr bool pass_discovery_value = true;
 
+  /**
+   * Global context for the entire run
+   */
+  struct Context {
+    std::mt19937_64 rand;
+    std::uniform_int_distribution<size_t> dist;
+  };
+
+  /**
+   * Stack context to represent different branches of computation
+   */
+  template<typename HypergraphType>
+  struct LocalContext {
+    HypergraphType hypergraph;
+    typename HypergraphType::EdgeWeight accumulated;
+  };
+
+  template<typename HypergraphType>
+  struct GlobalContext {
+    size_t k;
+    std::mt19937_64 random_generator;
+    typename HypergraphType::EdgeWeight discovery_value;
+    std::optional<size_t> time_limit_ms_opt;
+    HypergraphCut<typename HypergraphType::EdgeWeight> min_so_far;
+    hypergraph_util::ContractionStats stats;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+    std::deque<LocalContext<HypergraphType>> branches;
+  };
+
 /**
  * The randomized branching contraction algorithm from [FPZ'19] that returns the minimum-k-cut of a hypergraph with some
  * probability.
@@ -49,6 +78,53 @@ struct FpzImpl {
                                                                      typename HypergraphType::EdgeWeight discovery_value,
                                                                      std::optional<size_t> time_limit_ms_opt,
                                                                      std::chrono::time_point<std::chrono::high_resolution_clock> start) {
+    GlobalContext<HypergraphType> global_ctx = {
+        .k = k,
+        .random_generator = random_generator,
+        .discovery_value = discovery_value,
+        .time_limit_ms_opt = time_limit_ms_opt,
+        .min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max()
+    };
+
+    global_ctx.branches.push_back({.hypergraph = hypergraph, .accumulated = 0});
+
+    while (!global_ctx.branches.empty()) {
+      auto &local_ctx = global_ctx.branches.front();
+
+      // Call internal function with global context. This will update it.
+      contract_<HypergraphType, ReturnPartitions, Verbosity>(global_ctx, local_ctx);
+
+      if (global_ctx.min_so_far.value <= discovery_value) {
+        break;
+      }
+
+      global_ctx.branches.pop_front();
+    }
+
+    return global_ctx.min_so_far;
+  }
+
+  /**
+ * Calculate the number of runs required to find the minimum k-cut with high probability.
+ *
+ * @tparam HypergraphType
+ * @param hypergraph
+ * @param k
+ * @return the number of runs required to find the minimum cut with high probability
+ */
+  template<typename HypergraphType>
+  static size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_t k) {
+    auto log_n =
+        static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
+    return log_n * log_n;
+  }
+
+  template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
+  static void contract_(GlobalContext<HypergraphType> &global_ctx,
+                        LocalContext<HypergraphType> &local_ctx) {
+    auto &[k, random_generator, discovery_value, time_limit_ms_opt, min_so_far, stats, start, branches] = global_ctx;
+    auto &[hypergraph, accumulated] = local_ctx;
+
     // Remove k-spanning hyperedges from hypergraph
     std::vector<int> k_spanning_hyperedges;
     for (const auto &[edge_id, vertices] : hypergraph.edges()) {
@@ -88,12 +164,14 @@ struct FpzImpl {
         if constexpr (Verbosity > 1) {
           std::cout << "Got cut of value " << cut.value << std::endl;
         }
-        return cut;
+        min_so_far = std::min(min_so_far, cut);
+        return;
       } else {
         if constexpr (Verbosity > 1) {
           std::cout << "Got cut of value " << accumulated << std::endl;
         }
-        return HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated};
+        min_so_far = std::min(min_so_far, HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated});
+        return;
       }
     }
 
@@ -117,60 +195,13 @@ struct FpzImpl {
     ++stats.num_contractions;
 
     if (dis(random_generator) < redo) {
-      // Maybe we could use continuations to avoid having to pass the value up a long call stack
-      auto cut =
-          contract<HypergraphType, ReturnPartitions, Verbosity>(contracted,
-                                                                k,
-                                                                random_generator,
-                                                                stats,
-                                                                accumulated,
-                                                                discovery_value,
-                                                                time_limit_ms_opt,
-                                                                start);
-      if (cut.value <= discovery_value) {
-        return cut;
-      }
-
-      // May need to early-exit
-      if (time_limit_ms_opt.has_value() && std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::high_resolution_clock::now() - start).count() > time_limit_ms_opt.value()) {
-        return cut;
-      }
-      return std::min(cut,
-                      contract<HypergraphType, ReturnPartitions, Verbosity>(hypergraph,
-                                                                            k,
-                                                                            random_generator,
-                                                                            stats,
-                                                                            accumulated,
-                                                                            discovery_value,
-                                                                            time_limit_ms_opt,
-                                                                            start));
+      branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
+      branches.push_back(local_ctx);
     } else {
-      return contract<HypergraphType, ReturnPartitions, Verbosity>(contracted,
-                                                                   k,
-                                                                   random_generator,
-                                                                   stats,
-                                                                   accumulated,
-                                                                   discovery_value,
-                                                                   time_limit_ms_opt,
-                                                                   start);
+      branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
     }
   }
 
-/**
- * Calculate the number of runs required to find the minimum k-cut with high probability.
- *
- * @tparam HypergraphType
- * @param hypergraph
- * @param k
- * @return the number of runs required to find the minimum cut with high probability
- */
-  template<typename HypergraphType>
-  static size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_t k) {
-    auto log_n =
-        static_cast<size_t>(std::ceil(std::log(hypergraph.num_vertices())));
-    return log_n * log_n;
-  }
 };
 
 DECLARE_CONTRACTION_MIN_K_CUT(FpzImpl);
