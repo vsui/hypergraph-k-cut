@@ -146,6 +146,27 @@ CREATE TABLE IF NOT EXISTS cuts5 (
   REFERENCES hypergraphs (id)
 );
 
+CREATE TABLE IF NOT EXISTS cuts6 (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hypergraph_id TEXT,
+  val INTEGER NOT NULL,
+  planted INTEGER NOT NULL,
+  size_p1 INTEGER,
+  size_p2 INTEGER,
+  size_p3 INTEGER,
+  size_p4 INTEGER,
+  size_p5 INTEGER,
+  size_p6 INTEGER,
+  blob_p1 BLOB,
+  blob_p2 BLOB,
+  blob_p3 BLOB,
+  blob_p4 BLOB,
+  blob_p5 BLOB,
+  blob_p6 BLOB,
+  FOREIGN KEY (hypergraph_id)
+  REFERENCES hypergraphs (id)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   algo TEXT NOT NULL,
