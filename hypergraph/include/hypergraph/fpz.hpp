@@ -27,6 +27,8 @@ inline double redo_probability(size_t n, size_t e, size_t k) {
 struct FpzImpl {
   static constexpr bool pass_discovery_value = true;
 
+  static constexpr char name[] = "FPZ";
+
   /**
    * Stack context to represent different branches of computation
    */
@@ -37,31 +39,24 @@ struct FpzImpl {
   };
 
   template<typename HypergraphType>
-  struct Context {
-    const HypergraphType hypergraph;
-    const size_t k;
-    std::mt19937_64 random_generator;
-    HypergraphCut<typename HypergraphType::EdgeWeight> min_so_far;
-    const std::chrono::time_point<std::chrono::high_resolution_clock> start;
-    hypergraph_util::ContractionStats stats;
-    const typename HypergraphType::EdgeWeight discovery_value;
-    size_t max_num_runs;
-    const std::optional<size_t> time_limit_ms_opt;
-
-    // Unique to FPZ
+  struct Context : public hypergraph_util::Context<HypergraphType> {
     std::deque<LocalContext<HypergraphType>> branches;
 
     Context(const HypergraphType &hypergraph,
             size_t k,
             const std::mt19937_64 &random_generator,
             typename HypergraphType::EdgeWeight discovery_value,
-            std::optional<size_t> time_limit_ms_opt,
-            size_t max_num_runs,
+            std::optional<std::chrono::duration<double>> time_limit,
+            std::optional<size_t> max_num_runs,
             std::chrono::time_point<std::chrono::high_resolution_clock> start)
-        : hypergraph(std::move(hypergraph)), k(k), random_generator(std::move(random_generator)),
-          min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), stats(),
-          discovery_value(discovery_value), time_limit_ms_opt(time_limit_ms_opt), max_num_runs(max_num_runs),
-          start(start), branches() {}
+        : hypergraph_util::Context<HypergraphType>(hypergraph,
+                                                   k,
+                                                   random_generator,
+                                                   discovery_value,
+                                                   time_limit,
+                                                   max_num_runs,
+                                                   start),
+          branches() {}
   };
 
 /**

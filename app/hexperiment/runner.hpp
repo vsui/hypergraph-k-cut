@@ -34,8 +34,6 @@ public:
                    size_t num_runs);
   void run();
 
-  void set_cutoff_percentages(const std::vector<size_t> &cutoffs);
-
   virtual ~ExperimentRunner() = default;
 
 protected:
@@ -99,7 +97,7 @@ private:
   std::shared_ptr<CutInfoStore> store_;
   size_t num_runs_;
   bool planted_;
-  std::vector<size_t> cutoff_percentages_;
+
 };
 
 class DiscoveryRunner : public ExperimentRunner {
@@ -144,7 +142,33 @@ private:
 };
 
 class CutoffRunner : public ExperimentRunner {
+public:
+  CutoffRunner(std::string id,
+               std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
+               std::shared_ptr<CutInfoStore>
+               store,
+               bool planted,
+               size_t num_runs,
+               std::vector<double> cutoff_percentages
+  );
 
+  void doProcessHypergraph(const HypergraphGenerator &gen,
+                           const HypergraphWrapper &hypergraph,
+                           size_t k,
+                           size_t cut_value,
+                           const CutInfo &planted_cut,
+                           size_t planted_cut_id) override;
+
+private:
+  std::chrono::duration<double> computeCutoffTime(const HypergraphWrapper &hypergraph);
+
+  template<typename ContractImpl>
+  void doRunCutoff(const HypergraphWrapper &hypergraph,
+                   size_t k,
+                   size_t discovery_value,
+                   std::chrono::duration<double> cutoff_time);
+
+  std::vector<double> cutoff_percentages_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP

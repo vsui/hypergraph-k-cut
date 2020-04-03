@@ -10,6 +10,8 @@ namespace kk {
 struct KkImpl {
   static constexpr bool pass_discovery_value = false;
 
+  static constexpr char name[] = "KK";
+
   template<typename HypergraphType>
   using Context = hypergraph_util::Context<HypergraphType>;
 

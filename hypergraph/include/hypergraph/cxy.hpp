@@ -83,6 +83,8 @@ inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
 struct CxyImpl {
   static constexpr bool pass_discovery_value = false;
 
+  static constexpr char name[] = "CXY";
+
   template<typename HypergraphType>
   using Context = hypergraph_util::Context<HypergraphType>;
 

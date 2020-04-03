@@ -21,29 +21,32 @@ struct Context {
   const size_t k;
   std::mt19937_64 random_generator;
   HypergraphCut<typename HypergraphType::EdgeWeight> min_so_far;
-  const std::chrono::time_point<std::chrono::high_resolution_clock> start;
+  std::chrono::time_point<std::chrono::high_resolution_clock> start;
   hypergraph_util::ContractionStats stats;
   const typename HypergraphType::EdgeWeight discovery_value;
-  size_t max_num_runs;
-  const std::optional<size_t> time_limit_ms_opt;
+  std::optional<size_t> max_num_runs;
+  std::optional<std::chrono::duration<double>> time_limit;
 
   Context(const HypergraphType &hypergraph,
           size_t k,
           const std::mt19937_64 &random_generator,
           typename HypergraphType::EdgeWeight discovery_value,
-          std::optional<size_t> time_limit_ms_opt,
-          size_t max_num_runs,
+          std::optional<std::chrono::duration<double>> time_limit,
+          std::optional<size_t> max_num_runs,
           std::chrono::time_point<std::chrono::high_resolution_clock> start)
-      : hypergraph(std::move(hypergraph)), k(k), random_generator(std::move(random_generator)),
+      : hypergraph(std::move(hypergraph)), k(k), random_generator(random_generator),
         min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), stats(),
-        discovery_value(discovery_value), time_limit_ms_opt(time_limit_ms_opt), start(start),
+        discovery_value(discovery_value), time_limit(time_limit), start(start),
         max_num_runs(max_num_runs) {}
+
+  // TODO Maybe max_num_runs should be an optional
 };
 
 template<typename HypergraphType, typename ContractImpl, bool ReturnPartitions, uint8_t Verbosity>
 auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> &ctx) {
   size_t i = 0;
-  while (ctx.min_so_far.value > ctx.discovery_value && ctx.stats.num_runs < ctx.max_num_runs) {
+  while (ctx.min_so_far.value > ctx.discovery_value
+      && (!ctx.max_num_runs.has_value() || ctx.stats.num_runs < ctx.max_num_runs.value())) {
     ++ctx.stats.num_runs;
     HypergraphType copy(ctx.hypergraph);
 
@@ -51,9 +54,8 @@ auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> 
     auto cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(ctx);
     auto stop_run = std::chrono::high_resolution_clock::now();
 
-    if (ctx.time_limit_ms_opt.has_value()
-        && std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - ctx.start).count()
-            > ctx.time_limit_ms_opt.value()) {
+    if (ctx.time_limit.has_value()
+        && stop_run - ctx.start > ctx.time_limit.value()) {
       // The result of the previous run ran over time, so return the result of the run before that
       if constexpr (ContractImpl::pass_discovery_value) {
         // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
@@ -100,9 +102,10 @@ auto repeat_contraction(const HypergraphType &hypergraph,
                         std::mt19937_64 random_generator,
                         ContractionStats &stats_,
                         std::optional<size_t> max_num_runs_opt,
-                        std::optional<size_t> discovery_value_opt,
-                        std::optional<size_t> time_limit_ms_opt = {}) -> typename HypergraphCutRet<HypergraphType,
-                                                                                                   ReturnPartitions>::T {
+                        std::optional<size_t> discovery_value_opt, // TODO technically this should be the hypergraph edge weight type
+                        std::optional<std::chrono::duration<double>> time_limit_ms_opt) -> typename HypergraphCutRet<
+    HypergraphType,
+    ReturnPartitions>::T {
   // Since we are very likely to find the discovery value within `default_num_runs` runs this should not conflict
   // with discovery times.
   size_t max_num_runs = max_num_runs_opt.value_or(ContractImpl::default_num_runs(hypergraph, k));
@@ -198,7 +201,8 @@ struct ContractionAlgo {
                                                           rand,
                                                           stats,
                                                           std::nullopt,
-                                                          discovery_value);
+                                                          discovery_value,
+                                                          std::nullopt);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
@@ -220,7 +224,8 @@ struct ContractionAlgo {
                                                           rand,
                                                           stats,
                                                           std::nullopt,
-                                                          discovery_value);
+                                                          discovery_value,
+                                                          std::nullopt);
   }
 };
 

@@ -291,18 +291,27 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  const auto factory = [&](bool cutoff, Experiment &&experiment) -> std::unique_ptr<ExperimentRunner> {
+    auto &[name, generators, compare_kk, planted] = experiment;
+    if (cutoff) {
+      return std::make_unique<CutoffRunner>(name,
+                                            std::move(generators),
+                                            store,
+                                            planted,
+                                            num_runs,
+                                            node["percentages"].as<std::vector<double>>());
+    } else {
+      return std::make_unique<DiscoveryRunner>(name,
+                                               std::move(generators),
+                                               store,
+                                               planted,
+                                               num_runs,
+                                               algos);
+    }
+  };
+
   // Run experiment
-  std::unique_ptr<ExperimentRunner> runner = cutoff ? nullptr : std::make_unique<DiscoveryRunner>(name,
-                                                                                                  std::move(generators),
-                                                                                                  store,
-                                                                                                  planted,
-                                                                                                  num_runs,
-                                                                                                  algos);
-
-  if (cutoff) {
-    runner->set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());
-  }
-
+  std::unique_ptr<ExperimentRunner> runner = factory(cutoff, std::move(experiment));
   runner->run();
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
