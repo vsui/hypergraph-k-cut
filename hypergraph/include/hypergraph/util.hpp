@@ -21,6 +21,9 @@ struct Context {
   const size_t k;
   std::mt19937_64 random_generator;
   HypergraphCut<typename HypergraphType::EdgeWeight> min_so_far;
+  // So cutoff experiments can introspect the minimum value so far at various cutoff points. Only one thread should
+  // write to this
+  std::atomic<typename HypergraphType::EdgeWeight> min_val_so_far;
   std::chrono::time_point<std::chrono::high_resolution_clock> start;
   hypergraph_util::ContractionStats stats;
   const typename HypergraphType::EdgeWeight discovery_value;
@@ -35,8 +38,8 @@ struct Context {
           std::optional<size_t> max_num_runs,
           std::chrono::time_point<std::chrono::high_resolution_clock> start)
       : hypergraph(std::move(hypergraph)), k(k), random_generator(random_generator),
-        min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), stats(),
-        discovery_value(discovery_value), time_limit(std::move(time_limit)), start(start),
+        min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), min_val_so_far(min_so_far.value),
+        stats(), discovery_value(discovery_value), time_limit(std::move(time_limit)), start(start),
         max_num_runs(max_num_runs) {}
 
   // TODO Maybe max_num_runs should be an optional
@@ -61,6 +64,7 @@ auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> 
         // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
         // to get the value up to call stack, so be lenient and let it return the most recent call.
         ctx.min_so_far = std::min(ctx.min_so_far, cut);
+        ctx.min_val_so_far.store(ctx.min_so_far.value);
       }
       if constexpr (ReturnPartitions) {
         return ctx.min_so_far;
@@ -70,6 +74,7 @@ auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> 
     }
 
     ctx.min_so_far = std::min(ctx.min_so_far, cut);
+    ctx.min_val_so_far.store(ctx.min_so_far.value);
 
     if constexpr (Verbosity > 0) {
       std::cout << "[" << ++i << "] took "

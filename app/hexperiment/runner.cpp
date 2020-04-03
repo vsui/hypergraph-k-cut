@@ -3,6 +3,7 @@
 //
 
 #include <unistd.h>
+#include <thread>
 
 #include "runner.hpp"
 #include "store.hpp"
@@ -475,22 +476,31 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                                                             std::nullopt,
                                                             std::nullopt,
                                                             std::chrono::high_resolution_clock::now());
-    for (auto &[percentage, time_limit, cut_factor] : time_limits) {
 
+    // Start two threads, one to run the contraction algorithm and one to monitor the minimum so far
+    std::thread contraction_runner([&time_limits, &ctx]() {
       ctx.start = std::chrono::high_resolution_clock::now();
-      ctx.time_limit = time_limit;
-      auto cut_value = hypergraph_util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
-      auto stop = std::chrono::high_resolution_clock::now();
+      ctx.time_limit = std::get<1>(time_limits.back());
+      hypergraph_util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
+    });
+    std::thread monitor([&time_limits, &ctx, discovery_value]() {
+      for (auto &[percentage, time_limit, cut_factor] : time_limits) {
+        auto start = std::chrono::high_resolution_clock::now();
+        std::this_thread::sleep_for(time_limit);
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto min_so_far = ctx.min_val_so_far.load();
+        spdlog::info("{}: At {} got {} after running for {} milliseconds, actual {}",
+                     ContractImpl::name,
+                     percentage,
+                     min_so_far,
+                     std::chrono::duration_cast<std::chrono::milliseconds>(time_limit).count(),
+                     std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count());
+        cut_factor += static_cast<double>(min_so_far) / discovery_value;
+      }
+    });
 
-      spdlog::info("{}: At {} got {} after running for {} milliseconds, actual {}",
-                   ContractImpl::name,
-                   percentage,
-                   cut_value,
-                   std::chrono::duration_cast<std::chrono::milliseconds>(time_limit).count(),
-                   std::chrono::duration_cast<std::chrono::milliseconds>(stop - ctx.start).count());
-
-      cut_factor += static_cast<double>(cut_value) / discovery_value;
-    }
+    contraction_runner.join();
+    monitor.join();
   }
 
   output << ContractImpl::name;

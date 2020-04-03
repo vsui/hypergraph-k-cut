@@ -156,13 +156,14 @@ struct FpzImpl {
           std::cout << "Got cut of value " << cut.value << std::endl;
         }
         ctx.min_so_far = std::min(ctx.min_so_far, cut);
+        ctx.min_val_so_far.store(std::min(ctx.min_val_so_far.load(), cut.value));
         return;
       } else {
         if constexpr (Verbosity > 1) {
           std::cout << "Got cut of value " << accumulated << std::endl;
         }
-        ctx.min_so_far =
-            std::min(ctx.min_so_far, HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated});
+        ctx.min_so_far = std::min(ctx.min_so_far, HypergraphCut<typename HypergraphType::EdgeWeight>{accumulated});
+        ctx.min_val_so_far.store(ctx.min_so_far.value);
         return;
       }
     }
