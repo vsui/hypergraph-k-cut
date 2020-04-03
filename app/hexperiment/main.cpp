@@ -154,9 +154,16 @@ Experiment disconnected_planted_experiment_from_yaml(const std::string &name, co
 
 }
 
-int main(int argc, char **argv) {
-  using namespace std::string_literals;
+int run_experiment(const std::filesystem::path &config_path, const std::filesystem::path &output_path = {});
+int list_sizes(const std::filesystem::path &config_path);
+int check_cuts(const std::filesystem::path &config_path);
 
+// If output_path is null, then the experiment will have a blank name which will cause an error if you try to actually
+// run it. So the null option should only be used if not running the experiment (so listing size or checking cuts).
+Experiment experiment_from_config_file(const std::filesystem::path &config_path,
+                                       const std::filesystem::path &output_path = {});
+
+int main(int argc, char **argv) {
   TCLAP::CmdLine cmd("Hypergraph experiment runner", ' ', "0.1");
 
   TCLAP::UnlabeledValueArg<std::string> configFileArg(
@@ -190,9 +197,11 @@ int main(int argc, char **argv) {
 
   cmd.parse(argc, argv);
 
+  std::filesystem::path config_path = configFileArg.getValue();
+  std::filesystem::path output_path = destArg.getValue();
+
   // Parse config file
   YAML::Node node = YAML::LoadFile(configFileArg.getValue());
-  std::filesystem::path config_path(configFileArg.getValue());
 
   using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
   const std::map<std::string, ExperimentGenerator> gens = {
@@ -201,13 +210,6 @@ int main(int argc, char **argv) {
       {"ring", ring_experiment_from_yaml},
       {"disconnected", disconnected_planted_experiment_from_yaml}
   };
-
-  bool cutoff = node["cutoff"] && node["cutoff"].as<bool>();
-
-  std::vector<std::string> algos = {};
-  if (node["algos"]) {
-    algos = node["algos"].as<std::vector<std::string>>();
-  }
 
   auto experiment_type = node["type"].as<std::string>();
   auto it = gens.find(experiment_type);
@@ -220,39 +222,51 @@ int main(int argc, char **argv) {
   auto &[name, generators, compare_kk, planted] = experiment;
 
   if (listSizesArg.isSet()) {
-    for (const auto &gen : generators) {
-      auto[hgraph, planted] = gen->generate();
-      std::cout << hgraph.num_vertices() << "," << hgraph.size() << std::endl;
-    }
-    return 0;
+    list_sizes(config_path);
   } else if (checkCutsArg.isSet()) {
-    if (node["type"].as<std::string>() != "ring" && node["k"].as<size_t>() > 2) {
-      std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
-      return 1;
-    }
-    for (const auto &gen : generators) {
-      auto[hgraph, planted] = gen->generate();
-      std::cout << "Checking " << gen->name() << std::endl;
-      auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
-      auto cut = MW_min_cut(hgraph);
-      if (cut.value == 0) {
-        std::cout << gen->name() << " is disconnected" << std::endl;
-      }
-      auto skew = static_cast<double>(cut.partitions[0].size()) / num_vertices;
-      if (skew < 0.1 || skew > 0.9) {
-        std::cout << gen->name() << " has a skewed min cut (" << cut.partitions.at(0).size() << ", "
-                  << cut.partitions.at(1).size() << ")" << std::endl;
-      } else {
-        std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
-                  << cut.partitions.at(1).size() << ")" << std::endl;
-      }
-    }
-    return 0;
+    check_cuts(config_path);
+  } else {
+    run_experiment(config_path, output_path);
+  }
+}
+
+Experiment experiment_from_config_file(const std::filesystem::path &config_path,
+                                       const std::filesystem::path &output_path) {
+  YAML::Node node = YAML::LoadFile(config_path);
+
+  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
+  const std::map<std::string, ExperimentGenerator> gens = {
+      {"planted", planted_experiment_from_yaml},
+      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
+      {"ring", ring_experiment_from_yaml},
+      {"disconnected", disconnected_planted_experiment_from_yaml}
+  };
+
+  auto experiment_type = node["type"].as<std::string>();
+  auto it = gens.find(experiment_type);
+  if (it == gens.end()) {
+    throw std::runtime_error("Unknown experiment type '" + experiment_type + "'");
+  }
+
+  return it->second(output_path.string(), node);
+}
+
+int run_experiment(const std::filesystem::path &config_path, const std::filesystem::path &output_path) {
+  using namespace std::string_literals;
+
+  YAML::Node node = YAML::LoadFile(config_path);
+  Experiment experiment = experiment_from_config_file(config_path);
+
+  bool cutoff = node["cutoff"] && node["cutoff"].as<bool>();
+
+  std::vector<std::string> algos = {};
+  if (node["algos"]) {
+    algos = node["algos"].as<std::vector<std::string>>();
   }
 
   // Prepare output directory
-  if (std::filesystem::exists(destArg.getValue())) {
-    std::cout << destArg.getValue() << " already exists. Overwrite? [yN]" << std::endl;
+  if (std::filesystem::exists(output_path)) {
+    std::cout << output_path << " already exists. Overwrite? [yN]" << std::endl;
 
     char c;
     while (std::cin.read(&c, 1)) {
@@ -265,24 +279,23 @@ int main(int argc, char **argv) {
       }
     }
 
-    std::filesystem::remove_all(destArg.getValue());
+    std::filesystem::remove_all(output_path);
   }
-  std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
-  if (!std::filesystem::create_directory(dest_path)) {
-    std::cerr << "Failed to create output directory '" << dest_path << "'" << std::endl;
+  if (!std::filesystem::create_directory(output_path)) {
+    std::cerr << "Failed to create output directory '" << output_path << "'" << std::endl;
     return 1;
   }
-  std::filesystem::path db_path = dest_path / "data.db";
+  std::filesystem::path db_path = output_path / "data.db";
 
   // Prepare logger
-  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(dest_path / "log.txt", true);
+  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(output_path / "log.txt", true);
   auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
   std::shared_ptr<spdlog::logger> logger(new spdlog::logger("multi_sink", {file_sink, console_sink}));
 
   spdlog::set_default_logger(logger);
 
-  std::filesystem::copy_file(config_path, dest_path / "config.yaml");
+  std::filesystem::copy_file(config_path, output_path / "config.yaml");
 
   // Prepare sqlite database
   auto store = std::make_shared<SqliteStore>();
@@ -298,16 +311,16 @@ int main(int argc, char **argv) {
                                             std::move(generators),
                                             store,
                                             planted,
-                                            num_runs,
+                                            node["num_runs"].as<size_t>(),
                                             algos,
                                             node["percentages"].as<std::vector<double>>(),
-                                            dest_path);
+                                            output_path);
     } else {
       return std::make_unique<DiscoveryRunner>(name,
                                                std::move(generators),
                                                store,
                                                planted,
-                                               num_runs,
+                                               node["num_runs"].as<size_t>(),
                                                algos);
     }
   };
@@ -321,11 +334,48 @@ int main(int argc, char **argv) {
   std::stringstream python_cmd;
   python_cmd << "python3 "s
              << (here / ".." / ".." / (cutoff ? "scripts/sqlplot-cutoff.py" : "scripts/sqlplot.py")) << " "
-             << destArg.getValue();
+             << output_path;
 
-  std::cout << "Done, writing artifacts to " << destArg.getValue() << std::endl;
+  std::cout << "Done, writing artifacts to " << output_path << std::endl;
 
   std::system(python_cmd.str().c_str());
 
+  return 0;
+}
+
+int list_sizes(const std::filesystem::path &config_path) {
+  Experiment experiment = experiment_from_config_file(config_path);
+  for (const auto &gen : std::get<1>(experiment)) {
+    auto[hgraph, planted] = gen->generate();
+    std::cout << hgraph.num_vertices() << "," << hgraph.size() << std::endl;
+  }
+  return 0;
+}
+
+int check_cuts(const std::filesystem::path &config_path) {
+  YAML::Node node = YAML::LoadFile(config_path);
+  Experiment experiment = experiment_from_config_file(config_path);
+
+  if (node["type"].as<std::string>() != "ring" && node["k"].as<size_t>() > 2) {
+    std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
+    return 1;
+  }
+  for (const auto &gen : std::get<1>(experiment)) {
+    auto[hgraph, planted] = gen->generate();
+    std::cout << "Checking " << gen->name() << std::endl;
+    auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
+    auto cut = MW_min_cut(hgraph);
+    if (cut.value == 0) {
+      std::cout << gen->name() << " is disconnected" << std::endl;
+    }
+    auto skew = static_cast<double>(cut.partitions[0].size()) / num_vertices;
+    if (skew < 0.1 || skew > 0.9) {
+      std::cout << gen->name() << " has a skewed min cut (" << cut.partitions.at(0).size() << ", "
+                << cut.partitions.at(1).size() << ")" << std::endl;
+    } else {
+      std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
+                << cut.partitions.at(1).size() << ")" << std::endl;
+    }
+  }
   return 0;
 }
