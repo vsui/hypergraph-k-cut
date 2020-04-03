@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <filesystem>
 #include <optional>
 
 #include "common.hpp"
@@ -149,8 +150,8 @@ public:
                store,
                bool planted,
                size_t num_runs,
-               std::vector<double> cutoff_percentages
-  );
+               std::vector<double> cutoff_percentages,
+               std::filesystem::path output_dir);
 
   void doProcessHypergraph(const HypergraphGenerator &gen,
                            const HypergraphWrapper &hypergraph,
@@ -166,9 +167,12 @@ private:
   void doRunCutoff(const HypergraphWrapper &hypergraph,
                    size_t k,
                    size_t discovery_value,
-                   std::chrono::duration<double> cutoff_time);
+                   std::chrono::duration<double> cutoff_time,
+                   std::ofstream &output);
 
   std::vector<double> cutoff_percentages_;
+
+  std::filesystem::path output_dir_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP

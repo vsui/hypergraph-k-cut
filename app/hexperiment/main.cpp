@@ -299,7 +299,8 @@ int main(int argc, char **argv) {
                                             store,
                                             planted,
                                             num_runs,
-                                            node["percentages"].as<std::vector<double>>());
+                                            node["percentages"].as<std::vector<double>>(),
+                                            dest_path);
     } else {
       return std::make_unique<DiscoveryRunner>(name,
                                                std::move(generators),

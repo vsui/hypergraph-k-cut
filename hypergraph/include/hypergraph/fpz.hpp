@@ -77,7 +77,8 @@ struct FpzImpl {
     ctx.branches.push_back({.hypergraph = ctx.hypergraph, .accumulated = 0});
 
     while (!ctx.branches.empty()) {
-      auto &local_ctx = ctx.branches.back();
+      auto local_ctx = std::move(ctx.branches.back());
+      ctx.branches.pop_back();
 
       // Call internal function with global context. This will update it.
       contract_<HypergraphType, ReturnPartitions, Verbosity>(ctx, local_ctx);
@@ -90,8 +91,6 @@ struct FpzImpl {
       if (ctx.min_so_far.value <= ctx.discovery_value) {
         break;
       }
-
-      ctx.branches.pop_back();
     }
 
     return ctx.min_so_far;
@@ -188,8 +187,8 @@ struct FpzImpl {
     ++ctx.stats.num_contractions;
 
     if (dis(ctx.random_generator) < redo) {
-      ctx.branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
       ctx.branches.push_back(local_ctx);
+      ctx.branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
     } else {
       ctx.branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
     }

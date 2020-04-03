@@ -16,6 +16,7 @@
 #include <hypergraph/cxy.hpp>
 #include <hypergraph/fpz.hpp>
 #include <hypergraph/kk.hpp>
+#include <fstream>
 
 namespace {
 
@@ -376,12 +377,14 @@ CutoffRunner::CutoffRunner(std::string id,
                            std::shared_ptr<CutInfoStore> store,
                            bool planted,
                            size_t num_runs,
-                           std::vector<double> cutoff_percentages) : ExperimentRunner(std::move(id),
-                                                                                      std::move(source),
-                                                                                      std::move(store),
-                                                                                      planted,
-                                                                                      num_runs),
-                                                                     cutoff_percentages_(std::move(cutoff_percentages)) {}
+                           std::vector<double> cutoff_percentages,
+                           std::filesystem::path output_dir) : ExperimentRunner(std::move(id),
+                                                                                std::move(source),
+                                                                                std::move(store),
+                                                                                planted,
+                                                                                num_runs),
+                                                               cutoff_percentages_(std::move(cutoff_percentages)),
+                                                               output_dir_(std::move(output_dir)) {}
 
 void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                                        const HypergraphWrapper &hypergraph,
@@ -392,10 +395,16 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
 
   auto cutoff_time = computeCutoffTime(hypergraph);
 
+  auto output_path = output_dir_ / (gen.name() + ".data.txt");
+  std::ofstream output(output_path);
+  if (!output) {
+    spdlog::error("Failed to open output file {}", output_path.string());
+  }
+
   // TODO filters
-  doRunCutoff<cxy::CxyImpl>(hypergraph, k, cut_value, cutoff_time);
-  doRunCutoff<fpz::FpzImpl>(hypergraph, k, cut_value, cutoff_time);
-  doRunCutoff<kk::KkImpl>(hypergraph, k, cut_value, cutoff_time);
+  doRunCutoff<cxy::CxyImpl>(hypergraph, k, cut_value, cutoff_time, output);
+  doRunCutoff<fpz::FpzImpl>(hypergraph, k, cut_value, cutoff_time, output);
+  doRunCutoff<kk::KkImpl>(hypergraph, k, cut_value, cutoff_time, output);
 }
 
 std::chrono::duration<double> CutoffRunner::computeCutoffTime(const HypergraphWrapper &hypergraph) {
@@ -418,25 +427,26 @@ template<typename ContractImpl>
 void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                                const size_t k,
                                const size_t discovery_value,
-                               const std::chrono::duration<double> cutoff_time) {
+                               const std::chrono::duration<double> cutoff_time,
+                               std::ofstream &output) {
   // Make sources of randomness
   std::random_device rd;
   std::uniform_int_distribution<uint64_t> dis;
 
   // CALCULATE TIME LIMITS
-  // A vector of tuples (percentage, time limit) where time limit the duration of how much *longer* the algorithm should
+  // A vector of tuples (percentage, time limit, cut factor) where time limit the duration of how much *longer* the algorithm should
   // run in order to reach a *total* runtime of the percentage
-  std::vector<std::pair<double, std::chrono::duration<double>>>
-      time_limits = {{cutoff_percentages_.front(), cutoff_percentages_.front() * cutoff_time}};;
+  std::vector<std::tuple<double, std::chrono::duration<double>, double>>
+      time_limits = {{cutoff_percentages_.front(), cutoff_percentages_.front() * cutoff_time, 0}};
 
-  auto previous_percentage = time_limits.front().first;
+  auto previous_percentage = std::get<0>(time_limits.front());
   std::transform(cutoff_percentages_.begin() + 1,
                  cutoff_percentages_.end(),
                  std::back_inserter(time_limits),
                  [&previous_percentage, cutoff_time](auto &&percentage) {
                    auto next = percentage - previous_percentage;
                    previous_percentage = percentage;
-                   return std::make_tuple(percentage, next * cutoff_time);
+                   return std::make_tuple(percentage, next * cutoff_time, 0.0);
                  });
 
   if (cutoff_percentages_.size() != time_limits.size()) {
@@ -450,11 +460,10 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                                                             k,
                                                             std::mt19937_64(rd()),
                                                             discovery_value,
-                                                            time_limits.front().second,
+                                                            std::nullopt,
                                                             std::nullopt,
                                                             std::chrono::high_resolution_clock::now());
-    for (auto it = time_limits.begin(); it != time_limits.end(); ++it) {
-      auto[percentage, time_limit] = *it;
+    for (auto &[percentage, time_limit, cut_factor] : time_limits) {
 
       ctx.start = std::chrono::high_resolution_clock::now();
       ctx.time_limit = time_limit;
@@ -468,12 +477,17 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                    std::chrono::duration_cast<std::chrono::milliseconds>(time_limit).count(),
                    std::chrono::duration_cast<std::chrono::milliseconds>(stop - ctx.start).count());
 
-      if (cut_value <= discovery_value) {
-        spdlog::info("Discovered value");
-        break;
-      }
+      cut_factor += static_cast<double>(cut_value) / discovery_value;
     }
   }
+
+  output << ContractImpl::name;
+  for (auto &[percentage, time_limit, cut_factor] : time_limits) {
+    cut_factor /= num_runs();
+    output << "," << cut_factor;
+  }
+  output << std::endl;
+
 }
 
 
