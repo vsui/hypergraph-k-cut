@@ -77,16 +77,21 @@ struct FpzImpl {
     ctx.branches.push_back({.hypergraph = ctx.hypergraph, .accumulated = 0});
 
     while (!ctx.branches.empty()) {
-      auto &local_ctx = ctx.branches.front();
+      auto &local_ctx = ctx.branches.back();
 
       // Call internal function with global context. This will update it.
       contract_<HypergraphType, ReturnPartitions, Verbosity>(ctx, local_ctx);
+
+      if (ctx.time_limit.has_value()
+          && std::chrono::high_resolution_clock::now() - ctx.start > ctx.time_limit.value()) {
+        break;
+      }
 
       if (ctx.min_so_far.value <= ctx.discovery_value) {
         break;
       }
 
-      ctx.branches.pop_front();
+      ctx.branches.pop_back();
     }
 
     return ctx.min_so_far;
