@@ -36,7 +36,7 @@ struct Context {
           std::chrono::time_point<std::chrono::high_resolution_clock> start)
       : hypergraph(std::move(hypergraph)), k(k), random_generator(random_generator),
         min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), stats(),
-        discovery_value(discovery_value), time_limit(time_limit), start(start),
+        discovery_value(discovery_value), time_limit(std::move(time_limit)), start(start),
         max_num_runs(max_num_runs) {}
 
   // TODO Maybe max_num_runs should be an optional
@@ -103,7 +103,7 @@ auto repeat_contraction(const HypergraphType &hypergraph,
                         ContractionStats &stats_,
                         std::optional<size_t> max_num_runs_opt,
                         std::optional<size_t> discovery_value_opt, // TODO technically this should be the hypergraph edge weight type
-                        std::optional<std::chrono::duration<double>> time_limit_ms_opt) -> typename HypergraphCutRet<
+                        const std::optional<std::chrono::duration<double>> &time_limit = std::nullopt) -> typename HypergraphCutRet<
     HypergraphType,
     ReturnPartitions>::T {
   // Since we are very likely to find the discovery value within `default_num_runs` runs this should not conflict
@@ -115,7 +115,7 @@ auto repeat_contraction(const HypergraphType &hypergraph,
                                                               k,
                                                               random_generator,
                                                               discovery_value,
-                                                              time_limit_ms_opt,
+                                                              time_limit,
                                                               max_num_runs,
                                                               std::chrono::high_resolution_clock::now());
 
