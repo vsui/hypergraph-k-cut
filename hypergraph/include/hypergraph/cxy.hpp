@@ -83,17 +83,20 @@ inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
 struct CxyImpl {
   static constexpr bool pass_discovery_value = false;
 
+  static constexpr char name[] = "CXY";
+
+  template<typename HypergraphType>
+  using Context = hypergraph_util::Context<HypergraphType>;
+
 /**
  * The contraction algorithm from [CXY'18]. This returns the minimum cut with some probability.
  *
  * Takes time O(np) where p is the size of the hypergraph.
  */
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
-  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &hypergraph,
-                                                                     size_t k,
-                                                                     std::mt19937_64 &random_generator,
-                                                                     hypergraph_util::ContractionStats &stats,
-                                                                     [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(Context<HypergraphType> &ctx) {
+    HypergraphType hypergraph(ctx.hypergraph);
+
     std::vector<int> candidates = {};
     std::vector<int> edge_ids;
     std::vector<double> deltas;
@@ -107,7 +110,7 @@ struct CxyImpl {
       size_t i = 0;
       for (const auto &[edge_id, incidence] : hypergraph.edges()) {
         edge_ids[i] = edge_id;
-        deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), k) * edge_weight(hypergraph, edge_id);
+        deltas[i] = cxy_delta(hypergraph.num_vertices(), incidence.size(), ctx.k) * edge_weight(hypergraph, edge_id);
         ++i;
       }
 
@@ -120,24 +123,24 @@ struct CxyImpl {
       std::discrete_distribution<size_t> distribution(std::begin(deltas),
                                                       std::end(deltas));
 
-      size_t sampled = distribution(random_generator);
+      size_t sampled = distribution(ctx.random_generator);
       int sampled_id = edge_ids.at(sampled);
 
       hypergraph.template contract_in_place<true, ReturnPartitions>(sampled_id);
-      ++stats.num_contractions;
+      ++ctx.stats.num_contractions;
     }
 
     // May terminate early if it finds a zero cost cut with >k partitions, so need
     // to merge partitions. At this point the sum of deltas is zero, so every
     // remaining hyperedge crosses all components, so we can merge components
     // without changing the cut value.
-    while (hypergraph.num_vertices() > k) {
+    while (hypergraph.num_vertices() > ctx.k) {
       auto begin = std::begin(hypergraph.vertices());
       auto end = std::begin(hypergraph.vertices());
       std::advance(end, 2);
       // Contract two vertices
       hypergraph = hypergraph.template contract<true, ReturnPartitions>(begin, end);
-      ++stats.num_contractions;
+      ++ctx.stats.num_contractions;
     }
 
     if constexpr (ReturnPartitions) {
@@ -150,7 +153,7 @@ struct CxyImpl {
                                                                 std::end(partitions),
                                                                 min_so_far);
     } else {
-      return HypergraphCut<typename HypergraphType::EdgeWeight>{min_so_far};
+      return HypergraphCut<typename HypergraphType::EdgeWeight>(min_so_far);
     }
   }
 

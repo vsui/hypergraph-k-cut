@@ -10,6 +10,11 @@ namespace kk {
 struct KkImpl {
   static constexpr bool pass_discovery_value = false;
 
+  static constexpr char name[] = "KK";
+
+  template<typename HypergraphType>
+  using Context = hypergraph_util::Context<HypergraphType>;
+
 /**
  * The min-cut algorithm from [KK'14].
  *
@@ -19,15 +24,11 @@ struct KkImpl {
  * @param hypergraph
  * @param k
  * @param random_generator
- * @param accumulated   Unused parameter
  * @return
  */
   template<typename HypergraphType, bool ReturnPartitions, uint8_t Verbosity>
-  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(HypergraphType &h,
-                                                                     size_t k,
-                                                                     std::mt19937_64 &random_generator,
-                                                                     hypergraph_util::ContractionStats &stats,
-                                                                     [[maybe_unused]] typename HypergraphType::EdgeWeight accumulated) {
+  static HypergraphCut<typename HypergraphType::EdgeWeight> contract(Context<HypergraphType> &ctx) {
+    HypergraphType h(ctx.hypergraph);
 
     // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
     double epsilon = 1.0;
@@ -35,7 +36,7 @@ struct KkImpl {
     size_t r = h.rank();
 
     // TODO abstract sampling an edge with some weight function and use with fpz and cxy
-    while (h.num_vertices() > epsilon * k * r) {
+    while (h.num_vertices() > epsilon * ctx.k * r) {
       if (h.num_edges() == 0) {
         break;
       }
@@ -47,29 +48,29 @@ struct KkImpl {
         edge_weights.push_back(edge_weight(h, edge_id));
       }
       std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
-      const auto sampled_edge_id = edge_ids.at(distribution(random_generator));
+      const auto sampled_edge_id = edge_ids.at(distribution(ctx.random_generator));
 
       h = h.template contract<true, ReturnPartitions>(sampled_edge_id);
-      ++stats.num_contractions;
+      ++ctx.stats.num_contractions;
     }
 
     static std::uniform_real_distribution<> dis(0.0, 1.0);
 
     // At this point, we return a random k-partition of the contracted vertices
     std::vector<int> vertices(std::begin(h.vertices()), std::end(h.vertices()));
-    std::shuffle(std::begin(vertices), std::end(vertices), random_generator);
+    std::shuffle(std::begin(vertices), std::end(vertices), ctx.random_generator);
 
     // Distribution to sample which partition each vertex lies in
-    std::uniform_int_distribution<size_t> part_dist(0, k - 1);
+    std::uniform_int_distribution<size_t> part_dist(0, ctx.k - 1);
 
     std::vector<std::list<int>> contracted_partitions;
 
     // Randomly place each contracted vertex in one of the k partitions
     // This may end up making a partition empty, so repeat this process if this occurs
     do {
-      contracted_partitions = std::vector<std::list<int>>(k);
+      contracted_partitions = std::vector<std::list<int>>(ctx.k);
       for (const auto v : vertices) {
-        auto cluster = part_dist(random_generator);
+        auto cluster = part_dist(ctx.random_generator);
         auto &partition = contracted_partitions.at(cluster);
         partition.emplace_back(v);
       }
@@ -111,8 +112,8 @@ struct KkImpl {
 
     if constexpr (ReturnPartitions) {
       // Collect vertices within
-      std::vector<std::list<int>> partitions(k);
-      for (size_t i = 0; i < k; ++i) {
+      std::vector<std::list<int>> partitions(ctx.k);
+      for (size_t i = 0; i < ctx.k; ++i) {
         for (const auto v : contracted_partitions[i]) {
           partitions[i].insert(partitions[i].end(), std::begin(h.vertices_within(v)), std::end(h.vertices_within(v)));
         }

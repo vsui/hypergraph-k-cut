@@ -51,6 +51,23 @@ Experiment planted_experiment(const std::string &name,
   return planted_experiment;
 }
 
+Experiment disconnected_planted_experiment(const std::string &name,
+                                           const std::vector<size_t> &num_vertices,
+                                           size_t k,
+                                           size_t m) {
+  Experiment planted_experiment;
+  std::get<0>(planted_experiment) = name;
+  std::get<2>(planted_experiment) = false;
+  std::get<3>(planted_experiment) = true;
+
+  for (size_t n : num_vertices) {
+    size_t m2 = 0;
+    size_t m1 = n * m;
+    std::get<1>(planted_experiment).emplace_back(new PlantedHypergraph(n, m1, 0.1, m2, 0.1 * k, k, 777));
+  }
+  return planted_experiment;
+}
+
 Experiment planted_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
   return planted_experiment(
       name,
@@ -128,6 +145,13 @@ Experiment ring_experiment_from_yaml(const std::string &name, const YAML::Node &
   );
 }
 
+Experiment disconnected_planted_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
+  return disconnected_planted_experiment(name,
+                                         node["num_vertices"].as<std::vector<size_t>>(),
+                                         node["k"].as<size_t>(),
+                                         node["m"].as<size_t>());
+}
+
 }
 
 int main(int argc, char **argv) {
@@ -174,7 +198,8 @@ int main(int argc, char **argv) {
   const std::map<std::string, ExperimentGenerator> gens = {
       {"planted", planted_experiment_from_yaml},
       {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
-      {"ring", ring_experiment_from_yaml}
+      {"ring", ring_experiment_from_yaml},
+      {"disconnected", disconnected_planted_experiment_from_yaml}
   };
 
   bool cutoff = node["cutoff"] && node["cutoff"].as<bool>();
@@ -231,9 +256,13 @@ int main(int argc, char **argv) {
 
     char c;
     while (std::cin.read(&c, 1)) {
-      if (c == 'y') { break; }
-      else if (c == 'N') { return 0; }
-      else { std::cout << "Enter one of [yN]" << std::endl;}
+      if (c == 'y') {
+        break;
+      } else if (c == 'N') {
+        return 0;
+      } else {
+        std::cout << "Enter one of [yN]" << std::endl;
+      }
     }
 
     std::filesystem::remove_all(destArg.getValue());
@@ -262,14 +291,30 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  const auto factory = [&](bool cutoff, Experiment &&experiment) -> std::unique_ptr<ExperimentRunner> {
+    auto &[name, generators, compare_kk, planted] = experiment;
+    if (cutoff) {
+      return std::make_unique<CutoffRunner>(name,
+                                            std::move(generators),
+                                            store,
+                                            planted,
+                                            num_runs,
+                                            algos,
+                                            node["percentages"].as<std::vector<double>>(),
+                                            dest_path);
+    } else {
+      return std::make_unique<DiscoveryRunner>(name,
+                                               std::move(generators),
+                                               store,
+                                               planted,
+                                               num_runs,
+                                               algos);
+    }
+  };
+
   // Run experiment
-  ExperimentRunner runner(name, std::move(generators), store, planted, cutoff, num_runs, algos);
-
-  if (cutoff) {
-    runner.set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());
-  }
-
-  runner.run();
+  std::unique_ptr<ExperimentRunner> runner = factory(cutoff, std::move(experiment));
+  runner->run();
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
 

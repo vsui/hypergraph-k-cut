@@ -10,10 +10,85 @@
 namespace hypergraph_util {
 
 struct ContractionStats {
-  uint64_t num_contractions;
-  uint64_t time_elapsed_ms;
-  size_t num_runs;
+  uint64_t num_contractions = 0;
+  uint64_t time_elapsed_ms = 0;
+  size_t num_runs = 0;
 };
+
+template<typename HypergraphType>
+struct Context {
+  const HypergraphType hypergraph;
+  const size_t k;
+  std::mt19937_64 random_generator;
+  HypergraphCut<typename HypergraphType::EdgeWeight> min_so_far;
+  std::chrono::time_point<std::chrono::high_resolution_clock> start;
+  hypergraph_util::ContractionStats stats;
+  const typename HypergraphType::EdgeWeight discovery_value;
+  std::optional<size_t> max_num_runs;
+  std::optional<std::chrono::duration<double>> time_limit;
+
+  Context(const HypergraphType &hypergraph,
+          size_t k,
+          const std::mt19937_64 &random_generator,
+          typename HypergraphType::EdgeWeight discovery_value,
+          std::optional<std::chrono::duration<double>> time_limit,
+          std::optional<size_t> max_num_runs,
+          std::chrono::time_point<std::chrono::high_resolution_clock> start)
+      : hypergraph(std::move(hypergraph)), k(k), random_generator(random_generator),
+        min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), stats(),
+        discovery_value(discovery_value), time_limit(std::move(time_limit)), start(start),
+        max_num_runs(max_num_runs) {}
+
+  // TODO Maybe max_num_runs should be an optional
+};
+
+template<typename HypergraphType, typename ContractImpl, bool ReturnPartitions, uint8_t Verbosity>
+auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> &ctx) {
+  size_t i = 0;
+  while (ctx.min_so_far.value > ctx.discovery_value
+      && (!ctx.max_num_runs.has_value() || ctx.stats.num_runs < ctx.max_num_runs.value())) {
+    ++ctx.stats.num_runs;
+    HypergraphType copy(ctx.hypergraph);
+
+    auto start_run = std::chrono::high_resolution_clock::now();
+    auto cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(ctx);
+    auto stop_run = std::chrono::high_resolution_clock::now();
+
+    if (ctx.time_limit.has_value()
+        && stop_run - ctx.start > ctx.time_limit.value()) {
+      // The result of the previous run ran over time, so return the result of the run before that
+      if constexpr (ContractImpl::pass_discovery_value) {
+        // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
+        // to get the value up to call stack, so be lenient and let it return the most recent call.
+        ctx.min_so_far = std::min(ctx.min_so_far, cut);
+      }
+      if constexpr (ReturnPartitions) {
+        return ctx.min_so_far;
+      } else {
+        return ctx.min_so_far.value;
+      }
+    }
+
+    ctx.min_so_far = std::min(ctx.min_so_far, cut);
+
+    if constexpr (Verbosity > 0) {
+      std::cout << "[" << ++i << "] took "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start_run).count()
+                << " milliseconds, got " << cut.value << ", min is " << ctx.min_so_far.value << ", discovery value is "
+                << ctx.discovery_value << "\n";
+    }
+  }
+
+  auto stop = std::chrono::high_resolution_clock::now();
+
+  ctx.stats.time_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - ctx.start).count();
+
+  if constexpr (ReturnPartitions) {
+    return ctx.min_so_far;
+  } else {
+    return ctx.min_so_far.value;
+  }
+}
 
 /**
  * Repeat randomized min-k-cut algorithm until either it has discovery a cut with value at least `discovery_value`
@@ -25,81 +100,26 @@ template<typename HypergraphType, typename ContractImpl, bool ReturnPartitions, 
 auto repeat_contraction(const HypergraphType &hypergraph,
                         size_t k,
                         std::mt19937_64 random_generator,
-                        ContractionStats &stats,
+                        ContractionStats &stats_,
                         std::optional<size_t> max_num_runs_opt,
-                        std::optional<size_t> discovery_value_opt,
-                        std::optional<size_t> time_limit_ms_opt = {}) -> typename HypergraphCutRet<HypergraphType,
-                                                                                                   ReturnPartitions>::T {
+                        std::optional<size_t> discovery_value_opt, // TODO technically this should be the hypergraph edge weight type
+                        const std::optional<std::chrono::duration<double>> &time_limit = std::nullopt) -> typename HypergraphCutRet<
+    HypergraphType,
+    ReturnPartitions>::T {
   // Since we are very likely to find the discovery value within `default_num_runs` runs this should not conflict
   // with discovery times.
   size_t max_num_runs = max_num_runs_opt.value_or(ContractImpl::default_num_runs(hypergraph, k));
   size_t discovery_value = discovery_value_opt.value_or(0);
 
-  stats = {};
+  typename ContractImpl::template Context<HypergraphType> ctx(hypergraph,
+                                                              k,
+                                                              random_generator,
+                                                              discovery_value,
+                                                              time_limit,
+                                                              max_num_runs,
+                                                              std::chrono::high_resolution_clock::now());
 
-  auto min_so_far = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
-  size_t i = 0;
-
-  auto start = std::chrono::high_resolution_clock::now();
-
-  while (min_so_far.value > discovery_value && stats.num_runs < max_num_runs) {
-    ++stats.num_runs;
-    HypergraphType copy(hypergraph);
-    auto cut = HypergraphCut<typename HypergraphType::EdgeWeight>::max();
-    auto start_run = std::chrono::high_resolution_clock::now();
-    if constexpr (ContractImpl::pass_discovery_value) {
-      // This essentially means  'is FPZ'
-      cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
-                                                                                         k,
-                                                                                         random_generator,
-                                                                                         stats,
-                                                                                         0,
-                                                                                         discovery_value,
-                                                                                         time_limit_ms_opt,
-                                                                                         start_run);
-    } else {
-      cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(copy,
-                                                                                         k,
-                                                                                         random_generator,
-                                                                                         stats,
-                                                                                         0);
-    }
-    auto stop_run = std::chrono::high_resolution_clock::now();
-
-    if (time_limit_ms_opt.has_value() && std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start).count()
-        > time_limit_ms_opt.value()) {
-      // The result of the previous run ran over time, so return the result of the run before that
-      if constexpr (ContractImpl::pass_discovery_value) {
-        // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
-        // to get the value up to call stack, so be lenient and let it return the most recent call.
-        min_so_far = std::min(min_so_far, cut);
-      }
-      if constexpr (ReturnPartitions) {
-        return min_so_far;
-      } else {
-        return min_so_far.value;
-      }
-    }
-
-    min_so_far = std::min(min_so_far, cut);
-
-    if constexpr (Verbosity > 0) {
-      std::cout << "[" << ++i << "] took "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start_run).count()
-                << " milliseconds, got " << cut.value << ", min is " << min_so_far.value << ", discovery value is "
-                << discovery_value << "\n";
-    }
-  }
-
-  auto stop = std::chrono::high_resolution_clock::now();
-
-  stats.time_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-
-  if constexpr (ReturnPartitions) {
-    return min_so_far;
-  } else {
-    return min_so_far.value;
-  }
+  return repeat_contraction<HypergraphType, ContractImpl, ReturnPartitions, Verbosity>(ctx);
 }
 
 }
@@ -181,7 +201,8 @@ struct ContractionAlgo {
                                                           rand,
                                                           stats,
                                                           std::nullopt,
-                                                          discovery_value);
+                                                          discovery_value,
+                                                          std::nullopt);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
@@ -203,7 +224,8 @@ struct ContractionAlgo {
                                                           rand,
                                                           stats,
                                                           std::nullopt,
-                                                          discovery_value);
+                                                          discovery_value,
+                                                          std::nullopt);
   }
 };
 
