@@ -212,6 +212,23 @@ int main(int argc, char **argv) {
   };
 
   if (std::filesystem::is_directory(config_path)) {
+    if (std::filesystem::exists(output_path)) {
+      std::cout << output_path << " already exists. Overwrite? [yN]" << std::endl;
+
+      char c;
+      while (std::cin.read(&c, 1)) {
+        if (c == 'y') {
+          break;
+        } else if (c == 'N') {
+          return 0;
+        } else {
+          std::cout << "Enter one of [yN]" << std::endl;
+        }
+      }
+
+      std::filesystem::remove_all(output_path);
+    }
+
     // Execute all config files in config_path
     for (auto &p :std::filesystem::directory_iterator(config_path)) {
       if (p.is_directory()) {
