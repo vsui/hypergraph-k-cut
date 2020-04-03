@@ -400,6 +400,11 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
   if (!output) {
     spdlog::error("Failed to open output file {}", output_path.string());
   }
+  output << "cutoff";
+  for (auto c : cutoff_percentages_) {
+    output << "," << c;
+  }
+  output << std::endl;
 
   // TODO filters
   doRunCutoff<cxy::CxyImpl>(hypergraph, k, cut_value, cutoff_time, output);
