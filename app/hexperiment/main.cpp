@@ -200,33 +200,32 @@ int main(int argc, char **argv) {
   std::filesystem::path config_path = configFileArg.getValue();
   std::filesystem::path output_path = destArg.getValue();
 
-  // Parse config file
-  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
-
-  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
-  const std::map<std::string, ExperimentGenerator> gens = {
-      {"planted", planted_experiment_from_yaml},
-      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
-      {"ring", ring_experiment_from_yaml},
-      {"disconnected", disconnected_planted_experiment_from_yaml}
+  const auto execute = [&listSizesArg, &checkCutsArg](const std::filesystem::path &config_path,
+                                                      const std::filesystem::path &output_path) {
+    if (listSizesArg.isSet()) {
+      list_sizes(config_path);
+    } else if (checkCutsArg.isSet()) {
+      check_cuts(config_path);
+    } else {
+      run_experiment(config_path, output_path);
+    }
   };
 
-  auto experiment_type = node["type"].as<std::string>();
-  auto it = gens.find(experiment_type);
-  if (it == gens.end()) {
-    std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
-    return 1;
-  }
-  auto num_runs = node["num_runs"].as<size_t>();
-  auto experiment = it->second(destArg.getValue(), node);
-  auto &[name, generators, compare_kk, planted] = experiment;
-
-  if (listSizesArg.isSet()) {
-    list_sizes(config_path);
-  } else if (checkCutsArg.isSet()) {
-    check_cuts(config_path);
+  if (std::filesystem::is_directory(config_path)) {
+    // Execute all config files in config_path
+    for (auto &p :std::filesystem::directory_iterator(config_path)) {
+      if (p.is_directory()) {
+        std::cout << "Skipping " << p.path() << ", is a directory" << std::endl;
+        continue;
+      }
+      if (p.path().extension() != ".yaml") {
+        std::cout << "Skipping " << p.path() << ", is not a YAML file" << std::endl;
+        continue;
+      }
+      execute(p.path(), output_path / p.path().stem());
+    }
   } else {
-    run_experiment(config_path, output_path);
+    execute(config_path, output_path);
   }
 }
 
@@ -281,7 +280,7 @@ int run_experiment(const std::filesystem::path &config_path, const std::filesyst
 
     std::filesystem::remove_all(output_path);
   }
-  if (!std::filesystem::create_directory(output_path)) {
+  if (!std::filesystem::create_directories(output_path)) {
     std::cerr << "Failed to create output directory '" << output_path << "'" << std::endl;
     return 1;
   }
