@@ -377,6 +377,7 @@ CutoffRunner::CutoffRunner(std::string id,
                            std::shared_ptr<CutInfoStore> store,
                            bool planted,
                            size_t num_runs,
+                           std::vector<std::string> algos,
                            std::vector<double> cutoff_percentages,
                            std::filesystem::path output_dir) : ExperimentRunner(std::move(id),
                                                                                 std::move(source),
@@ -384,7 +385,8 @@ CutoffRunner::CutoffRunner(std::string id,
                                                                                 planted,
                                                                                 num_runs),
                                                                cutoff_percentages_(std::move(cutoff_percentages)),
-                                                               output_dir_(std::move(output_dir)) {}
+                                                               output_dir_(std::move(output_dir)),
+                                                               algos_(std::move(algos)) {}
 
 void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                                        const HypergraphWrapper &hypergraph,
@@ -406,10 +408,15 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
   }
   output << std::endl;
 
-  // TODO filters
-  doRunCutoff<cxy::CxyImpl>(hypergraph, k, cut_value, cutoff_time, output);
-  doRunCutoff<fpz::FpzImpl>(hypergraph, k, cut_value, cutoff_time, output);
-  doRunCutoff<kk::KkImpl>(hypergraph, k, cut_value, cutoff_time, output);
+  if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "cxy") != algos_.end()) {
+    doRunCutoff<cxy::CxyImpl>(hypergraph, k, cut_value, cutoff_time, output);
+  }
+  if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "fpz") != algos_.end()) {
+    doRunCutoff<fpz::FpzImpl>(hypergraph, k, cut_value, cutoff_time, output);
+  }
+  if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "kk") != algos_.end()) {
+    doRunCutoff<kk::KkImpl>(hypergraph, k, cut_value, cutoff_time, output);
+  }
 }
 
 std::chrono::duration<double> CutoffRunner::computeCutoffTime(const HypergraphWrapper &hypergraph) {

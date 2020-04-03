@@ -150,6 +150,7 @@ public:
                store,
                bool planted,
                size_t num_runs,
+               std::vector<std::string> algos,
                std::vector<double> cutoff_percentages,
                std::filesystem::path output_dir);
 
@@ -173,6 +174,8 @@ private:
   std::vector<double> cutoff_percentages_;
 
   std::filesystem::path output_dir_;
+
+  std::vector<std::string> algos_;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_EVALUATOR_HPP

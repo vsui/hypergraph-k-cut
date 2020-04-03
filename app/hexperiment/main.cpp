@@ -299,6 +299,7 @@ int main(int argc, char **argv) {
                                             store,
                                             planted,
                                             num_runs,
+                                            algos,
                                             node["percentages"].as<std::vector<double>>(),
                                             dest_path);
     } else {
