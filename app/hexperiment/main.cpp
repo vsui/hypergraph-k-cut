@@ -154,7 +154,9 @@ Experiment disconnected_planted_experiment_from_yaml(const std::string &name, co
 
 }
 
-int run_experiment(const std::filesystem::path &config_path, const std::filesystem::path &output_path = {});
+int run_experiment(const std::filesystem::path &config_path,
+                   const std::filesystem::path &output_path = {},
+                   const std::optional<size_t> &num_runs = {});
 int list_sizes(const std::filesystem::path &config_path);
 int check_cuts(const std::filesystem::path &config_path);
 
@@ -191,6 +193,9 @@ int main(int argc, char **argv) {
       "check-cuts",
       "Check that cuts are not skewed or trivial");
 
+  TCLAP::ValueArg<size_t>
+      numRunsArg("r", "runs", "Override number of runs for configs", false, 0, "A positive integer", cmd);
+
   std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg};
 
   cmd.xorAdd(xor_list);
@@ -200,14 +205,16 @@ int main(int argc, char **argv) {
   std::filesystem::path config_path = configFileArg.getValue();
   std::filesystem::path output_path = destArg.getValue();
 
-  const auto execute = [&listSizesArg, &checkCutsArg](const std::filesystem::path &config_path,
-                                                      const std::filesystem::path &output_path) {
+  const auto execute = [&listSizesArg, &checkCutsArg, &numRunsArg](const std::filesystem::path &config_path,
+                                                                   const std::filesystem::path &output_path) {
     if (listSizesArg.isSet()) {
       list_sizes(config_path);
     } else if (checkCutsArg.isSet()) {
       check_cuts(config_path);
     } else {
-      run_experiment(config_path, output_path);
+      run_experiment(config_path,
+                     output_path,
+                     numRunsArg.isSet() ? std::make_optional(numRunsArg.getValue()) : std::nullopt);
     }
   };
 
@@ -267,7 +274,9 @@ Experiment experiment_from_config_file(const std::filesystem::path &config_path,
   return it->second(output_path.string(), node);
 }
 
-int run_experiment(const std::filesystem::path &config_path, const std::filesystem::path &output_path) {
+int run_experiment(const std::filesystem::path &config_path,
+                   const std::filesystem::path &output_path,
+                   const std::optional<size_t> &num_runs) {
   using namespace std::string_literals;
 
   YAML::Node node = YAML::LoadFile(config_path);
@@ -320,6 +329,8 @@ int run_experiment(const std::filesystem::path &config_path, const std::filesyst
     return 1;
   }
 
+  size_t runs = num_runs.has_value() ? num_runs.value() : node["num_runs"].as<size_t>();
+
   const auto factory = [&](bool cutoff, Experiment &&experiment) -> std::unique_ptr<ExperimentRunner> {
     auto &[name, generators, compare_kk, planted] = experiment;
     if (cutoff) {
@@ -327,7 +338,7 @@ int run_experiment(const std::filesystem::path &config_path, const std::filesyst
                                             std::move(generators),
                                             store,
                                             planted,
-                                            node["num_runs"].as<size_t>(),
+                                            runs,
                                             algos,
                                             node["percentages"].as<std::vector<double>>(),
                                             output_path);
@@ -336,7 +347,7 @@ int run_experiment(const std::filesystem::path &config_path, const std::filesyst
                                                std::move(generators),
                                                store,
                                                planted,
-                                               node["num_runs"].as<size_t>(),
+                                               runs,
                                                algos);
     }
   };
