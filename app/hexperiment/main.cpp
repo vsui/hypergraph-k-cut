@@ -8,6 +8,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <hypergraph/order.hpp>
+#include <hypergraph/cxy.hpp>
 
 #include "generators.hpp"
 #include "store.hpp"
@@ -375,7 +376,8 @@ int list_sizes(const std::filesystem::path &config_path) {
   Experiment experiment = experiment_from_config_file(config_path);
   for (const auto &gen : std::get<1>(experiment)) {
     auto[hgraph, planted] = gen->generate();
-    std::cout << hgraph.num_vertices() << "," << hgraph.size() << std::endl;
+    std::cout << hgraph.num_vertices() << "," << hgraph.size() << "," << cxy::CxyImpl::default_num_runs(hgraph, 2)
+              << std::endl;
   }
   return 0;
 }

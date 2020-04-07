@@ -14,6 +14,7 @@
 
 #include <hypergraph/order.hpp>
 #include <hypergraph/hypergraph.hpp>
+#include <hypergraph/util.hpp>
 #include <hypergraph/cxy.hpp>
 #include <hypergraph/fpz.hpp>
 #include <hypergraph/kk.hpp>
@@ -26,6 +27,35 @@ std::string hostname() {
   std::vector<char> hostname(50, '0');
   gethostname(hostname.data(), 49);
   return {hostname.data()};
+}
+
+// TODO putting this in certificate.hpp breaks the build and IDK why
+/**
+ * Find minimum cut through certificates, use CXY with discovery to early-exit the guessing stage.
+ */
+template<typename HypergraphType, bool ReturnsPartitions = true>
+Cut<HypergraphType, ReturnsPartitions> CXY_certificate_minimum_cut(const HypergraphType &hypergraph,
+                                                                   uint64_t seed,
+                                                                   size_t discovery) {
+  KTrimmedCertificate gen(hypergraph);
+  size_t k = 1;
+
+  while (true) {
+    Hypergraph certificate = gen.certificate(k);
+    hypergraph_util::ContractionStats stats;
+    auto cut = hypergraph_util::repeat_contraction<HypergraphType, cxy::CxyImpl, false, 1>(hypergraph,
+                                                                                           2,
+                                                                                           std::mt19937_64(seed),
+                                                                                           stats,
+                                                                                           {},
+                                                                                           {k - 1},
+                                                                                           {});
+    if (cut_value<HypergraphType>(cut) < k) {
+      // TODO Use prior context instead of starting a new one
+      return cxy::discover_value(hypergraph, k, discovery, seed);
+    }
+    k *= 2;
+  }
 }
 
 }
@@ -366,18 +396,17 @@ std::vector<std::pair<std::string,
       }
       },
       {
-          "sparseCXY", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
-        return certificate_minimum_cut<Hypergraph, false>(*h, [seed](const Hypergraph &h) {
-          return cxy::minimum_cut_value<Hypergraph, 1>(h, 2, 0, seed);
-        });
+          "sparseCXY", [cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        // TODO pass same random_generator into both instead of just the seed
+        return CXY_certificate_minimum_cut<Hypergraph, false>(*h, seed, cut_value);
       }
       },
       {
-          "approxSparseCXY", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+          "approxSparseCXY", [cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
         const Hypergraph temp(*h);
         auto cut = approximate_minimizer(*h, 1);
         Hypergraph certificate = KTrimmedCertificate(temp).certificate(cut.value);
-        return cxy::minimum_cut_value(certificate, 2, 0, seed);
+        return cxy::discover_value(certificate, 2, cut_value, seed);
       }
       },
       {

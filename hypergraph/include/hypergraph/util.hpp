@@ -1,7 +1,9 @@
-#pragma once
+#ifndef HYPERGRAPH_UTIL
+#define HYPERGRAPH_UTIL
 
 #include <iostream>
 #include <chrono>
+#include <random>
 
 #include "hypergraph.hpp"
 #include "cut.hpp"
@@ -242,3 +244,4 @@ template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto d
 template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto discover_value(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::discover_value<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
 template <typename HypergraphType, uint8_t Verbosity = 0> auto discover_stats(const HypergraphType &h, size_t k, typename HypergraphType::EdgeWeight discovery_value, hypergraph_util::ContractionStats &stats, uint64_t seed = 0) { return ContractionAlgo<impl>::discover<HypergraphType, Verbosity>(h, k, discovery_value, stats, seed); }
 
+#endif
