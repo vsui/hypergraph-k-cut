@@ -223,6 +223,8 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
     // We have to make a copy of the hypergraph since some algorithms write to it
     Hypergraph temp(*hypergraph_ptr);
     hypergraph_util::ContractionStats stats{};
+    // TODO probably need to put this in more places
+    temp.remove_singleton_and_empty_hyperedges();
 
     auto start = std::chrono::high_resolution_clock::now();
     auto cut = func(&temp, dis(rgen), stats);
