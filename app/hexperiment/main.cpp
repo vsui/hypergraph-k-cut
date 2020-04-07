@@ -207,6 +207,7 @@ int main(int argc, char **argv) {
 
   const auto execute = [&listSizesArg, &checkCutsArg, &numRunsArg](const std::filesystem::path &config_path,
                                                                    const std::filesystem::path &output_path) {
+	  std::cout << config_path.string() << std::endl;
     if (listSizesArg.isSet()) {
       list_sizes(config_path);
     } else if (checkCutsArg.isSet()) {
