@@ -18,6 +18,7 @@
 #include <hypergraph/fpz.hpp>
 #include <hypergraph/kk.hpp>
 #include <fstream>
+#include <hypergraph/approx.hpp>
 
 namespace {
 
@@ -356,7 +357,35 @@ std::vector<std::pair<std::string,
                   hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }},
       {"kwval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
         return KW_min_cut_value<Hypergraph>(*h);
-      }}
+      }},
+      {
+          "sparseMW", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return certificate_minimum_cut<Hypergraph, false>(*h, MW_min_cut_value<Hypergraph>);
+      }
+      },
+      {
+          "sparseCXY", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        return certificate_minimum_cut<Hypergraph, false>(*h, [seed](const Hypergraph &h) {
+          return cxy::minimum_cut_value<Hypergraph, 1>(h, 2, 0, seed);
+        });
+      }
+      },
+      {
+          "approxSparseCXY", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        const Hypergraph temp(*h);
+        auto cut = approximate_minimizer(*h, 1);
+        Hypergraph certificate = KTrimmedCertificate(temp).certificate(cut.value);
+        return cxy::minimum_cut_value(certificate, 2, 0, seed);
+      }
+      },
+      {
+          "approxSparseMW", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+        const Hypergraph temp(*h);
+        auto cut = approximate_minimizer(*h, 1);
+        Hypergraph certificate = KTrimmedCertificate(temp).certificate(cut.value);
+        return MW_min_cut_value(certificate);
+      }
+      }
   };
   cutval_funcs.erase(std::remove_if(std::begin(cutval_funcs),
                                     std::end(cutval_funcs),
@@ -394,7 +423,7 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                                        const size_t k,
                                        const size_t cut_value,
                                        const CutInfo &planted_cut,
-                                       const size_t planted_cut_id) {
+                                       const size_t /* planted_cut_id */) {
 
   auto cutoff_time = computeCutoffTime(hypergraph);
 
@@ -427,6 +456,7 @@ std::chrono::duration<double> CutoffRunner::computeCutoffTime(const HypergraphWr
     Hypergraph temp(*hypergraph_ptr);
     auto start = std::chrono::high_resolution_clock::now();
     auto cut = MW_min_cut_value(temp);
+    // TODO report info
     auto end = std::chrono::high_resolution_clock::now();
     cutoff_time += (end - start);
   }

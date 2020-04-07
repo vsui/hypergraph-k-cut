@@ -2,7 +2,13 @@
 type: planted
 
 # Number of times to repeat each algorithm
-num_runs: 20
+num_runs: 3
+
+# Algorithms to run
+algos:
+  - cxy
+  - fpz
+  - mw
 
 # Generate instances with these number of vertices
 num_vertices:
@@ -28,7 +34,7 @@ num_vertices:
 k: 2
 
 # Set `m2` (number of crossing hyperedges) to `n / m2_mult` where `n` is the number of vertices
-m2_mult: 10
+m2_mult: 4
 
 # Set `m1` (number of non-crossing hyperedges) to `m2 * m1_mult`
-m1_mult: 10
+m1_mult: 7

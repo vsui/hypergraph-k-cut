@@ -190,9 +190,24 @@ auto one_vertex_cut(const HypergraphType &hypergraph, const int v) -> typename H
   }
 }
 
-template<typename HypergraphType>
-using MinimumCutFunction = std::function<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &)>;
+template<typename HypergraphType, bool ReturnsPartitions>
+using Cut = typename std::conditional<ReturnsPartitions,
+                                      HypergraphCut<typename HypergraphType::EdgeWeight>,
+                                      typename HypergraphType::EdgeWeight>::type;
+
+template<typename HypergraphType, bool ReturnsPartitions = true>
+using MinimumCutFunction = std::function<Cut<HypergraphType, ReturnsPartitions>(HypergraphType &)>;
 
 template<typename HypergraphType>
 using MinimumKCutFunction = std::function<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &,
                                                                                              size_t k)>;
+
+template<typename HypergraphType>
+inline typename HypergraphType::EdgeWeight cut_value(const HypergraphCut<typename HypergraphType::EdgeWeight> &cut) {
+  return cut.value;
+}
+
+template<typename HypergraphType>
+inline typename HypergraphType::EdgeWeight cut_value(typename HypergraphType::EdgeWeight cut) {
+  return cut;
+}

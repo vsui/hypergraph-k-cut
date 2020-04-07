@@ -16,18 +16,20 @@ public:
    *
    * Time complexity: O(p) where p is the size of the hypergraph
    */
-  KTrimmedCertificate(const Hypergraph &hypergraph);
+  explicit KTrimmedCertificate(const Hypergraph &hypergraph);
 
   /* Returns the k-trimmed certificate.
    *
    * Time complexity: O(kn) where n is the number of vertices
    */
-  Hypergraph certificate(const size_t k) const;
+  [[nodiscard]]
+  Hypergraph certificate(size_t k) const;
 
 private:
   // Return the head of an edge (the vertex in it that occurs first in the
   // vertex ordering). Takes constant time.
-  int head(const int e) const;
+  [[nodiscard]]
+  int head(int e) const;
 
   // The hypergraph we are creating certificates of
   const Hypergraph hypergraph_;
@@ -49,18 +51,17 @@ private:
 * Time complexity: O(p + cn^2), where p is the size of the hypergraph, c is the
 * value of the minimum cut, and n is the number of vertices
 */
-template<typename HypergraphType>
-HypergraphCut<typename HypergraphType::EdgeWeight> certificate_minimum_cut(const HypergraphType &hypergraph,
-                                                                           MinimumCutFunction<HypergraphType> min_cut) {
+template<typename HypergraphType, bool ReturnsPartitions = true>
+Cut<HypergraphType, ReturnsPartitions> certificate_minimum_cut(const HypergraphType &hypergraph,
+                                                               MinimumCutFunction<HypergraphType,
+                                                                                  ReturnsPartitions> min_cut) {
   KTrimmedCertificate gen(hypergraph);
   size_t k = 1;
   while (true) {
     // Copy hypergraph
-    std::cout << "Trying k=" << k << std::endl;
     Hypergraph certificate = gen.certificate(k);
-    std::cout << "Tried k=" << k << std::endl;
     auto cut = min_cut(certificate);
-    if (cut.value < k) {
+    if (cut_value<HypergraphType>(cut) < k) {
       return cut;
     }
     k *= 2;
