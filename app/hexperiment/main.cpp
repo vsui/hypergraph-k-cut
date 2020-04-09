@@ -16,11 +16,9 @@
 
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;
-// TODO remove compare_kk
 struct Experiment {
   std::string name;
   HyGenPtrs generators;
-  bool compare_kk;
   bool planted;
 };
 
@@ -43,7 +41,6 @@ Experiment planted_experiment(const std::string &name,
                               size_t m1_mult) {
   Experiment planted_experiment = {
       .name = name,
-      .compare_kk = false,
       .planted = true
   };
 
@@ -63,7 +60,6 @@ Experiment disconnected_planted_experiment(const std::string &name,
                                            size_t m) {
   Experiment planted_experiment = {
       .name = name,
-      .compare_kk = false,
       .planted = true,
   };
 
@@ -103,7 +99,6 @@ Experiment planted_uniform_experiment(const std::string &name,
                                       size_t m1_mult) {
   Experiment experiment = {
       .name = name,
-      .compare_kk = true,
       .planted = true,
   };
 
@@ -132,7 +127,6 @@ Experiment ring_experiment(const std::string &name,
                            size_t radius) {
   Experiment experiment = {
       .name = name,
-      .compare_kk = false,
       .planted = false
   };
 
@@ -339,7 +333,7 @@ int run_experiment(const std::filesystem::path &config_path,
   size_t runs = num_runs.has_value() ? num_runs.value() : node["num_runs"].as<size_t>();
 
   const auto factory = [&](bool cutoff, Experiment &&experiment) -> std::unique_ptr<ExperimentRunner> {
-    auto &[name, generators, compare_kk, planted] = experiment;
+    auto &[name, generators, planted] = experiment;
     if (cutoff) {
       return std::make_unique<CutoffRunner>(name,
                                             std::move(generators),
