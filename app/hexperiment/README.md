@@ -18,6 +18,8 @@ Optionally you can pass in a path to a folder of configurations for `<config>`.
 Then an experiment for every configuration file in the `<config>` folder will run.
 For every configuration file `<name>.yaml`, the artifacts will be output to the directory `<dest>/<name>`.
 
+General usage can be viewed using the `--help` flag.
+
 ### Discovery experiments
 
 Discovery experiments measure the time needed for an algorithm to discover a planted minimum cut. It produces
@@ -53,3 +55,8 @@ You can do this with the `-c` flag:
 ```hexperiment <config> -c```
 
 Note that the experiment runner will automatically discard instances with uninteresting cuts.
+
+If you are interesting in the cut factors (the ratio of an approximate cut value to an exact cut value) of the hypergraph
+instances, you can examine them with the `-a` flag:
+
+```hexperiemnt <config> -a```

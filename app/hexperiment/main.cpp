@@ -9,6 +9,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <hypergraph/order.hpp>
 #include <hypergraph/cxy.hpp>
+#include <hypergraph/approx.hpp>
 
 #include "generators.hpp"
 #include "store.hpp"
@@ -16,8 +17,11 @@
 
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;
-// TODO remove compare_kk
-using Experiment = std::tuple<std::string, HyGenPtrs, bool /* compare_kk */, bool /* planted */>;
+struct Experiment {
+  std::string name;
+  HyGenPtrs generators;
+  bool planted;
+};
 
 namespace {
 
@@ -36,18 +40,17 @@ Experiment planted_experiment(const std::string &name,
                               size_t k,
                               size_t m2_mult,
                               size_t m1_mult) {
-  Experiment planted_experiment;
-
-  std::get<0>(planted_experiment) = name;
-  std::get<2>(planted_experiment) = false;
-  std::get<3>(planted_experiment) = true;
+  Experiment planted_experiment = {
+      .name = name,
+      .planted = true
+  };
 
   for (size_t n : num_vertices) {
     size_t m2 = n / m2_mult;
     size_t m1 = m2 * m1_mult;
     double p2 = 0.1;
     double p1 = p2 * k;
-    std::get<1>(planted_experiment).emplace_back(new PlantedHypergraph(n, m1, p1, m2, p2, k, 777));
+    planted_experiment.generators.emplace_back(new PlantedHypergraph(n, m1, p1, m2, p2, k, 777));
   }
   return planted_experiment;
 }
@@ -56,15 +59,15 @@ Experiment disconnected_planted_experiment(const std::string &name,
                                            const std::vector<size_t> &num_vertices,
                                            size_t k,
                                            size_t m) {
-  Experiment planted_experiment;
-  std::get<0>(planted_experiment) = name;
-  std::get<2>(planted_experiment) = false;
-  std::get<3>(planted_experiment) = true;
+  Experiment planted_experiment = {
+      .name = name,
+      .planted = true,
+  };
 
   for (size_t n : num_vertices) {
     size_t m2 = 0;
     size_t m1 = n * m;
-    std::get<1>(planted_experiment).emplace_back(new PlantedHypergraph(n, m1, 0.1, m2, 0.1 * k, k, 777));
+    planted_experiment.generators.emplace_back(new PlantedHypergraph(n, m1, 0.1, m2, 0.1 * k, k, 777));
   }
   return planted_experiment;
 }
@@ -95,16 +98,15 @@ Experiment planted_uniform_experiment(const std::string &name,
                                       size_t rank,
                                       size_t m2_mult,
                                       size_t m1_mult) {
-  Experiment experiment;
-
-  std::get<0>(experiment) = name;
-  std::get<2>(experiment) = true;
-  std::get<3>(experiment) = true;
+  Experiment experiment = {
+      .name = name,
+      .planted = true,
+  };
 
   for (size_t n : num_vertices) {
     size_t m2 = n / m2_mult;
     size_t m1 = m2 * m1_mult;
-    std::get<1>(experiment).emplace_back(new UniformPlantedHypergraph(n, k, rank, m1, m2, 777));
+    experiment.generators.emplace_back(new UniformPlantedHypergraph(n, k, rank, m1, m2, 777));
   }
   return experiment;
 }
@@ -124,15 +126,14 @@ Experiment ring_experiment(const std::string &name,
                            const std::vector<size_t> &num_vertices,
                            size_t edge_mult,
                            size_t radius) {
-  Experiment experiment;
-
-  std::get<0>(experiment) = name;
-  std::get<2>(experiment) = false;
-  std::get<3>(experiment) = false;
+  Experiment experiment = {
+      .name = name,
+      .planted = false
+  };
 
   for (size_t n : num_vertices) {
     size_t num_edges = n * edge_mult;
-    std::get<1>(experiment).emplace_back(new RandomRingConstantEdgeHypergraph(n, num_edges, radius, 777));
+    experiment.generators.emplace_back(new RandomRingConstantEdgeHypergraph(n, num_edges, radius, 777));
   }
   return experiment;
 }
@@ -160,6 +161,7 @@ int run_experiment(const std::filesystem::path &config_path,
                    const std::optional<size_t> &num_runs = {});
 int list_sizes(const std::filesystem::path &config_path);
 int check_cuts(const std::filesystem::path &config_path);
+int check_approx(const std::filesystem::path &config_path);
 
 // If output_path is null, then the experiment will have a blank name which will cause an error if you try to actually
 // run it. So the null option should only be used if not running the experiment (so listing size or checking cuts).
@@ -194,10 +196,16 @@ int main(int argc, char **argv) {
       "check-cuts",
       "Check that cuts are not skewed or trivial");
 
+  TCLAP::SwitchArg checkApproxArg(
+      "a",
+      "check-approx",
+      "Check cut factors of approximation algorithm"
+  );
+
   TCLAP::ValueArg<size_t>
       numRunsArg("r", "runs", "Override number of runs for configs", false, 0, "A positive integer", cmd);
 
-  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg};
+  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg, &checkApproxArg};
 
   cmd.xorAdd(xor_list);
 
@@ -206,13 +214,15 @@ int main(int argc, char **argv) {
   std::filesystem::path config_path = configFileArg.getValue();
   std::filesystem::path output_path = destArg.getValue();
 
-  const auto execute = [&listSizesArg, &checkCutsArg, &numRunsArg](const std::filesystem::path &config_path,
-                                                                   const std::filesystem::path &output_path) {
-	  std::cout << config_path.string() << std::endl;
+  const auto
+      execute = [&listSizesArg, &checkCutsArg, &numRunsArg, &checkApproxArg](const std::filesystem::path &config_path,
+                                                                             const std::filesystem::path &output_path) {
     if (listSizesArg.isSet()) {
       list_sizes(config_path);
     } else if (checkCutsArg.isSet()) {
       check_cuts(config_path);
+    } else if (checkApproxArg.isSet()) {
+      check_approx(config_path);
     } else {
       run_experiment(config_path,
                      output_path,
@@ -334,7 +344,7 @@ int run_experiment(const std::filesystem::path &config_path,
   size_t runs = num_runs.has_value() ? num_runs.value() : node["num_runs"].as<size_t>();
 
   const auto factory = [&](bool cutoff, Experiment &&experiment) -> std::unique_ptr<ExperimentRunner> {
-    auto &[name, generators, compare_kk, planted] = experiment;
+    auto &[name, generators, planted] = experiment;
     if (cutoff) {
       return std::make_unique<CutoffRunner>(name,
                                             std::move(generators),
@@ -374,7 +384,7 @@ int run_experiment(const std::filesystem::path &config_path,
 
 int list_sizes(const std::filesystem::path &config_path) {
   Experiment experiment = experiment_from_config_file(config_path);
-  for (const auto &gen : std::get<1>(experiment)) {
+  for (const auto &gen : experiment.generators) {
     auto[hgraph, planted] = gen->generate();
     std::cout << hgraph.num_vertices() << "," << hgraph.size() << "," << cxy::CxyImpl::default_num_runs(hgraph, 2)
               << std::endl;
@@ -390,7 +400,7 @@ int check_cuts(const std::filesystem::path &config_path) {
     std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
     return 1;
   }
-  for (const auto &gen : std::get<1>(experiment)) {
+  for (const auto &gen : experiment.generators) {
     auto[hgraph, planted] = gen->generate();
     std::cout << "Checking " << gen->name() << std::endl;
     auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
@@ -405,6 +415,23 @@ int check_cuts(const std::filesystem::path &config_path) {
     } else {
       std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
                 << cut.partitions.at(1).size() << ")" << std::endl;
+    }
+  }
+  return 0;
+}
+
+int check_approx(const std::filesystem::path &config_path) {
+  Experiment experiment = experiment_from_config_file(config_path);
+  for (const auto &gen : experiment.generators) {
+    std::cout << gen->name() << std::endl;
+    const auto[hypergraph, planted] = gen->generate();
+    // TODO these copies should not be necessary but right now these functions are modifying
+    Hypergraph copy{hypergraph};
+    auto min_cut_value = MW_min_cut_value(copy);
+    for (auto epsilon : {0.1, 1., 10.}) {
+      Hypergraph copy{hypergraph};
+      auto approx_cut = approximate_minimizer<Hypergraph>(copy, epsilon);
+      std::cout << epsilon << "," << static_cast<double>(approx_cut.value) / min_cut_value << std::endl;
     }
   }
   return 0;

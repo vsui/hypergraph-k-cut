@@ -43,7 +43,7 @@ Cut<HypergraphType, ReturnsPartitions> CXY_certificate_minimum_cut(const Hypergr
   while (true) {
     Hypergraph certificate = gen.certificate(k);
     hypergraph_util::ContractionStats stats;
-    auto cut = hypergraph_util::repeat_contraction<HypergraphType, cxy::CxyImpl, false, 1>(hypergraph,
+    auto cut = hypergraph_util::repeat_contraction<HypergraphType, cxy::CxyImpl, false, 1>(certificate,
                                                                                            2,
                                                                                            std::mt19937_64(seed),
                                                                                            stats,
@@ -52,7 +52,7 @@ Cut<HypergraphType, ReturnsPartitions> CXY_certificate_minimum_cut(const Hypergr
                                                                                            {});
     if (cut_value<HypergraphType>(cut) < k) {
       // TODO Use prior context instead of starting a new one
-      return cxy::discover_value(hypergraph, k, discovery, seed);
+      return cxy::discover_value(certificate, k, discovery, seed);
     }
     k *= 2;
   }
