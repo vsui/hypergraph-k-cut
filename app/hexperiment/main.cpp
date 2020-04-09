@@ -9,6 +9,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <hypergraph/order.hpp>
 #include <hypergraph/cxy.hpp>
+#include <hypergraph/approx.hpp>
 
 #include "generators.hpp"
 #include "store.hpp"
@@ -160,6 +161,7 @@ int run_experiment(const std::filesystem::path &config_path,
                    const std::optional<size_t> &num_runs = {});
 int list_sizes(const std::filesystem::path &config_path);
 int check_cuts(const std::filesystem::path &config_path);
+int check_approx(const std::filesystem::path &config_path);
 
 // If output_path is null, then the experiment will have a blank name which will cause an error if you try to actually
 // run it. So the null option should only be used if not running the experiment (so listing size or checking cuts).
@@ -194,10 +196,16 @@ int main(int argc, char **argv) {
       "check-cuts",
       "Check that cuts are not skewed or trivial");
 
+  TCLAP::SwitchArg checkApproxArg(
+      "a",
+      "check-approx",
+      "Check cut factors of approximation algorithm"
+  );
+
   TCLAP::ValueArg<size_t>
       numRunsArg("r", "runs", "Override number of runs for configs", false, 0, "A positive integer", cmd);
 
-  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg};
+  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg, &checkApproxArg};
 
   cmd.xorAdd(xor_list);
 
@@ -206,12 +214,15 @@ int main(int argc, char **argv) {
   std::filesystem::path config_path = configFileArg.getValue();
   std::filesystem::path output_path = destArg.getValue();
 
-  const auto execute = [&listSizesArg, &checkCutsArg, &numRunsArg](const std::filesystem::path &config_path,
-                                                                   const std::filesystem::path &output_path) {
+  const auto
+      execute = [&listSizesArg, &checkCutsArg, &numRunsArg, &checkApproxArg](const std::filesystem::path &config_path,
+                                                                             const std::filesystem::path &output_path) {
     if (listSizesArg.isSet()) {
       list_sizes(config_path);
     } else if (checkCutsArg.isSet()) {
       check_cuts(config_path);
+    } else if (checkApproxArg.isSet()) {
+      check_approx(config_path);
     } else {
       run_experiment(config_path,
                      output_path,
@@ -404,6 +415,23 @@ int check_cuts(const std::filesystem::path &config_path) {
     } else {
       std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
                 << cut.partitions.at(1).size() << ")" << std::endl;
+    }
+  }
+  return 0;
+}
+
+int check_approx(const std::filesystem::path &config_path) {
+  Experiment experiment = experiment_from_config_file(config_path);
+  for (const auto &gen : experiment.generators) {
+    std::cout << gen->name() << std::endl;
+    const auto[hypergraph, planted] = gen->generate();
+    // TODO these copies should not be necessary but right now these functions are modifying
+    Hypergraph copy{hypergraph};
+    auto min_cut_value = MW_min_cut_value(copy);
+    for (auto epsilon : {0.1, 1., 10.}) {
+      Hypergraph copy{hypergraph};
+      auto approx_cut = approximate_minimizer<Hypergraph>(copy, epsilon);
+      std::cout << epsilon << "," << static_cast<double>(approx_cut.value) / min_cut_value << std::endl;
     }
   }
   return 0;
