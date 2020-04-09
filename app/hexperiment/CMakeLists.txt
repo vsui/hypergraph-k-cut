@@ -9,7 +9,9 @@ add_executable(hexperiment
         generators.hpp
         sqlutil.hpp
         store.cpp
-        store.hpp)
+        store.hpp
+        experiment.cpp
+        experiment.hpp)
 
 target_link_libraries(hexperiment hypergraph sqlite3 yaml-cpp spdlog::spdlog tclap)
 
