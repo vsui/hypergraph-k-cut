@@ -17,7 +17,12 @@
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;
 // TODO remove compare_kk
-using Experiment = std::tuple<std::string, HyGenPtrs, bool /* compare_kk */, bool /* planted */>;
+struct Experiment {
+  std::string name;
+  HyGenPtrs generators;
+  bool compare_kk;
+  bool planted;
+};
 
 namespace {
 
@@ -36,18 +41,18 @@ Experiment planted_experiment(const std::string &name,
                               size_t k,
                               size_t m2_mult,
                               size_t m1_mult) {
-  Experiment planted_experiment;
-
-  std::get<0>(planted_experiment) = name;
-  std::get<2>(planted_experiment) = false;
-  std::get<3>(planted_experiment) = true;
+  Experiment planted_experiment = {
+      .name = name,
+      .compare_kk = false,
+      .planted = true
+  };
 
   for (size_t n : num_vertices) {
     size_t m2 = n / m2_mult;
     size_t m1 = m2 * m1_mult;
     double p2 = 0.1;
     double p1 = p2 * k;
-    std::get<1>(planted_experiment).emplace_back(new PlantedHypergraph(n, m1, p1, m2, p2, k, 777));
+    planted_experiment.generators.emplace_back(new PlantedHypergraph(n, m1, p1, m2, p2, k, 777));
   }
   return planted_experiment;
 }
@@ -56,15 +61,16 @@ Experiment disconnected_planted_experiment(const std::string &name,
                                            const std::vector<size_t> &num_vertices,
                                            size_t k,
                                            size_t m) {
-  Experiment planted_experiment;
-  std::get<0>(planted_experiment) = name;
-  std::get<2>(planted_experiment) = false;
-  std::get<3>(planted_experiment) = true;
+  Experiment planted_experiment = {
+      .name = name,
+      .compare_kk = false,
+      .planted = true,
+  };
 
   for (size_t n : num_vertices) {
     size_t m2 = 0;
     size_t m1 = n * m;
-    std::get<1>(planted_experiment).emplace_back(new PlantedHypergraph(n, m1, 0.1, m2, 0.1 * k, k, 777));
+    planted_experiment.generators.emplace_back(new PlantedHypergraph(n, m1, 0.1, m2, 0.1 * k, k, 777));
   }
   return planted_experiment;
 }
@@ -95,16 +101,16 @@ Experiment planted_uniform_experiment(const std::string &name,
                                       size_t rank,
                                       size_t m2_mult,
                                       size_t m1_mult) {
-  Experiment experiment;
-
-  std::get<0>(experiment) = name;
-  std::get<2>(experiment) = true;
-  std::get<3>(experiment) = true;
+  Experiment experiment = {
+      .name = name,
+      .compare_kk = true,
+      .planted = true,
+  };
 
   for (size_t n : num_vertices) {
     size_t m2 = n / m2_mult;
     size_t m1 = m2 * m1_mult;
-    std::get<1>(experiment).emplace_back(new UniformPlantedHypergraph(n, k, rank, m1, m2, 777));
+    experiment.generators.emplace_back(new UniformPlantedHypergraph(n, k, rank, m1, m2, 777));
   }
   return experiment;
 }
@@ -124,15 +130,15 @@ Experiment ring_experiment(const std::string &name,
                            const std::vector<size_t> &num_vertices,
                            size_t edge_mult,
                            size_t radius) {
-  Experiment experiment;
-
-  std::get<0>(experiment) = name;
-  std::get<2>(experiment) = false;
-  std::get<3>(experiment) = false;
+  Experiment experiment = {
+      .name = name,
+      .compare_kk = false,
+      .planted = false
+  };
 
   for (size_t n : num_vertices) {
     size_t num_edges = n * edge_mult;
-    std::get<1>(experiment).emplace_back(new RandomRingConstantEdgeHypergraph(n, num_edges, radius, 777));
+    experiment.generators.emplace_back(new RandomRingConstantEdgeHypergraph(n, num_edges, radius, 777));
   }
   return experiment;
 }
@@ -373,7 +379,7 @@ int run_experiment(const std::filesystem::path &config_path,
 
 int list_sizes(const std::filesystem::path &config_path) {
   Experiment experiment = experiment_from_config_file(config_path);
-  for (const auto &gen : std::get<1>(experiment)) {
+  for (const auto &gen : experiment.generators) {
     auto[hgraph, planted] = gen->generate();
     std::cout << hgraph.num_vertices() << "," << hgraph.size() << "," << cxy::CxyImpl::default_num_runs(hgraph, 2)
               << std::endl;
@@ -389,7 +395,7 @@ int check_cuts(const std::filesystem::path &config_path) {
     std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
     return 1;
   }
-  for (const auto &gen : std::get<1>(experiment)) {
+  for (const auto &gen : experiment.generators) {
     auto[hgraph, planted] = gen->generate();
     std::cout << "Checking " << gen->name() << std::endl;
     auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
