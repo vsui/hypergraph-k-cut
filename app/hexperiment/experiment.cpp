@@ -14,7 +14,6 @@ struct NoSuchHypergraphType : public std::exception {
 };
 
 struct MissingField : public std::exception {
-  [[nodiscard]]
   explicit MissingField(const char *message) : message_(message) {}
 
   [[nodiscard]]
