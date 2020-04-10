@@ -2,7 +2,7 @@
 // Created by Victor on 2/23/20.
 //
 
-#include "generators.hpp"
+#include <generators/generators.hpp>
 
 #include <sqlite3.h>
 
@@ -125,7 +125,7 @@ bool RandomRingHypergraph::write_to_table(sqlite3 *db) const {
   return true;
 }
 
-std::tuple<Hypergraph, std::optional<CutInfo>> RandomRingHypergraph::generate() const {
+std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> RandomRingHypergraph::generate() const {
   std::mt19937_64 gen_(seed); // We want to generate the same hypergraph each time
 
   std::vector<int> vertices(num_vertices);
@@ -214,7 +214,7 @@ std::string MXNHypergraph::name() {
 PlantedHypergraph::PlantedHypergraph(size_t n, size_t m1, double p1, size_t m2, double p2, size_t k, uint64_t seed) :
     n(n), m1(m1), p1(p1), m2(m2), p2(p2), k(k), seed(seed) {}
 
-std::tuple<Hypergraph, std::optional<CutInfo>> PlantedHypergraph::generate() const {
+std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> PlantedHypergraph::generate() const {
   std::mt19937_64 gen(seed);
   std::uniform_real_distribution dis;
 
@@ -254,7 +254,7 @@ std::tuple<Hypergraph, std::optional<CutInfo>> PlantedHypergraph::generate() con
 
   HypergraphCut<size_t> cut = Cluster::create_cut_from_cluster(cut_value, k, n);
 
-  return {{Hypergraph{vertices, edges}}, {{k, cut}}};
+  return {Hypergraph{vertices, edges}, cut};
 }
 
 std::string PlantedHypergraph::name() const {
@@ -314,7 +314,7 @@ bool PlantedHypergraph::write_to_table(sqlite3 *db) const {
 UniformPlantedHypergraph::UniformPlantedHypergraph(size_t n, size_t k, size_t r, size_t m1, size_t m2, uint64_t seed) :
     n(n), k(k), r(r), m1(m1), m2(m2), seed(seed) {}
 
-std::tuple<Hypergraph, std::optional<CutInfo>> UniformPlantedHypergraph::generate() const {
+std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> UniformPlantedHypergraph::generate() const {
   std::mt19937_64 gen(seed);
   std::vector<int> vertices(n);
   std::iota(begin(vertices), end(vertices), 0);
@@ -354,9 +354,9 @@ std::tuple<Hypergraph, std::optional<CutInfo>> UniformPlantedHypergraph::generat
     }
     edges.emplace_back(std::move(edge));
   }
-  HypergraphCut<size_t> cut = Cluster::create_cut_from_cluster(cut_value, k, n);
 
-  return {{Hypergraph{vertices, edges}}, {{k, cut}}};
+  HypergraphCut<size_t> cut = Cluster::create_cut_from_cluster(cut_value, k, n);
+  return {Hypergraph{vertices, edges}, cut};
 }
 std::string UniformPlantedHypergraph::name() const {
   std::stringstream s;

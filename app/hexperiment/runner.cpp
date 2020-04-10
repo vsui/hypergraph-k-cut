@@ -4,10 +4,10 @@
 
 #include <unistd.h>
 #include <thread>
+#include <fstream>
 
 #include "runner.hpp"
 #include "store.hpp"
-#include "generators.hpp"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -18,8 +18,9 @@
 #include <hypergraph/cxy.hpp>
 #include <hypergraph/fpz.hpp>
 #include <hypergraph/kk.hpp>
-#include <fstream>
 #include <hypergraph/approx.hpp>
+
+#include <generators/generators.hpp>
 
 namespace {
 
@@ -108,16 +109,19 @@ std::optional<ExperimentRunner::InitializeRet> ExperimentRunner::doInitialize(co
     spdlog::info("Cut not planted, computing min cut exactly...");
   }
   // Need to do this since planted_cut does not have a default constructor
-  CutInfo planted_cut = planted_ ? planted_cut_optional.value() :
-                        [&hypergraph]() {
-                          Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
-                          if (hypergraph_ptr == nullptr) {
-                            throw std::runtime_error("Hypergraph is null");
-                          }
-                          // Copy to call MW_min_cut since it can write to the hypergraph
-                          Hypergraph temp(*hypergraph_ptr);
-                          return CutInfo{2, MW_min_cut(temp)};
-                        }();
+  HypergraphCut<size_t> cut = planted_ ? planted_cut_optional.value() :
+                              [&hypergraph]() {
+                                Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+                                if (hypergraph_ptr == nullptr) {
+                                  throw std::runtime_error("Hypergraph is null");
+                                }
+                                // Copy to call MW_min_cut since it can write to the hypergraph
+                                Hypergraph temp(*hypergraph_ptr);
+                                return MW_min_cut(temp);
+                              }();
+
+  // TODO we shouldn't need CutInfo if we can get k from HypergraphCut
+  CutInfo planted_cut{cut.partitions.size(), cut};
 
   if (!planted_) {
     // Skip if the cut is uninteresting or skewed

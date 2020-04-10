@@ -11,7 +11,7 @@
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
 
-#include "generators.hpp"
+#include <generators/generators.hpp>
 
 using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
 using HyGenPtrs = std::vector<HyGenPtr>;

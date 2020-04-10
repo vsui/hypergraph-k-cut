@@ -2,13 +2,13 @@
 // Created by Victor on 2/23/20.
 //
 
-#include "store.hpp"
-#include "generators.hpp"
-#include "sqlutil.hpp"
-
 #include <iostream>
 
 #include <sqlite3.h>
+#include <generators/generators.hpp>
+
+#include "store.hpp"
+#include "sqlutil.hpp"
 
 using std::begin, std::end;
 

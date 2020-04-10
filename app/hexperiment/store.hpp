@@ -8,8 +8,9 @@
 #include <filesystem>
 #include <tuple>
 
+#include <generators/generators.hpp>
+
 #include "common.hpp"
-#include "generators.hpp"
 
 enum class ReportStatus {
   ERROR,
