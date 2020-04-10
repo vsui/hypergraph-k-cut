@@ -4,9 +4,70 @@
 
 #include "experiment.hpp"
 
+namespace {
+
+struct NoSuchHypergraphType : public std::exception {
+  [[nodiscard]]
+  const char *what() const noexcept override {
+    return "No such hypergraph type";
+  }
+};
+
+struct MissingField : public std::exception {
+  [[nodiscard]]
+  explicit MissingField(const char *message) : message_(message) {}
+
+  [[nodiscard]]
+  const char *what() const noexcept override {
+    return message_;
+  }
+
+private:
+  const char *message_;
+};
+
+struct FallbackNode {
+  YAML::Node local_config;
+  YAML::Node global_config;
+
+  FallbackNode(const YAML::Node &local_config, const YAML::Node &global_config) :
+      local_config(local_config), global_config(global_config) {}
+
+  YAML::Node operator[](const std::string &val_name) {
+    if (local_config[val_name]) {
+      return local_config[val_name];
+    }
+    return global_config[val_name];
+  }
+};
+
+HyGenPtr ring_generator_from_config(const YAML::Node &local_config, const YAML::Node &global_config) {
+  FallbackNode config(local_config, global_config);
+  return std::make_unique<RandomRingConstantEdgeHypergraph>(
+      config["num_vertices"].as<size_t>(),
+      config["num_vertices"].as<size_t>() * config["edge_mult"].as<size_t>(),
+      config["radius"].as<double>(),
+      config["seed"].as<size_t>()
+  );
+}
+
+HyGenPtr generator_from_config(const YAML::Node &local_config, const YAML::Node &global_config) {
+  if (FallbackNode(local_config, global_config)["type"].as<std::string>() == "ring") {
+    return ring_generator_from_config(local_config, global_config);
+  } else {
+    throw NoSuchHypergraphType{};
+  }
+}
+
+}
+
 Experiment experiment_from_config_file(const std::filesystem::path &config_path,
                                        const std::filesystem::path &output_path) {
   YAML::Node node = YAML::LoadFile(config_path);
+
+  if (node["hypergraphs"]) {
+    return hypergraphs_experiment_from_file(config_path, output_path);
+  }
 
   using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
   const std::map<std::string, ExperimentGenerator> gens = {
@@ -23,6 +84,23 @@ Experiment experiment_from_config_file(const std::filesystem::path &config_path,
   }
 
   return it->second(output_path.string(), node);
+}
+
+Experiment hypergraphs_experiment_from_file(const std::filesystem::path &config_path,
+                                            const std::filesystem::path &output_path) {
+  YAML::Node node = YAML::LoadFile(config_path);
+  if (!node["name"]) {
+    throw MissingField("'name' not defined");
+  }
+  Experiment experiment = {
+      .name = node["name"].as<std::string>(),
+      .planted = false, // TODO not necessarily true, but default to false for now
+  };
+  std::transform(node["hypergraphs"].begin(),
+                 node["hypergraphs"].end(),
+                 std::back_inserter(experiment.generators),
+                 [node](auto &&config) { return generator_from_config(config, node); });
+  return experiment;
 }
 
 Experiment planted_experiment(const std::string &name,

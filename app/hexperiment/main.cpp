@@ -72,16 +72,21 @@ int main(int argc, char **argv) {
   const auto
       execute = [&listSizesArg, &checkCutsArg, &numRunsArg, &checkApproxArg](const std::filesystem::path &config_path,
                                                                              const std::filesystem::path &output_path) {
-    if (listSizesArg.isSet()) {
-      list_sizes(config_path);
-    } else if (checkCutsArg.isSet()) {
-      check_cuts(config_path);
-    } else if (checkApproxArg.isSet()) {
-      check_approx(config_path);
-    } else {
-      run_experiment(config_path,
-                     output_path,
-                     numRunsArg.isSet() ? std::make_optional(numRunsArg.getValue()) : std::nullopt);
+    try {
+      if (listSizesArg.isSet()) {
+        list_sizes(config_path);
+      } else if (checkCutsArg.isSet()) {
+        check_cuts(config_path);
+      } else if (checkApproxArg.isSet()) {
+        check_approx(config_path);
+      } else {
+        run_experiment(config_path,
+                       output_path,
+                       numRunsArg.isSet() ? std::make_optional(numRunsArg.getValue()) : std::nullopt);
+      }
+    } catch (const std::exception &e) {
+      std::cerr << "Exception thrown: " << e.what() << std::endl;
+      exit(1);
     }
   };
 

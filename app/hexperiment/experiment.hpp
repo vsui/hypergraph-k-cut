@@ -28,6 +28,12 @@ Experiment experiment_from_config_file(const std::filesystem::path &config_path,
                                        const std::filesystem::path &output_path = {});
 
 /**
+ * Parses a config file with a list of hypergraphs.
+ */
+Experiment hypergraphs_experiment_from_file(const std::filesystem::path &config_path,
+                                            const std::filesystem::path &output_path);
+
+/**
  * Generate an experiment for planted hypergraphs where the size of edges in the crossing and non-crossing hyperedges
  * are equal in expectation.
  *
