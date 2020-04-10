@@ -6,4 +6,4 @@ add_library(
 )
 
 target_include_directories(hypergraph PUBLIC include)
-target_link_libraries(generators PUBLIC hypergraph)
+target_link_libraries(generators PUBLIC hypergraph sqlite3)
