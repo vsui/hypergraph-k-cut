@@ -9,6 +9,8 @@
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/order.hpp"
 
+using namespace hypergraphlib;
+
 namespace {
 
 // d1 and d2 are useful for testing but are not actually directly used in

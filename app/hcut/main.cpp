@@ -17,6 +17,8 @@
 
 #include "switch.hpp"
 
+using namespace hypergraphlib;
+
 std::map<std::string, cut_algorithm> string_to_algorithm = {
     {"CXY", cut_algorithm::CXY},
     {"FPZ", cut_algorithm::FPZ},

@@ -5,6 +5,8 @@
 
 #include <hypergraph/hypergraph.hpp>
 
+using namespace hypergraphlib;
+
 // Helper for logic with cluster operations
 class Cluster {
 public:

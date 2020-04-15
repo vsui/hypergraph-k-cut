@@ -5,6 +5,8 @@
 #include "hypergraph.hpp"
 #include "util.hpp"
 
+namespace hypergraphlib {
+
 namespace kk {
 
 struct KkImpl {
@@ -133,5 +135,7 @@ struct KkImpl {
 };
 
 DECLARE_CONTRACTION_MIN_K_CUT(KkImpl);
+
+}
 
 }

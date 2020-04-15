@@ -12,6 +12,8 @@
 #include "hypergraph.hpp"
 #include "util.hpp"
 
+namespace hypergraphlib {
+
 namespace cxy {
 
 /**
@@ -172,5 +174,7 @@ struct CxyImpl {
 };
 
 DECLARE_CONTRACTION_MIN_K_CUT(CxyImpl)
+
+}
 
 }

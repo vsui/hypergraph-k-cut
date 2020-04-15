@@ -9,6 +9,8 @@
 #include "cut.hpp"
 #include "certificate.hpp"
 
+namespace hypergraphlib {
+
 namespace hypergraph_util {
 
 struct ContractionStats {
@@ -80,9 +82,9 @@ auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> 
 
     if constexpr (Verbosity > 0) {
       std::cout << "[" << ++i << "] took "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start_run).count()
-                << " milliseconds, got " << cut.value << ", min is " << ctx.min_so_far.value << ", discovery value is "
-                << ctx.discovery_value << "\n";
+          << std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start_run).count()
+          << " milliseconds, got " << cut.value << ", min is " << ctx.min_so_far.value << ", discovery value is "
+          << ctx.discovery_value << "\n";
     }
   }
 
@@ -235,6 +237,8 @@ struct ContractionAlgo {
                                                           std::nullopt);
   }
 };
+
+}
 
 // Makes importing the overloaded function names into a different namespace easier.
 #define DECLARE_CONTRACTION_MIN_K_CUT(impl) \

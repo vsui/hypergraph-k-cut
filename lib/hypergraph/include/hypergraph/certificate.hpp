@@ -6,6 +6,8 @@
 #include "hypergraph.hpp"
 #include "cut.hpp"
 
+namespace hypergraphlib {
+
 /* A data structure that can be used to retrieve k-trimmed certificates of a
  * hypergraph. A k-trimmed certificate is a trimmed subhypergraph that retains
  * all cut values up to k. See the [CX'18] for more details.
@@ -54,7 +56,7 @@ private:
 template<typename HypergraphType, bool ReturnsPartitions = true>
 Cut<HypergraphType, ReturnsPartitions> certificate_minimum_cut(const HypergraphType &hypergraph,
                                                                MinimumCutFunction<HypergraphType,
-                                                                                  ReturnsPartitions> min_cut) {
+                                                               ReturnsPartitions> min_cut) {
   KTrimmedCertificate gen(hypergraph);
   size_t k = 1;
   while (true) {
@@ -68,3 +70,4 @@ Cut<HypergraphType, ReturnsPartitions> certificate_minimum_cut(const HypergraphT
   }
 }
 
+}

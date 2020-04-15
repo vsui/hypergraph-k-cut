@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+namespace hypergraphlib {
+
 BucketHeap::BucketHeap(std::vector<int> values, const size_t capacity)
     : capacity_(capacity), buckets_(capacity), max_key_(0) {
   for (const int value : values) {
@@ -34,4 +36,6 @@ std::pair<size_t, int> BucketHeap::pop_key_val() {
   val_to_keys_.erase(value);
   val_to_its_.erase(value);
   return {max_key_, value};
+}
+
 }

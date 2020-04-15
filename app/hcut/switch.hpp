@@ -30,9 +30,13 @@ struct DiscoverFunctor {
     template<typename ...Args>
     static auto f(Args &&...args) {
       switch (Algo) {
-      case cut_algorithm::CXY:return cxy::discover<HypergraphType, verbosity>(std::forward<Args>(args)...);
-      case cut_algorithm::FPZ:return fpz::discover<HypergraphType, verbosity>(std::forward<Args>(args)...);
-      case cut_algorithm::KK:return kk::discover<HypergraphType, verbosity>(std::forward<Args>(args)...);
+      case cut_algorithm::CXY:
+        return hypergraphlib::cxy::discover<HypergraphType,
+                                            verbosity>(std::forward<Args>(args)...);
+      case cut_algorithm::FPZ:
+        return hypergraphlib::fpz::discover<HypergraphType,
+                                            verbosity>(std::forward<Args>(args)...);
+      case cut_algorithm::KK:return hypergraphlib::kk::discover<HypergraphType, verbosity>(std::forward<Args>(args)...);
       default:assert(false);
       }
     }
@@ -46,9 +50,15 @@ struct MinCutFunctor {
     template<typename ...Args>
     static auto f(Args &&...args) {
       switch (Algo) {
-      case cut_algorithm::CXY:return cxy::minimum_cut<HypergraphType, verbosity>(std::forward<Args>(args)...);
-      case cut_algorithm::FPZ:return fpz::minimum_cut<HypergraphType, verbosity>(std::forward<Args>(args)...);
-      case cut_algorithm::KK:return kk::minimum_cut<HypergraphType, verbosity>(std::forward<Args>(args)...);
+      case cut_algorithm::CXY:
+        return hypergraphlib::cxy::minimum_cut<HypergraphType,
+                                               verbosity>(std::forward<Args>(args)...);
+      case cut_algorithm::FPZ:
+        return hypergraphlib::fpz::minimum_cut<HypergraphType,
+                                               verbosity>(std::forward<Args>(args)...);
+      case cut_algorithm::KK:
+        return hypergraphlib::kk::minimum_cut<HypergraphType,
+                                              verbosity>(std::forward<Args>(args)...);
       default:assert(false);
       }
     }

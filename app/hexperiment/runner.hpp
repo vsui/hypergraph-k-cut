@@ -13,18 +13,23 @@
 
 #include "common.hpp"
 
+// TODO don't forward declare things from external libraries
+namespace hypergraphlib {
 namespace hypergraph_util {
 class ContractionStats;
+}
 }
 
 class CutInfoStore;
 class HypergraphGenerator;
 
-using HypergraphCutFunc = std::function<HypergraphCut<size_t>(Hypergraph *,
-                                                              uint64_t,
-                                                              hypergraph_util::ContractionStats &)>;
+using HypergraphCutFunc = std::function<hypergraphlib::HypergraphCut<size_t>(hypergraphlib::Hypergraph *,
+                                                                             uint64_t,
+                                                                             hypergraphlib::hypergraph_util::ContractionStats &)>;
 
-using HypergraphCutValFunc = std::function<size_t(Hypergraph *, uint64_t, hypergraph_util::ContractionStats &)>;
+using HypergraphCutValFunc = std::function<size_t(hypergraphlib::Hypergraph *,
+                                                  uint64_t,
+                                                  hypergraphlib::hypergraph_util::ContractionStats &)>;
 
 class ExperimentRunner {
 public:

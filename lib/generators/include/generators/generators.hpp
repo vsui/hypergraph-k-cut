@@ -21,7 +21,8 @@ struct HypergraphGenerator {
    * @return
    */
   [[nodiscard]]
-  virtual std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> generate() const = 0;
+  virtual std::tuple<hypergraphlib::Hypergraph,
+                     std::optional<hypergraphlib::HypergraphCut<size_t>>> generate() const = 0;
 
   /**
    * Returns a unique identifier for this hypergraph
@@ -56,7 +57,7 @@ struct RandomRingHypergraph : public HypergraphGenerator {
 
   bool write_to_table(sqlite3 *db) const override;
 
-  std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> generate() const override;
+  std::tuple<hypergraphlib::Hypergraph, std::optional<hypergraphlib::HypergraphCut<size_t>>> generate() const override;
 
 private:
   void sample_hyperedge(const std::vector<int> &vertices,
@@ -97,7 +98,7 @@ struct MXNHypergraph {
   double p;
   uint64_t seed;
 
-  Hypergraph generate();
+  hypergraphlib::Hypergraph generate();
 
   std::string name();
 };
@@ -125,7 +126,7 @@ struct PlantedHypergraph : public HypergraphGenerator {
   static std::string make_table_sql_command();
 
   [[nodiscard]]
-  std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> generate() const override;
+  std::tuple<hypergraphlib::Hypergraph, std::optional<hypergraphlib::HypergraphCut<size_t>>> generate() const override;
 
   [[nodiscard]]
   std::string name() const override;
@@ -150,7 +151,7 @@ struct UniformPlantedHypergraph : public HypergraphGenerator {
   uint64_t seed;
 
   [[nodiscard]]
-  std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> generate() const override;
+  std::tuple<hypergraphlib::Hypergraph, std::optional<hypergraphlib::HypergraphCut<size_t>>> generate() const override;
 
   [[nodiscard]]
   std::string name() const override;

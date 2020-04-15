@@ -5,6 +5,8 @@
 
 #include "testutil.hpp"
 
+using namespace hypergraphlib;
+
 class SetupTestFromFile : public ::testing::Test {
 protected:
   const std::string filename = get_directory() / "instances/simple.htest";
@@ -23,7 +25,7 @@ protected:
       }
   };
 
-  const WeightedHypergraph<size_t> weighted_simple = {
+  const hypergraphlib::WeightedHypergraph<size_t> weighted_simple = {
       {0, 1, 2, 3, 4},
       {
           {{0, 1, 2}, 2},

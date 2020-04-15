@@ -6,6 +6,8 @@
 #include <numeric>
 #include <cassert>
 
+namespace hypergraphlib {
+
 /**
  * This reads in a file in .hmetis format. Assumes that nodes are numbered from [0, n - 1], where n - 1 is the number of
  * vertices in the hypergraph.
@@ -57,4 +59,6 @@ bool is_unweighted_hmetis_file(std::istream &is) {
   std::string line;
   std::getline(is, line);
   return std::count(std::begin(line), std::end(line), ' ') == 1;
+}
+
 }

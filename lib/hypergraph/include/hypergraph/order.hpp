@@ -11,6 +11,8 @@
 #include "hypergraph.hpp"
 #include "cut.hpp"
 
+namespace hypergraphlib {
+
 // A context for vertex ordering calculations
 template<typename Heap>
 struct OrderingContext {
@@ -274,3 +276,4 @@ inline auto KW_min_cut_value(HypergraphType &hypergraph) {
   return vertex_ordering_mincut<HypergraphType, maximum_adjacency_ordering, false>(hypergraph);
 }
 
+}

@@ -22,6 +22,8 @@
 
 #include <generators/generators.hpp>
 
+using namespace hypergraphlib;
+
 namespace {
 
 std::string hostname() {

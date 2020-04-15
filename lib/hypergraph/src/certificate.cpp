@@ -5,7 +5,7 @@
 namespace {
 
 // Returns the induced head ordering of the edges in O(p) time
-std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
+std::vector<int> induced_head_ordering(const hypergraphlib::Hypergraph &hypergraph,
                                        std::vector<int> vertex_ordering) {
   std::unordered_map<int, size_t> vertex_to_order;
   for (size_t i = 0; i < vertex_ordering.size(); ++i) {
@@ -34,6 +34,8 @@ std::vector<int> induced_head_ordering(const Hypergraph &hypergraph,
 }
 
 } // namespace
+
+namespace hypergraphlib {
 
 KTrimmedCertificate::KTrimmedCertificate(const Hypergraph &hypergraph)
     : hypergraph_(hypergraph) {
@@ -105,4 +107,6 @@ Hypergraph KTrimmedCertificate::certificate(size_t k) const {
 
 int KTrimmedCertificate::head(const int e) const {
   return vertex_ordering_.at(edge_to_head_.at(e));
+}
+
 }

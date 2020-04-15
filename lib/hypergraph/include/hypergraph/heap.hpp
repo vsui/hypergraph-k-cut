@@ -7,6 +7,8 @@
 
 #include <boost/heap/fibonacci_heap.hpp>
 
+namespace hypergraphlib {
+
 /* A collection of distinct values, ordered by their keys. The key for every
  * value is initially zero.
  *
@@ -108,3 +110,5 @@ private:
 
   boost::heap::fibonacci_heap<element_t> heap_;
 };
+
+}

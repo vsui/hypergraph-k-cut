@@ -4,6 +4,8 @@
 #include <vector>
 #include <map>
 
+namespace hypergraphlib {
+
 template<typename T>
 class HypergraphBase {
   friend T;
@@ -107,7 +109,7 @@ public:
         if (std::find(vertices_incident_on.begin(), vertices_incident_on.end(),
                       v) == std::end(vertices_incident_on)) {
           std::cerr << "ERROR: edge " << e << " should contain vertex " << v
-                    << std::endl;
+              << std::endl;
           return false;
         }
       }
@@ -119,7 +121,7 @@ public:
         if (std::find(edges_incident_on.begin(), edges_incident_on.end(), e) ==
             std::end(edges_incident_on)) {
           std::cerr << "ERROR: vertex " << v << " should contain edge " << e
-                    << std::endl;
+              << std::endl;
           return false;
         }
       }
@@ -391,3 +393,4 @@ private:
   int next_edge_id_;
 };
 
+}

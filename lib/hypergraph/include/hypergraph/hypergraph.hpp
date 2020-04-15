@@ -11,6 +11,8 @@
 #include "heap.hpp"
 #include "base.hpp"
 
+namespace hypergraphlib {
+
 // To restrict dynamic polymorphism with Hypergraphs and WeightedHypergraphs
 class Hypergraph : public HypergraphBase<Hypergraph> {
   using Base = HypergraphBase<Hypergraph>;
@@ -305,3 +307,5 @@ std::ostream &operator<<(std::ostream &os, const WeightedHypergraph<EdgeWeightTy
 
 // Return true if the header of the output stream appears to be an hmetis file
 bool is_unweighted_hmetis_file(std::istream &is);
+
+}

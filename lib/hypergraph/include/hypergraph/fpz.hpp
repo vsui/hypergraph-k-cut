@@ -9,6 +9,8 @@
 #include "hypergraph.hpp"
 #include "cxy.hpp"
 
+namespace hypergraphlib {
+
 namespace fpz {
 
 /**
@@ -200,3 +202,5 @@ struct FpzImpl {
 DECLARE_CONTRACTION_MIN_K_CUT(FpzImpl);
 
 } // namespace fpz
+
+}

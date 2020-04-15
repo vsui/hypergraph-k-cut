@@ -38,7 +38,7 @@ struct CutInfo {
 
   CutInfo(size_t k, size_t cut_value) : k(k), cut_value(cut_value) {}
 
-  CutInfo(size_t k, const HypergraphCut<size_t> cut)
+  CutInfo(size_t k, const hypergraphlib::HypergraphCut<size_t> cut)
       : k(k), cut_value(cut.value), partitions(normalize_partitions(cut.partitions)) {}
 
   inline bool operator==(const CutInfo &info) const {
@@ -108,7 +108,7 @@ inline std::ostream &operator<<(std::ostream &out, const CutRunInfo &info) {
 
 struct HypergraphWrapper {
   std::string name;
-  std::variant<Hypergraph, WeightedHypergraph<size_t>> h;
+  std::variant<hypergraphlib::Hypergraph, hypergraphlib::WeightedHypergraph<size_t>> h;
 };
 
 #endif //HYPERGRAPHPARTITIONING_EXPERIMENT_COMMON_HPP

@@ -9,20 +9,20 @@ inline std::filesystem::path get_directory() {
   return std::filesystem::path(__FILE__).remove_filename();
 }
 
-template<typename HypergraphType = Hypergraph>
+template<typename HypergraphType = hypergraphlib::Hypergraph>
 using CutValue = std::tuple<size_t, typename HypergraphType::EdgeWeight>;
 
-template<typename HypergraphType = Hypergraph>
+template<typename HypergraphType = hypergraphlib::Hypergraph>
 using CutValues = std::vector<CutValue<HypergraphType>>;
 
-template<typename HypergraphType = Hypergraph>
+template<typename HypergraphType = hypergraphlib::Hypergraph>
 using TestCaseInstance = std::tuple<HypergraphType, CutValue<HypergraphType>, std::string>;
 
 template<typename HypergraphType>
 using MinCutTestCaseInstance = std::tuple<HypergraphType, typename HypergraphType::EdgeWeight, std::string>;
 
 // A collection of hypergraphs with associated cut values for multiple k's, for adding test values
-template<typename HypergraphType = Hypergraph>
+template<typename HypergraphType = hypergraphlib::Hypergraph>
 class TestCase {
 public:
   bool from_file(const std::string &filename) {
@@ -66,13 +66,13 @@ public:
     return instances;
   }
 
-  typename Hypergraph::EdgeWeight cut(size_t k) {
+  typename hypergraphlib::Hypergraph::EdgeWeight cut(size_t k) {
     auto it = std::find_if(std::begin(cuts()), std::end(cuts()), [k](const auto &cut_value) {
       return std::get<0>(cut_value) == k;
     });
     if (it == std::end(cuts())) {
       // Just return max as tombstone if k is not found
-      return std::numeric_limits<typename Hypergraph::EdgeWeight>::max();
+      return std::numeric_limits<typename hypergraphlib::Hypergraph::EdgeWeight>::max();
     }
     return std::get<1>(*it);
   }
@@ -131,13 +131,14 @@ inline std::vector<TestCaseInstance<HypergraphType>> up_to_k(const std::vector<T
 }
 
 inline std::vector<TestCaseInstance<>> small_unweighted_tests() {
-  return tests_in_folders<Hypergraph>({"instances/misc/small/unweighted", "instances/misc/smallrank/unweighted"});
+  return tests_in_folders<hypergraphlib::Hypergraph>({"instances/misc/small/unweighted",
+                                                      "instances/misc/smallrank/unweighted"});
 }
 
 template<typename EdgeWeight>
-inline std::vector<TestCaseInstance<WeightedHypergraph<EdgeWeight>>> small_weighted_tests() {
-  return tests_in_folders<WeightedHypergraph<EdgeWeight>>({"instances/misc/small/weighted",
-                                                           "instances/misc/smallrank/weighted"});
+inline std::vector<TestCaseInstance<hypergraphlib::WeightedHypergraph<EdgeWeight>>> small_weighted_tests() {
+  return tests_in_folders<hypergraphlib::WeightedHypergraph<EdgeWeight>>({"instances/misc/small/weighted",
+                                                                          "instances/misc/smallrank/weighted"});
 }
 
 template<typename HypergraphType>

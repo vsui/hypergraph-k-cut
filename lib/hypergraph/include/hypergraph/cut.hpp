@@ -3,6 +3,8 @@
 #include "hypergraph.hpp"
 #include "cut.hpp"
 
+namespace hypergraphlib {
+
 template<typename EdgeWeightType>
 struct HypergraphCut {
   static_assert(std::is_arithmetic_v<EdgeWeightType>);
@@ -210,4 +212,6 @@ inline typename HypergraphType::EdgeWeight cut_value(const HypergraphCut<typenam
 template<typename HypergraphType>
 inline typename HypergraphType::EdgeWeight cut_value(typename HypergraphType::EdgeWeight cut) {
   return cut;
+}
+
 }

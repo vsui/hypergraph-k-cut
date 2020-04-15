@@ -3,6 +3,8 @@
 #include "hypergraph.hpp"
 #include "order.hpp"
 
+namespace hypergraphlib {
+
 /* Approximate (2+epsilon) hypergraph minimum cut from [CX'18].
  *
  * Time complexity: O(p/epsilon), p is the size of the hypergraph
@@ -60,4 +62,6 @@ HypergraphCut<typename HypergraphType::EdgeWeight> approximate_minimizer(Hypergr
   }
 
   return std::min(delta, approximate_minimizer(temp, epsilon));
+}
+
 }

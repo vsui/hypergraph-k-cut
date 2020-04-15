@@ -15,6 +15,8 @@
 #include "runner.hpp"
 #include "experiment.hpp"
 
+using namespace hypergraphlib;
+
 int run_experiment(const std::filesystem::path &config_path,
                    const std::filesystem::path &output_path = {},
                    const std::optional<size_t> &num_runs = {});

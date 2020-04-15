@@ -7,6 +7,7 @@
 #include <sqlite3.h>
 
 using std::begin, std::end;
+using namespace hypergraphlib;
 
 namespace {
 
