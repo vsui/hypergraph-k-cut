@@ -234,7 +234,7 @@ DiscoveryRunner::DiscoveryRunner(std::string id,
 template<bool ReturnsPartitions>
 void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
                                      const std::string &func_name,
-                                     typename CutFunc<ReturnsPartitions>::T func,
+                                     CutFunc <ReturnsPartitions> func,
                                      const CutInfo &planted_cut,
                                      const uint64_t planted_cut_id,
                                      size_t k) {
@@ -274,6 +274,7 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
     run_info.machine = hostname();
     run_info.commit = "n/a";
 
+    // doReportCutAndRun
     auto found_cut_id =
         doReportCut<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id);
     if (!found_cut_id) {
@@ -545,6 +546,7 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                                                             std::chrono::high_resolution_clock::now());
 
     // Start two threads, one to run the contraction algorithm and one to monitor the minimum so far
+    auto start = std::chrono::high_resolution_clock::now();
     std::thread contraction_runner([&time_limits, &ctx]() {
       ctx.start = std::chrono::high_resolution_clock::now();
       ctx.time_limit = std::get<1>(time_limits.back());
@@ -567,6 +569,12 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
     });
 
     contraction_runner.join();
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    // Get Cut Id
+
+    // store().report(hypergraph.name,
+
     monitor.join();
   }
 

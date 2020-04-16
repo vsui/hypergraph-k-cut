@@ -14,10 +14,8 @@
 #include "common.hpp"
 
 // TODO don't forward declare things from external libraries
-namespace hypergraphlib {
-namespace util {
+namespace hypergraphlib::util {
 class ContractionStats;
-}
 }
 
 class CutInfoStore;
@@ -44,17 +42,7 @@ public:
 
 protected:
   template<bool ReturnsPartitions>
-  struct CutFunc;
-
-  template<>
-  struct CutFunc<true> {
-    using T = HypergraphCutFunc;
-  };
-
-  template<>
-  struct CutFunc<false> {
-    using T = HypergraphCutValFunc;
-  };
+  using CutFunc = std::conditional_t<ReturnsPartitions, HypergraphCutFunc, HypergraphCutValFunc>;
 
   size_t num_runs() {
     return num_runs_;
@@ -131,7 +119,7 @@ private:
   template<bool ReturnsPartitions>
   void doRunDiscovery(const HypergraphGenerator &gen,
                       const std::string &func_name,
-                      typename CutFunc<ReturnsPartitions>::T func,
+                      CutFunc <ReturnsPartitions> func,
                       const CutInfo &planted_cut,
                       uint64_t planted_cut_id,
                       size_t k);
