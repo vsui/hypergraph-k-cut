@@ -14,7 +14,7 @@ struct kk : public ContractionAlgo<kk> {
   static constexpr char name[] = "KK";
 
   template<typename HypergraphType>
-  using Context = hypergraph_util::Context<HypergraphType>;
+  using Context = util::Context<HypergraphType>;
 
 /**
  * The min-cut algorithm from [KK'14].

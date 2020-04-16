@@ -15,7 +15,7 @@
 
 // TODO don't forward declare things from external libraries
 namespace hypergraphlib {
-namespace hypergraph_util {
+namespace util {
 class ContractionStats;
 }
 }
@@ -25,11 +25,11 @@ class HypergraphGenerator;
 
 using HypergraphCutFunc = std::function<hypergraphlib::HypergraphCut<size_t>(hypergraphlib::Hypergraph *,
                                                                              uint64_t,
-                                                                             hypergraphlib::hypergraph_util::ContractionStats &)>;
+                                                                             hypergraphlib::util::ContractionStats &)>;
 
 using HypergraphCutValFunc = std::function<size_t(hypergraphlib::Hypergraph *,
                                                   uint64_t,
-                                                  hypergraphlib::hypergraph_util::ContractionStats &)>;
+                                                  hypergraphlib::util::ContractionStats &)>;
 
 class ExperimentRunner {
 public:

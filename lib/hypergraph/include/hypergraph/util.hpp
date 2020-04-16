@@ -11,7 +11,7 @@
 
 namespace hypergraphlib {
 
-namespace hypergraph_util {
+namespace util {
 
 struct ContractionStats {
   uint64_t num_contractions = 0;
@@ -29,7 +29,7 @@ struct Context {
   // write to this
   std::atomic<typename HypergraphType::EdgeWeight> min_val_so_far;
   std::chrono::time_point<std::chrono::high_resolution_clock> start;
-  hypergraph_util::ContractionStats stats;
+  util::ContractionStats stats;
   const typename HypergraphType::EdgeWeight discovery_value;
   std::optional<size_t> max_num_runs;
   std::optional<std::chrono::duration<double>> time_limit;
@@ -141,16 +141,16 @@ struct ContractionAlgo {
     if (seed) {
       rand.seed(seed);
     }
-    hypergraph_util::ContractionStats stats{};
-    return hypergraph_util::repeat_contraction<HypergraphType,
-                                               ContractionImpl,
-                                               true,
-                                               Verbosity>(hypergraph,
-                                                          k,
-                                                          rand,
-                                                          stats,
-                                                          num_runs == 0 ? std::nullopt : std::optional(num_runs),
-                                                          std::nullopt);
+    util::ContractionStats stats{};
+    return util::repeat_contraction<HypergraphType,
+                                    ContractionImpl,
+                                    true,
+                                    Verbosity>(hypergraph,
+                                               k,
+                                               rand,
+                                               stats,
+                                               num_runs == 0 ? std::nullopt : std::optional(num_runs),
+                                               std::nullopt);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
@@ -159,16 +159,16 @@ struct ContractionAlgo {
     if (seed) {
       rand.seed(seed);
     }
-    hypergraph_util::ContractionStats stats{};
-    return hypergraph_util::repeat_contraction<HypergraphType,
-                                               ContractionImpl,
-                                               false,
-                                               Verbosity>(hypergraph,
-                                                          k,
-                                                          rand,
-                                                          stats,
-                                                          num_runs == 0 ? std::nullopt : std::optional(num_runs),
-                                                          std::nullopt);
+    util::ContractionStats stats{};
+    return util::repeat_contraction<HypergraphType,
+                                    ContractionImpl,
+                                    false,
+                                    Verbosity>(hypergraph,
+                                               k,
+                                               rand,
+                                               stats,
+                                               num_runs == 0 ? std::nullopt : std::optional(num_runs),
+                                               std::nullopt);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
@@ -176,7 +176,7 @@ struct ContractionAlgo {
                        size_t k,
                        typename HypergraphType::EdgeWeight discovery_value,
                        uint64_t seed = 0) {
-    hypergraph_util::ContractionStats stats{};
+    util::ContractionStats stats{};
     return discover<HypergraphType,
                     Verbosity>(hypergraph, k, discovery_value, stats, seed);
   }
@@ -186,7 +186,7 @@ struct ContractionAlgo {
                              size_t k,
                              typename HypergraphType::EdgeWeight discovery_value,
                              uint64_t seed = 0) {
-    hypergraph_util::ContractionStats stats{};
+    util::ContractionStats stats{};
     return discover_value<HypergraphType,
                           Verbosity>(hypergraph, k, discovery_value, stats, seed);
   }
@@ -195,53 +195,53 @@ struct ContractionAlgo {
   static auto discover(const HypergraphType &hypergraph,
                        size_t k,
                        typename HypergraphType::EdgeWeight discovery_value,
-                       hypergraph_util::ContractionStats &stats,
+                       util::ContractionStats &stats,
                        uint64_t seed = 0) {
     std::mt19937_64 rand;
     stats = {};
     if (seed) {
       rand.seed(seed);
     }
-    return hypergraph_util::repeat_contraction<HypergraphType,
-                                               ContractionImpl,
-                                               true,
-                                               Verbosity>(hypergraph,
-                                                          k,
-                                                          rand,
-                                                          stats,
-                                                          std::nullopt,
-                                                          discovery_value,
-                                                          std::nullopt);
+    return util::repeat_contraction<HypergraphType,
+                                    ContractionImpl,
+                                    true,
+                                    Verbosity>(hypergraph,
+                                               k,
+                                               rand,
+                                               stats,
+                                               std::nullopt,
+                                               discovery_value,
+                                               std::nullopt);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
   static auto discover_value(const HypergraphType &hypergraph,
                              size_t k,
                              typename HypergraphType::EdgeWeight discovery_value,
-                             hypergraph_util::ContractionStats &stats,
+                             util::ContractionStats &stats,
                              uint64_t seed = 0) {
     std::mt19937_64 rand;
     stats = {};
     if (seed) {
       rand.seed(seed);
     }
-    return hypergraph_util::repeat_contraction<HypergraphType,
-                                               ContractionImpl,
-                                               false,
-                                               Verbosity>(hypergraph,
-                                                          k,
-                                                          rand,
-                                                          stats,
-                                                          std::nullopt,
-                                                          discovery_value,
-                                                          std::nullopt);
+    return util::repeat_contraction<HypergraphType,
+                                    ContractionImpl,
+                                    false,
+                                    Verbosity>(hypergraph,
+                                               k,
+                                               rand,
+                                               stats,
+                                               std::nullopt,
+                                               discovery_value,
+                                               std::nullopt);
   }
 
   template<typename HypergraphType, uint8_t Verbosity = 0>
   static auto discover_stats(const HypergraphType &h,
                              size_t k,
                              typename HypergraphType::EdgeWeight discovery_value,
-                             hypergraph_util::ContractionStats &stats,
+                             util::ContractionStats &stats,
                              uint64_t seed = 0) {
     return ContractionAlgo<ContractionImpl>::discover<HypergraphType, Verbosity>(h, k, discovery_value, stats, seed);
   }

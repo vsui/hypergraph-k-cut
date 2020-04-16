@@ -45,14 +45,14 @@ Cut<HypergraphType, ReturnsPartitions> CXY_certificate_minimum_cut(const Hypergr
 
   while (true) {
     Hypergraph certificate = gen.certificate(k);
-    hypergraph_util::ContractionStats stats;
-    auto cut = hypergraph_util::repeat_contraction<HypergraphType, cxy, false, 1>(certificate,
-                                                                                  2,
-                                                                                  std::mt19937_64(seed),
-                                                                                  stats,
-                                                                                  {},
-                                                                                  {k - 1},
-                                                                                  {});
+    util::ContractionStats stats;
+    auto cut = util::repeat_contraction<HypergraphType, cxy, false, 1>(certificate,
+                                                                       2,
+                                                                       std::mt19937_64(seed),
+                                                                       stats,
+                                                                       {},
+                                                                       {k - 1},
+                                                                       {});
     if (cut_value<HypergraphType>(cut) < k) {
       // TODO Use prior context instead of starting a new one
       return cxy::discover_value(certificate, k, discovery, seed);
@@ -258,7 +258,7 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
 
     // We have to make a copy of the hypergraph since some algorithms write to it
     Hypergraph temp(*hypergraph_ptr);
-    hypergraph_util::ContractionStats stats{};
+    util::ContractionStats stats{};
     // TODO probably need to put this in more places
     temp.remove_singleton_and_empty_hyperedges();
 
@@ -312,7 +312,7 @@ std::vector<std::pair<std::string, HypergraphCutFunc>> DiscoveryRunner::getCutAl
   std::vector<std::pair<std::string, HypergraphCutFunc>> cut_funcs = {
       {"cxy", [k, cut_value](Hypergraph *h,
                              uint64_t seed,
-                             hypergraph_util::ContractionStats &stats) {
+                             util::ContractionStats &stats) {
         return cxy::discover_stats<Hypergraph, 0>(*h,
                                                   k,
                                                   cut_value,
@@ -321,7 +321,7 @@ std::vector<std::pair<std::string, HypergraphCutFunc>> DiscoveryRunner::getCutAl
       }},
       {"fpz", [k, cut_value](Hypergraph *h,
                              uint64_t seed,
-                             hypergraph_util::ContractionStats &stats) {
+                             util::ContractionStats &stats) {
         return fpz::discover_stats<Hypergraph, 0>(*h,
                                                   k,
                                                   cut_value,
@@ -330,7 +330,7 @@ std::vector<std::pair<std::string, HypergraphCutFunc>> DiscoveryRunner::getCutAl
       }},
       {"kk", [k, cut_value](Hypergraph *h,
                             uint64_t seed,
-                            hypergraph_util::ContractionStats &stats) {
+                            util::ContractionStats &stats) {
         return kk::discover_stats<Hypergraph, 0>(*h,
                                                  k,
                                                  cut_value,
@@ -339,13 +339,13 @@ std::vector<std::pair<std::string, HypergraphCutFunc>> DiscoveryRunner::getCutAl
       }},
       {"mw", [](Hypergraph *h,
                 uint64_t seed,
-                hypergraph_util::ContractionStats &stats) { return MW_min_cut<Hypergraph>(*h); }},
+                util::ContractionStats &stats) { return MW_min_cut<Hypergraph>(*h); }},
       {"q", [](Hypergraph *h,
                uint64_t seed,
-               hypergraph_util::ContractionStats &stats) { return Q_min_cut<Hypergraph>(*h); }},
+               util::ContractionStats &stats) { return Q_min_cut<Hypergraph>(*h); }},
       {"kw", [](Hypergraph *h,
                 uint64_t seed,
-                hypergraph_util::ContractionStats &stats) { return KW_min_cut<Hypergraph>(*h); }}
+                util::ContractionStats &stats) { return KW_min_cut<Hypergraph>(*h); }}
   };
   cut_funcs.erase(std::remove_if(std::begin(cut_funcs),
                                  std::end(cut_funcs),
@@ -360,7 +360,7 @@ std::vector<std::pair<std::string,
   std::vector<std::pair<std::string, HypergraphCutValFunc>> cutval_funcs = {
       {"cxyval", [k, cut_value](Hypergraph *h,
                                 uint64_t seed,
-                                hypergraph_util::ContractionStats &stats) {
+                                util::ContractionStats &stats) {
         return cxy::discover_value<Hypergraph,
                                    0>(*h,
                                       k,
@@ -370,7 +370,7 @@ std::vector<std::pair<std::string,
       }},
       {"fpzval", [k, cut_value](Hypergraph *h,
                                 uint64_t seed,
-                                hypergraph_util::ContractionStats &stats) {
+                                util::ContractionStats &stats) {
         return fpz::discover_value<Hypergraph,
                                    0>(*h,
                                       k,
@@ -380,35 +380,35 @@ std::vector<std::pair<std::string,
       }},
       {"kkval", [k, cut_value](Hypergraph *h,
                                uint64_t seed,
-                               hypergraph_util::ContractionStats &stats) {
+                               util::ContractionStats &stats) {
         return kk::discover_value<Hypergraph, 0>(*h,
                                                  k,
                                                  cut_value,
                                                  stats,
                                                  seed);
       }},
-      {"mwval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+      {"mwval", [](Hypergraph *h, uint64_t seed, util::ContractionStats &stats) {
         return MW_min_cut_value<Hypergraph>(*h);
       }},
       {"qval", [](Hypergraph *h,
                   uint64_t seed,
-                  hypergraph_util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }},
-      {"kwval", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+                  util::ContractionStats &stats) { return Q_min_cut_value<Hypergraph>(*h); }},
+      {"kwval", [](Hypergraph *h, uint64_t seed, util::ContractionStats &stats) {
         return KW_min_cut_value<Hypergraph>(*h);
       }},
       {
-          "sparseMW", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+          "sparseMW", [](Hypergraph *h, uint64_t seed, util::ContractionStats &stats) {
         return certificate_minimum_cut<Hypergraph, false>(*h, MW_min_cut_value<Hypergraph>);
       }
       },
       {
-          "sparseCXY", [cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+          "sparseCXY", [cut_value](Hypergraph *h, uint64_t seed, util::ContractionStats &stats) {
         // TODO pass same random_generator into both instead of just the seed
         return CXY_certificate_minimum_cut<Hypergraph, false>(*h, seed, cut_value);
       }
       },
       {
-          "approxSparseCXY", [cut_value](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+          "approxSparseCXY", [cut_value](Hypergraph *h, uint64_t seed, util::ContractionStats &stats) {
         const Hypergraph temp(*h);
         auto cut = approximate_minimizer(*h, 1);
         Hypergraph certificate = KTrimmedCertificate(temp).certificate(cut.value);
@@ -416,7 +416,7 @@ std::vector<std::pair<std::string,
       }
       },
       {
-          "approxSparseMW", [](Hypergraph *h, uint64_t seed, hypergraph_util::ContractionStats &stats) {
+          "approxSparseMW", [](Hypergraph *h, uint64_t seed, util::ContractionStats &stats) {
         const Hypergraph temp(*h);
         auto cut = approximate_minimizer(*h, 1);
         Hypergraph certificate = KTrimmedCertificate(temp).certificate(cut.value);
@@ -548,7 +548,7 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
     std::thread contraction_runner([&time_limits, &ctx]() {
       ctx.start = std::chrono::high_resolution_clock::now();
       ctx.time_limit = std::get<1>(time_limits.back());
-      hypergraph_util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
+      util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
     });
     std::thread monitor([&time_limits, &ctx, discovery_value]() {
       for (auto &[percentage, time_limit, cut_factor] : time_limits) {

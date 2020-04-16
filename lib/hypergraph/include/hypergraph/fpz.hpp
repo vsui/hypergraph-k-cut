@@ -40,7 +40,7 @@ struct fpz : public ContractionAlgo<fpz> {
   };
 
   template<typename HypergraphType>
-  struct Context : public hypergraph_util::Context<HypergraphType> {
+  struct Context : public util::Context<HypergraphType> {
     std::deque<LocalContext<HypergraphType>> branches;
 
     Context(const HypergraphType &hypergraph,
@@ -50,13 +50,13 @@ struct fpz : public ContractionAlgo<fpz> {
             std::optional<std::chrono::duration<double>> time_limit,
             std::optional<size_t> max_num_runs,
             std::chrono::time_point<std::chrono::high_resolution_clock> start)
-        : hypergraph_util::Context<HypergraphType>(hypergraph,
-                                                   k,
-                                                   random_generator,
-                                                   discovery_value,
-                                                   time_limit,
-                                                   max_num_runs,
-                                                   start),
+        : util::Context<HypergraphType>(hypergraph,
+                                        k,
+                                        random_generator,
+                                        discovery_value,
+                                        time_limit,
+                                        max_num_runs,
+                                        start),
           branches() {}
   };
 
