@@ -479,7 +479,7 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
     doRunCutoff<cxy>(hypergraph, k, cut_value, cutoff_time, output);
   }
   if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "fpz") != algos_.end()) {
-    doRunCutoff<fpz::FpzImpl>(hypergraph, k, cut_value, cutoff_time, output);
+    doRunCutoff<fpz>(hypergraph, k, cut_value, cutoff_time, output);
   }
   if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "kk") != algos_.end()) {
     doRunCutoff<kk::KkImpl>(hypergraph, k, cut_value, cutoff_time, output);
@@ -576,7 +576,4 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
     output << "," << cut_factor;
   }
   output << std::endl;
-
 }
-
-

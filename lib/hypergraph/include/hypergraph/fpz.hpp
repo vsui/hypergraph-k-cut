@@ -11,7 +11,7 @@
 
 namespace hypergraphlib {
 
-namespace fpz {
+struct fpz : public ContractionAlgo<fpz> {
 
 /**
  * Redo probability from the branching contraction paper. The calculations have been changed to use log calculation to
@@ -22,18 +22,17 @@ namespace fpz {
  * @param k number of partitions
  * @return the redo probability
  */
-inline double redo_probability(size_t n, size_t e, size_t k) {
-  return 1 - cxy::cxy_delta(n, e, k);
-}
+  static inline double redo_probability(size_t n, size_t e, size_t k) {
+    return 1 - cxy::cxy_delta(n, e, k);
+  }
 
-struct FpzImpl {
   static constexpr bool pass_discovery_value = true;
 
   static constexpr char name[] = "FPZ";
 
-  /**
-   * Stack context to represent different branches of computation
-   */
+/**
+ * Stack context to represent different branches of computation
+ */
   template<typename HypergraphType>
   struct LocalContext {
     HypergraphType hypergraph;
@@ -98,14 +97,14 @@ struct FpzImpl {
     return ctx.min_so_far;
   }
 
-  /**
- * Calculate the number of runs required to find the minimum k-cut with high probability.
- *
- * @tparam HypergraphType
- * @param hypergraph
- * @param k
- * @return the number of runs required to find the minimum cut with high probability
- */
+/**
+* Calculate the number of runs required to find the minimum k-cut with high probability.
+*
+* @tparam HypergraphType
+* @param hypergraph
+* @param k
+* @return the number of runs required to find the minimum cut with high probability
+*/
   template<typename HypergraphType>
   static size_t default_num_runs(const HypergraphType &hypergraph, [[maybe_unused]] size_t k) {
     auto log_n =
@@ -198,9 +197,5 @@ struct FpzImpl {
   }
 
 };
-
-DECLARE_CONTRACTION_MIN_K_CUT(FpzImpl);
-
-} // namespace fpz
 
 }
