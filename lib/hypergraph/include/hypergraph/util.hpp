@@ -82,9 +82,9 @@ auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> 
 
     if constexpr (Verbosity > 0) {
       std::cout << "[" << ++i << "] took "
-          << std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start_run).count()
-          << " milliseconds, got " << cut.value << ", min is " << ctx.min_so_far.value << ", discovery value is "
-          << ctx.discovery_value << "\n";
+                << std::chrono::duration_cast<std::chrono::milliseconds>(stop_run - start_run).count()
+                << " milliseconds, got " << cut.value << ", min is " << ctx.min_so_far.value << ", discovery value is "
+                << ctx.discovery_value << "\n";
     }
   }
 
@@ -236,10 +236,20 @@ struct ContractionAlgo {
                                                           discovery_value,
                                                           std::nullopt);
   }
+
+  template<typename HypergraphType, uint8_t Verbosity = 0>
+  static auto discover_stats(const HypergraphType &h,
+                             size_t k,
+                             typename HypergraphType::EdgeWeight discovery_value,
+                             hypergraph_util::ContractionStats &stats,
+                             uint64_t seed = 0) {
+    return ContractionAlgo<ContractionImpl>::discover<HypergraphType, Verbosity>(h, k, discovery_value, stats, seed);
+  }
 };
 
 }
 
+// TODO Fix this
 // Makes importing the overloaded function names into a different namespace easier.
 #define DECLARE_CONTRACTION_MIN_K_CUT(impl) \
 template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto minimum_cut(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::minimum_cut<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
