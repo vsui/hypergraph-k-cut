@@ -209,7 +209,7 @@ int dispatch(Options options) {
    */
   if (is_contraction_algorithm(options.algorithm)) {
     const std::map<cut_algorithm, size_t> num_runs_map = {
-        {cut_algorithm::CXY, cxy::CxyImpl::default_num_runs(hypergraph, options.k)},
+        {cut_algorithm::CXY, cxy::default_num_runs(hypergraph, options.k)},
         {cut_algorithm::FPZ, fpz::FpzImpl::default_num_runs(hypergraph, options.k)},
         {cut_algorithm::KK, kk::KkImpl::default_num_runs(hypergraph, options.k)}
     };

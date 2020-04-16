@@ -14,7 +14,7 @@
 
 namespace hypergraphlib {
 
-namespace cxy {
+struct cxy : public ContractionAlgo<cxy> {
 
 /**
  * Calculates delta from CXY. The probability that an edge
@@ -36,53 +36,52 @@ namespace cxy {
  *   e: the size of the hyperedge
  *   k: number of partitions
  */
-inline double cxy_delta(size_t num_vertices, size_t hyperedge_size, size_t k) {
-  static std::map<std::tuple<size_t, size_t, size_t>, double> memo;
+  static inline double cxy_delta(size_t num_vertices, size_t hyperedge_size, size_t k) {
+    static std::map<std::tuple<size_t, size_t, size_t>, double> memo;
 
-  if (auto it = memo.find(std::make_tuple(num_vertices, hyperedge_size, k)); it != std::end(memo)) {
-    return it->second;
-  }
+    if (auto it = memo.find(std::make_tuple(num_vertices, hyperedge_size, k)); it != std::end(memo)) {
+      return it->second;
+    }
 
-  double s = 0;
-  if (num_vertices < hyperedge_size + k - 2) {
-    return 0;
+    double s = 0;
+    if (num_vertices < hyperedge_size + k - 2) {
+      return 0;
+    }
+    for (size_t i = num_vertices - (hyperedge_size + k - 2); i <= num_vertices - hyperedge_size; ++i) {
+      s += std::log(i);
+    }
+    if (num_vertices < k - 2) {
+      return 0;
+    }
+    for (size_t i = num_vertices - (k - 2); i <= num_vertices; ++i) {
+      s -= std::log(i);
+    }
+    assert(!std::isnan(s));
+    return std::exp(s);
   }
-  for (size_t i = num_vertices - (hyperedge_size + k - 2); i <= num_vertices - hyperedge_size; ++i) {
-    s += std::log(i);
-  }
-  if (num_vertices < k - 2) {
-    return 0;
-  }
-  for (size_t i = num_vertices - (k - 2); i <= num_vertices; ++i) {
-    s -= std::log(i);
-  }
-  assert(!std::isnan(s));
-  return std::exp(s);
-}
 
 /**
  * Return n choose k
  */
-inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
-  if (k > n) {
-    return 0;
-  }
-  if (k * 2 > n) {
-    k = n - k;
-  }
-  if (k == 0) {
-    return 1;
+  static inline unsigned long long ncr(unsigned long long n, unsigned long long k) {
+    if (k > n) {
+      return 0;
+    }
+    if (k * 2 > n) {
+      k = n - k;
+    }
+    if (k == 0) {
+      return 1;
+    }
+
+    unsigned long long result = n;
+    for (unsigned long long i = 2; i <= k; ++i) {
+      result *= (n - i + 1);
+      result /= i;
+    }
+    return result;
   }
 
-  unsigned long long result = n;
-  for (unsigned long long i = 2; i <= k; ++i) {
-    result *= (n - i + 1);
-    result /= i;
-  }
-  return result;
-}
-
-struct CxyImpl {
   static constexpr bool pass_discovery_value = false;
 
   static constexpr char name[] = "CXY";
@@ -171,10 +170,7 @@ struct CxyImpl {
     num_runs = std::max(num_runs, 1ull);
     return num_runs;
   }
+
 };
-
-DECLARE_CONTRACTION_MIN_K_CUT(CxyImpl)
-
-}
 
 }
