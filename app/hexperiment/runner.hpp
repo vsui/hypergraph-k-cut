@@ -56,6 +56,24 @@ protected:
     return *store_;
   }
 
+protected:
+  // Report cut to database, return cut ID or empty on failure
+  template<bool ReturnsPartitions>
+  std::optional<uint64_t> doReportCut(const HypergraphWrapper &hypergraph,
+                                      const CutInfo &found_cut,
+                                      const CutInfo &planted_cut,
+                                      uint64_t planted_cut_id,
+                                      bool cut_off = false);
+
+  // Report cut and run to database
+  template<bool ReturnsPartitions>
+  bool doReportCutAndRun(const HypergraphWrapper &hypergraph,
+                         const CutInfo &found_cut_info,
+                         const CutInfo &planted_cut,
+                         uint64_t planted_cut_id,
+                         const CutRunInfo &run_info,
+                         const hypergraphlib::util::ContractionStats &stats);
+
 private:
 
   struct InitializeRet {
@@ -69,14 +87,6 @@ private:
   // Initializes the hypergraph by adding it to the database. Also adds the cut.
   // Returns an empty optional if an operation fails.
   std::optional<InitializeRet> doInitialize(const HypergraphGenerator &gen);
-
-  // Report cut to database, return cut ID or empty on failure
-  template<bool ReturnsPartitions>
-  std::optional<uint64_t> doReportCut(const HypergraphWrapper &hypergraph,
-                                      const CutInfo &found_cut,
-                                      const CutInfo &planted_cut,
-                                      uint64_t planted_cut_id,
-                                      bool cut_off = false);
 
   // Do work on hypergraph
   virtual void doProcessHypergraph(const HypergraphGenerator &gen,

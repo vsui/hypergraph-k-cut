@@ -219,6 +219,33 @@ std::optional<uint64_t> ExperimentRunner::doReportCut<false>(const HypergraphWra
   return found_cut_id;
 }
 
+template<bool ReturnsPartitions>
+bool ExperimentRunner::doReportCutAndRun(const HypergraphWrapper &hypergraph,
+                                         const CutInfo &found_cut_info,
+                                         const CutInfo &planted_cut,
+                                         uint64_t planted_cut_id,
+                                         const CutRunInfo &run_info,
+                                         const util::ContractionStats &stats) {
+  auto found_cut_id =
+      doReportCut<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id);
+  if (!found_cut_id) {
+    spdlog::error("Failed to get cut ID");
+    return false;
+  }
+
+  if (store().report(hypergraph.name,
+                     found_cut_id.value(),
+                     run_info,
+                     stats.num_runs,
+                     stats.num_contractions)
+      == ReportStatus::ERROR) {
+    spdlog::error("Failed to report run");
+    return false;
+  }
+
+  return true;
+}
+
 DiscoveryRunner::DiscoveryRunner(std::string id,
                                  std::vector<std::unique_ptr<HypergraphGenerator>> &&source,
                                  std::shared_ptr<CutInfoStore> store,
@@ -274,22 +301,7 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
     run_info.machine = hostname();
     run_info.commit = "n/a";
 
-    // doReportCutAndRun
-    auto found_cut_id =
-        doReportCut<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id);
-    if (!found_cut_id) {
-      spdlog::error("Failed to get cut ID");
-      return;
-    }
-
-    if (store().report(hypergraph.name,
-                       found_cut_id.value(),
-                       run_info,
-                       stats.num_runs,
-                       stats.num_contractions)
-        == ReportStatus::ERROR) {
-      spdlog::error("Failed to report run");
-    }
+    doReportCutAndRun<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id, run_info, stats);
   }
 }
 
