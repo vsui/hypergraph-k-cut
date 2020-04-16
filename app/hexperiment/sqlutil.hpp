@@ -5,6 +5,11 @@
 #ifndef HYPERGRAPHPARTITIONING_EXPERIMENT_SQLUTIL_HPP
 #define HYPERGRAPHPARTITIONING_EXPERIMENT_SQLUTIL_HPP
 
+#include <string>
+#include <sstream>
+#include <tuple>
+#include <vector>
+
 namespace sqlutil {
 
 /* Struct representing `time("now")` SQL function */
@@ -12,6 +17,8 @@ struct TimeNow {};
 
 namespace _impl {
 template<typename InputIt>
+
+// Delimit a range of strings with ", "'s
 std::string comma_delimit(InputIt begin, InputIt end) {
   std::ostringstream oss;
   oss << *begin;
@@ -72,6 +79,36 @@ std::string insert_statement(const std::string &table_name, Ts &&... args) {
 
   return oss.str();
 }
+
+/**
+ * Builds a sqlite3 insert statement one column at a time
+ */
+struct InsertStatementBuilder {
+  /**
+   * Create a builder for a table with the given name
+   */
+  explicit InsertStatementBuilder(std::string table_name);
+
+  /**
+   * Add a column and value pair
+   */
+  void add(const std::string &col_name, int val);
+
+  /**
+   * Add a column and value pair
+   */
+  void add(const std::string &col_name, const std::string &val);
+
+  /**
+   * Output sql statement string
+   */
+  std::string string();
+
+private:
+  std::string table_name_;
+  // Range of column, raw string value pairs
+  std::vector<std::tuple<std::string, std::string>> col_vals_;
+};
 
 } // namespace sqlutil
 

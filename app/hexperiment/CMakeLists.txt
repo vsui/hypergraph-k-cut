@@ -9,7 +9,8 @@ add_executable(hexperiment
         store.cpp
         store.hpp
         experiment.cpp
-        experiment.hpp)
+        experiment.hpp
+        sqlutil.cpp)
 
 target_link_libraries(hexperiment
         hypergraph

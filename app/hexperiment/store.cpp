@@ -253,36 +253,18 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   }
 
   // Cut not in store, need to add it
-  std::stringstream stream;
-
-  std::string table_name = "cuts"s + std::to_string(info.k);
-  std::string columns = "(hypergraph_id, val, planted";
+  sqlutil::InsertStatementBuilder builder("cuts"s + std::to_string(info.k));
+  builder.add("hypergraph_id", hypergraph_id);
+  builder.add("val", info.cut_value);
+  builder.add("planted", planted ? 1 : 0);
   for (int i = 0; i < info.partitions.size(); ++i) {
-    columns += ", size_p"s + std::to_string(i + 1);
+    builder.add("size_p"s + std::to_string(i + 1), info.partitions.at(i).size());
+    builder.add("blob_p"s + std::to_string(i + 1), partition_to_str(info.partitions.at(i)));
   }
-  for (int i = 0; i < info.partitions.size(); ++i) {
-    columns += ", blob_p"s + std::to_string(i + 1);
-  }
-  columns += ")";
-  std::string partition_sizes_string;
-  for (const auto &p : info.partitions) {
-    partition_sizes_string += ", "s + std::to_string(p.size());
-  }
-  std::string partition_blobs_string;
-  for (const auto &p : info.partitions) {
-    partition_blobs_string += ", "s + "\'" + partition_to_str(p) + "\'";
-  }
-  // We still need to make this manually for now...
-  stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
-         << "'" << hypergraph_id << "'"
-         << ", " << info.cut_value
-         << ", " << (planted ? 1 : 0)
-         << partition_sizes_string
-         << partition_blobs_string
-         << ");";
+  const auto insert_stmt = builder.string();
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
+  int err = sqlite3_exec(db_, insert_stmt.c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
