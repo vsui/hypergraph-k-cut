@@ -249,13 +249,4 @@ struct ContractionAlgo {
 
 }
 
-// TODO Fix this
-// Makes importing the overloaded function names into a different namespace easier.
-#define DECLARE_CONTRACTION_MIN_K_CUT(impl) \
-template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto minimum_cut(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::minimum_cut<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
-template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto minimum_cut_value(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::minimum_cut_value<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
-template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto discover(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::discover<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
-template <typename HypergraphType, uint8_t Verbosity = 0, typename ...Ts> auto discover_value(const HypergraphType &h, Ts&&... args) { return ContractionAlgo<impl>::discover_value<HypergraphType, Verbosity>(h, std::forward<Ts>(args)...); } \
-template <typename HypergraphType, uint8_t Verbosity = 0> auto discover_stats(const HypergraphType &h, size_t k, typename HypergraphType::EdgeWeight discovery_value, hypergraph_util::ContractionStats &stats, uint64_t seed = 0) { return ContractionAlgo<impl>::discover<HypergraphType, Verbosity>(h, k, discovery_value, stats, seed); }
-
 #endif

@@ -211,7 +211,7 @@ int dispatch(Options options) {
     const std::map<cut_algorithm, size_t> num_runs_map = {
         {cut_algorithm::CXY, cxy::default_num_runs(hypergraph, options.k)},
         {cut_algorithm::FPZ, fpz::default_num_runs(hypergraph, options.k)},
-        {cut_algorithm::KK, kk::KkImpl::default_num_runs(hypergraph, options.k)}
+        {cut_algorithm::KK, kk::default_num_runs(hypergraph, options.k)}
     };
     size_t recommended_num_runs = num_runs_map.at(options.algorithm);
 

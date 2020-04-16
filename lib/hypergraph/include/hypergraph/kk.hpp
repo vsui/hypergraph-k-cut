@@ -7,14 +7,14 @@
 
 namespace hypergraphlib {
 
-namespace kk {
+struct kk : public ContractionAlgo<kk> {
 
-static constexpr bool pass_discovery_value = false;
+  static constexpr bool pass_discovery_value = false;
 
-static constexpr char name[] = "KK";
+  static constexpr char name[] = "KK";
 
-template<typename HypergraphType>
-using Context = hypergraph_util::Context<HypergraphType>;
+  template<typename HypergraphType>
+  using Context = hypergraph_util::Context<HypergraphType>;
 
 /**
  * The min-cut algorithm from [KK'14].

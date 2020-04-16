@@ -482,7 +482,7 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
     doRunCutoff<fpz>(hypergraph, k, cut_value, cutoff_time, output);
   }
   if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "kk") != algos_.end()) {
-    doRunCutoff<kk::KkImpl>(hypergraph, k, cut_value, cutoff_time, output);
+    doRunCutoff<kk>(hypergraph, k, cut_value, cutoff_time, output);
   }
 }
 
