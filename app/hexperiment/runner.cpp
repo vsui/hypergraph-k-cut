@@ -504,10 +504,18 @@ std::chrono::duration<double> CutoffRunner::computeCutoffTime(const HypergraphWr
   auto cutoff_time = std::chrono::duration<double>::zero();
   for (int i = 0; i < num_runs(); ++i) {
     Hypergraph temp(*hypergraph_ptr);
+
     auto start = std::chrono::high_resolution_clock::now();
     auto cut = MW_min_cut_value(temp);
-    // TODO report info
     auto end = std::chrono::high_resolution_clock::now();
+
+    CutRunInfo run_info(id(), {2, cut});
+    run_info.algorithm = "MW";
+    run_info.machine = hostname();
+    run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    store().report(hypergraph.name, run_info, 0, 0);
+
     cutoff_time += (end - start);
   }
   cutoff_time /= num_runs();
@@ -561,7 +569,7 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
     auto start = std::chrono::high_resolution_clock::now();
     std::thread contraction_runner([&time_limits, &ctx]() {
       ctx.start = std::chrono::high_resolution_clock::now();
-      ctx.time_limit = std::get<1>(time_limits.back());
+      ctx.time_limit = std::nullopt;
       util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
     });
     std::thread monitor([&time_limits, &ctx, discovery_value]() {
@@ -582,12 +590,25 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
 
     contraction_runner.join();
     auto stop = std::chrono::high_resolution_clock::now();
-
-    // Get Cut Id
-
-    // store().report(hypergraph.name,
-
     monitor.join();
+
+    size_t k = 2; // TODO hardcode for now
+    CutInfo cut_info(k, ctx.min_so_far);
+
+    std::string hypergraph_id;
+    size_t num_runs_for_discovery;
+    size_t num_contractions = 0;
+
+    // TODO Constructor for this
+    CutRunInfo run_info(id(), cut_info);
+    run_info.algorithm = ContractImpl::name;
+    run_info.machine = hostname();
+    run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+    run_info.commit = "";
+
+    if (store().report(hypergraph.name, run_info, num_runs_for_discovery, num_contractions) == ReportStatus::ERROR) {
+      spdlog::error("Failed to report run");
+    }
   }
 
   output << ContractImpl::name;

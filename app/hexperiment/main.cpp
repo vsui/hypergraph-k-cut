@@ -210,14 +210,20 @@ int run_experiment(const std::filesystem::path &config_path,
 
   std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
 
-  std::stringstream python_cmd;
-  python_cmd << "python3 "s
-             << (here / ".." / ".." / (cutoff ? "scripts/sqlplot-cutoff.py" : "scripts/sqlplot.py")) << " "
-             << output_path;
-
   std::cout << "Done, writing artifacts to " << output_path << std::endl;
 
-  std::system(python_cmd.str().c_str());
+  auto script_cmd = [here, output_path](const std::string script_name) -> std::string {
+    std::stringstream python_cmd;
+    python_cmd << "python3 "
+               << (here / ".." / ".." / script_name);
+    python_cmd << " " << output_path;
+    return python_cmd.str();
+  };
+
+  std::system(script_cmd("scripts/sqlplot.py").c_str());
+  if (cutoff) {
+    std::system(script_cmd("scripts/sqlplot-cutoff.py").c_str());
+  }
 
   return 0;
 }
