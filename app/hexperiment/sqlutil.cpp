@@ -4,6 +4,8 @@
 
 #include "sqlutil.hpp"
 
+#include <algorithm>
+
 sqlutil::InsertStatementBuilder::InsertStatementBuilder(std::string table_name) : table_name_(std::move(table_name)) {}
 
 void sqlutil::InsertStatementBuilder::add(const std::string &col_name, const std::string &val) {
