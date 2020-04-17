@@ -35,6 +35,8 @@ for filename in hypergraph_files:
     cutoffs_filtered = [cutoff for cutoff, factor in cutoff_factor]
 
     plt.plot(cutoffs_filtered, factors_filtered, label=algo)
+
+  plt.axhline(y=1, color='r')
   plt.legend()
   plt.savefig(f'cutoff_{name}.pdf')
   plt.close()

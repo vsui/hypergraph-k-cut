@@ -22,6 +22,7 @@ struct InputInfo {
       (size_t, num_vertices),
       (size_t, num_edges),
       (double, radius),
+      (uint64_t, seed),
       (double, epsilon),
 
       (size_t, min_cut_value),
@@ -73,6 +74,7 @@ std::ostream &operator<<(std::ostream &out, const InputInfo &info) {
   return out;
 }
 
+/*
 std::istream &operator>>(std::istream &in, InputInfo &info) {
   std::string line;
   std::getline(in, line);
@@ -92,6 +94,7 @@ std::istream &operator>>(std::istream &in, InputInfo &info) {
 
   return in;
 }
+ */
 
 struct Timer {
   using TimePoint = decltype(std::chrono::high_resolution_clock::now());
@@ -136,16 +139,22 @@ int main() {
   std::vector<InputInfo> infos;
 
   for (size_t num_vertices = 100; num_vertices <= 500; num_vertices += 25) {
-    for (size_t num_edges = 100; num_edges <= 5000; num_edges += 250) {
+    for (size_t num_edges = 100; num_edges <= num_vertices * 30; num_edges += 250) {
       for (double radius = 5; radius <= 90; radius += 5) {
         for (double epsilon: {0.1, 0.2, 0.4, 0.8, 1., 2., 4., 8., 16., 32., 64., 128.}) {
-          InputInfo info = {
-              .num_vertices = num_vertices,
-              .num_edges = num_edges,
-              .radius = radius,
-              .epsilon = epsilon
-          };
-          infos.emplace_back(std::move(info));
+          for (int i = 0; i < 10; ++i) {
+            std::mt19937_64 rd;
+            std::uniform_int_distribution<uint64_t> dis;
+            uint64_t seed;
+            InputInfo info = {
+                .num_vertices = num_vertices,
+                .num_edges = num_edges,
+                .radius = radius,
+                .epsilon = epsilon,
+                .seed = dis(rd)
+            };
+            infos.emplace_back(std::move(info));
+          }
         }
       }
     }
