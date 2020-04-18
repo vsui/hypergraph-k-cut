@@ -16,6 +16,7 @@ namespace hypergraphlib {
 // To restrict dynamic polymorphism with Hypergraphs and WeightedHypergraphs
 class Hypergraph : public HypergraphBase<Hypergraph> {
   using Base = HypergraphBase<Hypergraph>;
+
   friend Base;
 
   Hypergraph(const HypergraphBase &h) : HypergraphBase(h) {}
@@ -25,6 +26,8 @@ class Hypergraph : public HypergraphBase<Hypergraph> {
 
 public:
   static constexpr bool weighted = false;
+
+  using Heap = BucketHeap;
 
   using Base::Base;
 };

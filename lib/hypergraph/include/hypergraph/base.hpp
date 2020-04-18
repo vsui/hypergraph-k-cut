@@ -11,7 +11,6 @@ class HypergraphBase {
   friend T;
   friend class KTrimmedCertificate;
 public:
-  using Heap = BucketHeap;
   using EdgeWeight = size_t;
   using vertex_range = decltype(boost::adaptors::keys(std::unordered_map<int, std::vector<int>>{}));
 
