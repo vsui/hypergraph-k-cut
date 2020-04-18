@@ -1,14 +1,26 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+"""
+usage: sqlplot-cutoff.py <source> <destination>
 
-# A lot done here that should probably be done in SQL...
+Reads the artifacts from the source directory and outputs plots to the destination directory.
+Creates the destination directory if necessary.
+
+Specifically references the 'data.txt' file
+"""
 
 import matplotlib.pyplot as plt
 import os
 import sys
 
-os.chdir(sys.argv[1])
+src = sys.argv[1]
+dest = sys.argv[2]
 
-hypergraph_files = (file for file in os.listdir('.') if file.endswith('data.txt'))
+if not os.path.exists(dest):
+    os.mkdir(dest)
+elif not os.path.isdir(dest):
+    print(f'Error: {dest} already exists but is not a directory')
+
+hypergraph_files = (file for file in os.listdir(src) if file.endswith('data.txt'))
 
 for filename in hypergraph_files:
   name = filename[:-len('.data.txt')]
@@ -17,7 +29,7 @@ for filename in hypergraph_files:
   plt.xlabel('Cutoff percentage')
   plt.ylabel('Suboptimality factor')
 
-  file = open(filename)
+  file = open(os.path.join(src, filename))
   cutoffs = [float(cutoff) for cutoff in file.readline().strip().split(',')[1:]]
 
   for line in file:
@@ -38,5 +50,5 @@ for filename in hypergraph_files:
 
   plt.axhline(y=1, color='r')
   plt.legend()
-  plt.savefig(f'cutoff_{name}.pdf')
+  plt.savefig(os.path.join(dest, f'cutoff_{name}.pdf'))
   plt.close()

@@ -1,4 +1,13 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+"""
+usage: sqlplot.py <source> <destination>
+
+Reads the artifacts from the source directory and outputs plots to the destination directory.
+Creates the destination directory if necessary.
+
+More specifically, will plot the discovery times of the algorithms in the sqlite database at
+'<source>/data.db'.
+"""
 
 import matplotlib.pyplot as plt
 import os
@@ -6,11 +15,17 @@ import sqlite3
 import sys
 from typing import Tuple, List
 
-os.chdir(sys.argv[1])
+src_dir = sys.argv[1]
+dest_dir = sys.argv[2]
 
-DB_PATH = 'data.db'
+if not os.path.exists(dest_dir):
+    os.mkdir(dest_dir)
+elif not os.path.isdir(dest_dir):
+    print(f'Error: {dest_dir} already exists but is not a directory')
 
-conn = sqlite3.connect(DB_PATH)
+db_path = os.path.join(src_dir, 'data.db')
+
+conn = sqlite3.connect(db_path)
 
 # Get algos
 c = conn.cursor()
@@ -70,7 +85,7 @@ def make_plot(filename: str, title: str, filter=None):
         xs, ys = get_series(algo)
         plt.plot(xs, ys, label=algo)
     plt.legend()
-    plt.savefig(filename)
+    plt.savefig(os.path.join(dest_dir, filename))
     plt.close()
 
 
