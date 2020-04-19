@@ -16,13 +16,74 @@
 #include "experiment.hpp"
 
 using namespace hypergraphlib;
+namespace fs = std::filesystem;
 
-int run_experiment(const std::filesystem::path &config_path,
-                   const std::filesystem::path &output_path = {},
+int run_experiment(const fs::path &config_path,
+                   const fs::path &output_path = {},
                    const std::optional<size_t> &num_runs = {});
-int list_sizes(const std::filesystem::path &config_path);
-int check_cuts(const std::filesystem::path &config_path);
-int check_approx(const std::filesystem::path &config_path);
+int list_sizes(const fs::path &config_path);
+int check_cuts(const fs::path &config_path);
+int check_approx(const fs::path &config_path);
+
+// Executes different functions based on the flags
+struct Executor {
+  virtual int operator()(const fs::path &config_path, const fs::path &output_path) const = 0;
+
+  virtual ~Executor() = default;
+
+  static std::unique_ptr<Executor> factory(const bool list_sizes,
+                                           const bool check_cuts,
+                                           const bool check_approx,
+                                           const std::optional<size_t> &num_runs);
+};
+
+struct ExperimentExecutor : public Executor {
+  std::optional<size_t> num_runs;
+
+  int operator()(const fs::path &config_path, const fs::path &output_path) const override {
+    return run_experiment(config_path, output_path, num_runs);
+  }
+};
+
+struct ListSizesExecutor : public Executor {
+  int operator()(const fs::path &config_path, const fs::path &) const override {
+    return list_sizes(config_path);
+  }
+};
+
+struct CheckCutsExecutor : public Executor {
+
+  int operator()(const fs::path &config_path, const fs::path &) const override {
+    return check_cuts(config_path);
+  }
+};
+
+struct CheckApproxExecutor : public Executor {
+  int operator()(const fs::path &config_path, const fs::path &) const override {
+    return check_approx(config_path);
+  }
+};
+
+std::unique_ptr<Executor> Executor::factory(const bool list_sizes,
+                                            const bool check_cuts,
+                                            const bool check_approx,
+                                            const std::optional<size_t> &num_runs) {
+  if (list_sizes)
+    return std::make_unique<ListSizesExecutor>();
+  else if (check_cuts)
+    return std::make_unique<CheckCutsExecutor>();
+  else if (check_approx)
+    return std::make_unique<CheckApproxExecutor>();
+  else {
+    auto exec = std::make_unique<ExperimentExecutor>();
+    exec->num_runs = num_runs;
+    return exec;
+  }
+}
+
+void recursively_execute(const fs::path &config_path,
+                         const fs::path &output_path,
+                         const Executor &execute);
 
 int main(int argc, char **argv) {
   TCLAP::CmdLine cmd("Hypergraph experiment runner", ' ', "0.1");
@@ -59,77 +120,57 @@ int main(int argc, char **argv) {
   );
 
   TCLAP::ValueArg<size_t>
-      numRunsArg("r", "runs", "Override number of runs for configs", false, 0, "A positive integer", cmd);
+      numRunsArg("n", "runs", "Override number of runs for configs", false, 0, "A positive integer", cmd);
+
+  TCLAP::SwitchArg recursiveArg("r", "recursive", "Run hexperiment for all configs in the tree");
+
+  TCLAP::SwitchArg forceArg("f", "force", "Remove any files already in the output path");
 
   std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg, &checkApproxArg};
 
   cmd.xorAdd(xor_list);
+  cmd.add(recursiveArg);
+  cmd.add(forceArg);
 
   cmd.parse(argc, argv);
 
-  std::filesystem::path config_path = configFileArg.getValue();
-  std::filesystem::path output_path = destArg.getValue();
+  fs::path config_path = configFileArg.getValue();
+  fs::path output_path = destArg.getValue();
 
-  const auto
-      execute = [&listSizesArg, &checkCutsArg, &numRunsArg, &checkApproxArg](const std::filesystem::path &config_path,
-                                                                             const std::filesystem::path &output_path) {
-    try {
-      if (listSizesArg.isSet()) {
-        list_sizes(config_path);
-      } else if (checkCutsArg.isSet()) {
-        check_cuts(config_path);
-      } else if (checkApproxArg.isSet()) {
-        check_approx(config_path);
-      } else {
-        run_experiment(config_path,
-                       output_path,
-                       numRunsArg.isSet() ? std::make_optional(numRunsArg.getValue()) : std::nullopt);
-      }
-    } catch (const std::exception &e) {
-      std::cerr << "Exception thrown: " << e.what() << std::endl;
-      exit(1);
-    }
-  };
+  const auto execute = Executor::factory(listSizesArg.isSet(),
+                                         checkCutsArg.isSet(),
+                                         checkApproxArg.isSet(),
+                                         numRunsArg.isSet() ? std::make_optional(numRunsArg.getValue()) : std::nullopt);
 
-  if (std::filesystem::is_directory(config_path)) {
-    if (std::filesystem::exists(output_path)) {
-      std::cout << output_path << " already exists. Overwrite? [yN]" << std::endl;
-
-      char c;
-      while (std::cin.read(&c, 1)) {
-        if (c == 'y') {
-          break;
-        } else if (c == 'N') {
-          return 0;
+  try {
+    if (recursiveArg.isSet()) {
+      if (fs::exists(output_path)) {
+        if (forceArg.isSet()) {
+          fs::remove_all(output_path);
         } else {
-          std::cout << "Enter one of [yN]" << std::endl;
+          std::cerr << "Error: '" << output_path.string() << "' already exists\n"
+                    << "\nUse '-f' to force removal of '" << output_path.string() << "'" << std::endl;
+          exit(1);
         }
       }
-
-      std::filesystem::remove_all(output_path);
+      recursively_execute(config_path, output_path, *execute);
+    } else {
+      (*execute)(config_path, output_path);
     }
-
-    // Execute all config files in config_path
-    for (auto &p :std::filesystem::directory_iterator(config_path)) {
-      if (p.is_directory()) {
-        std::cout << "Skipping " << p.path() << ", is a directory" << std::endl;
-        continue;
-      }
-      if (p.path().extension() != ".yaml") {
-        std::cout << "Skipping " << p.path() << ", is not a YAML file" << std::endl;
-        continue;
-      }
-      execute(p.path(), output_path / p.path().stem());
-    }
-  } else {
-    execute(config_path, output_path);
+  } catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << std::endl;
   }
 }
 
-int run_experiment(const std::filesystem::path &config_path,
-                   const std::filesystem::path &output_path,
+int run_experiment(const fs::path &config_path,
+                   const fs::path &output_path,
                    const std::optional<size_t> &num_runs) {
   using namespace std::string_literals;
+
+  if (!fs::is_regular_file(config_path)) {
+    std::cerr << "Error: " << config_path.string() << " is not a file" << std::endl;
+    return 1;
+  }
 
   YAML::Node node = YAML::LoadFile(config_path);
   Experiment experiment = experiment_from_config_file(config_path);
@@ -142,7 +183,7 @@ int run_experiment(const std::filesystem::path &config_path,
   }
 
   // Prepare output directory
-  if (std::filesystem::exists(output_path)) {
+  if (fs::exists(output_path)) {
     std::cout << output_path << " already exists. Overwrite? [yN]" << std::endl;
 
     char c;
@@ -156,13 +197,13 @@ int run_experiment(const std::filesystem::path &config_path,
       }
     }
 
-    std::filesystem::remove_all(output_path);
+    fs::remove_all(output_path);
   }
-  if (!std::filesystem::create_directories(output_path)) {
+  if (!fs::create_directories(output_path)) {
     std::cerr << "Failed to create output directory '" << output_path << "'" << std::endl;
     return 1;
   }
-  std::filesystem::path db_path = output_path / "data.db";
+  fs::path db_path = output_path / "data.db";
 
   // Prepare logger
   auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(output_path / "log.txt", true);
@@ -172,7 +213,7 @@ int run_experiment(const std::filesystem::path &config_path,
 
   spdlog::set_default_logger(logger);
 
-  std::filesystem::copy_file(config_path, output_path / "config.yaml");
+  fs::copy_file(config_path, output_path / "config.yaml");
 
   // Prepare sqlite database
   auto store = std::make_shared<SqliteStore>();
@@ -208,7 +249,7 @@ int run_experiment(const std::filesystem::path &config_path,
   std::unique_ptr<ExperimentRunner> runner = factory(cutoff, std::move(experiment));
   runner->run();
 
-  std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
+  fs::path here = fs::absolute(__FILE__).remove_filename();
 
   std::cout << "Done, writing artifacts to " << output_path << std::endl;
 
@@ -228,7 +269,7 @@ int run_experiment(const std::filesystem::path &config_path,
   return 0;
 }
 
-int list_sizes(const std::filesystem::path &config_path) {
+int list_sizes(const fs::path &config_path) {
   Experiment experiment = experiment_from_config_file(config_path);
   for (const auto &gen : experiment.generators) {
     auto[hgraph, planted] = gen->generate();
@@ -238,7 +279,7 @@ int list_sizes(const std::filesystem::path &config_path) {
   return 0;
 }
 
-int check_cuts(const std::filesystem::path &config_path) {
+int check_cuts(const fs::path &config_path) {
   YAML::Node node = YAML::LoadFile(config_path);
   Experiment experiment = experiment_from_config_file(config_path);
 
@@ -266,7 +307,7 @@ int check_cuts(const std::filesystem::path &config_path) {
   return 0;
 }
 
-int check_approx(const std::filesystem::path &config_path) {
+int check_approx(const fs::path &config_path) {
   Experiment experiment = experiment_from_config_file(config_path);
   for (const auto &gen : experiment.generators) {
     std::cout << gen->name() << std::endl;
@@ -281,4 +322,18 @@ int check_approx(const std::filesystem::path &config_path) {
     }
   }
   return 0;
+}
+
+void recursively_execute(const fs::path &config_path,
+                         const fs::path &output_path,
+                         const Executor &execute) {
+  for (auto &p : fs::directory_iterator(config_path)) {
+    if (p.is_directory()) {
+      recursively_execute(p, output_path / p.path().filename(), execute);
+    } else if (p.path().extension() != ".yaml") {
+      std::cerr << "Skipping " << p.path() << ", extension is not .yaml" << std::endl;
+    } else {
+      execute(p.path(), output_path / p.path().stem());
+    }
+  }
 }
