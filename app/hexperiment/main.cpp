@@ -31,9 +31,9 @@ struct Executor {
 
   virtual ~Executor() = default;
 
-  static std::unique_ptr<Executor> factory(const bool list_sizes,
-                                           const bool check_cuts,
-                                           const bool check_approx,
+  static std::unique_ptr<Executor> factory(bool list_sizes,
+                                           bool check_cuts,
+                                           bool check_approx,
                                            const std::optional<size_t> &num_runs);
 };
 
@@ -252,19 +252,6 @@ int run_experiment(const fs::path &config_path,
   fs::path here = fs::absolute(__FILE__).remove_filename();
 
   std::cout << "Done, writing artifacts to " << output_path << std::endl;
-
-  auto script_cmd = [here, output_path](const std::string script_name) -> std::string {
-    std::stringstream python_cmd;
-    python_cmd << "python3 "
-               << (here / ".." / ".." / script_name);
-    python_cmd << " " << output_path;
-    return python_cmd.str();
-  };
-
-  std::system(script_cmd("scripts/sqlplot.py").c_str());
-  if (cutoff) {
-    std::system(script_cmd("scripts/sqlplot-cutoff.py").c_str());
-  }
 
   return 0;
 }
