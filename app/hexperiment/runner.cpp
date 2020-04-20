@@ -464,9 +464,15 @@ CutoffRunner::CutoffRunner(std::string id,
                                                                                 std::move(store),
                                                                                 planted,
                                                                                 num_runs),
-                                                               cutoff_percentages_(std::move(cutoff_percentages)),
+    // cutoff_percentages_(std::move(cutoff_percentages)),
                                                                output_dir_(std::move(output_dir)),
-                                                               algos_(std::move(algos)) {}
+                                                               algos_(std::move(algos)) {
+  // Just hardcode cutoff_percentages for now
+  cutoff_percentages_ = {};
+  for (double i = 0.1; i <= 30; i += 0.1) {
+    cutoff_percentages_.push_back(i);
+  }
+}
 
 void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                                        const HypergraphWrapper &hypergraph,
@@ -594,15 +600,21 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                                                             std::nullopt,
                                                             std::chrono::high_resolution_clock::now());
 
+    std::atomic_bool contraction_done = false;
     // Start two threads, one to run the contraction algorithm and one to monitor the minimum so far
     auto start = std::chrono::high_resolution_clock::now();
-    std::thread contraction_runner([&time_limits, &ctx]() {
+    std::thread contraction_runner([&contraction_done, &time_limits, &ctx]() {
       ctx.start = std::chrono::high_resolution_clock::now();
       ctx.time_limit = std::nullopt;
       util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
+      contraction_done.store(true);
     });
-    std::thread monitor([&time_limits, &ctx, discovery_value]() {
+    std::thread monitor([&contraction_done, &time_limits, &ctx, discovery_value]() {
       for (auto &[percentage, time_limit, cut_factor] : time_limits) {
+        if (contraction_done.load()) {
+          cut_factor += 1.0; // Cut factor is 1 since the value has been discovered
+          continue;
+        }
         auto start = std::chrono::high_resolution_clock::now();
         std::this_thread::sleep_for(time_limit);
         auto stop = std::chrono::high_resolution_clock::now();
