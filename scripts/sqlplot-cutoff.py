@@ -32,6 +32,8 @@ for filename in hypergraph_files:
   file = open(os.path.join(src, filename))
   cutoffs = [float(cutoff) for cutoff in file.readline().strip().split(',')[1:]]
 
+  plt.axhline(y=1, color='gray', linestyle=':')
+
   for line in file:
     line = line.strip()
     algo = line.split(',')[0]
@@ -48,7 +50,6 @@ for filename in hypergraph_files:
 
     plt.plot(cutoffs_filtered, factors_filtered, label=algo)
 
-  plt.axhline(y=1, color='r')
   plt.legend()
   plt.savefig(os.path.join(dest, f'cutoff_{name}.pdf'))
   plt.close()
