@@ -329,7 +329,7 @@ std::tuple<Hypergraph, std::optional<HypergraphCut<size_t>>> UniformPlantedHyper
       inside_cluster.push_back(v);
     }
 
-    // Sample r vertices from this
+    // Sample r vertices from this cluster
     for (int j = 0; j < m1; ++j) {
       std::vector<int> edge;
       std::sample(begin(inside_cluster),
