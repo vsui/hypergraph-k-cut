@@ -473,8 +473,7 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                                        const size_t k,
                                        const size_t cut_value,
                                        const CutInfo &planted_cut,
-                                       const size_t /* planted_cut_id */) {
-
+                                       const size_t planted_cut_id) {
   auto cutoff_time = computeCutoffTime(hypergraph);
 
   auto output_path = output_dir_ / (gen.name() + ".data.txt");
@@ -488,6 +487,36 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
   }
   output << std::endl;
 
+  // TODO just hard code the algorithms for now
+  // Run any algorithms that don't need to be cutoff here (but we don't need to run MW)
+  doRunDiscovery<false>(gen,
+                        "CX",
+                        [](hypergraphlib::Hypergraph *hypergraph,
+                           uint64_t seed,
+                           hypergraphlib::util::ContractionStats &stats) -> size_t {
+                          return hypergraphlib::certificate_minimum_cut<Hypergraph, false>(*hypergraph,
+                                                                                           hypergraphlib::MW_min_cut_value<
+                                                                                               Hypergraph>);
+                        },
+                        planted_cut,
+                        planted_cut_id,
+                        k);
+  doRunDiscovery<false>(gen,
+                        "approxCX",
+                        [](hypergraphlib::Hypergraph *hypergraph,
+                           uint64_t seed,
+                           hypergraphlib::util::ContractionStats &stats) {
+                          Hypergraph temp(*hypergraph);
+                          size_t t = hypergraphlib::approximate_minimizer<Hypergraph>(temp, 1.0).value;
+                          hypergraphlib::KTrimmedCertificate certificate(*hypergraph);
+                          Hypergraph sparse = certificate.certificate(t);
+                          return MW_min_cut_value(sparse);
+                        },
+                        planted_cut,
+                        planted_cut_id,
+                        k);
+
+  // Run cutoffs here
   if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "cxy") != algos_.end()) {
     doRunCutoff<cxy>(hypergraph, k, cut_value, cutoff_time, output);
   }
@@ -618,3 +647,53 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
   }
   output << std::endl;
 }
+
+// Just copied from discovery runner for now
+// TODO merge cutoff runner and discovery runner
+template<bool ReturnsPartitions>
+void CutoffRunner::doRunDiscovery(const HypergraphGenerator &gen,
+                                  const std::string &func_name,
+                                  CutFunc <ReturnsPartitions> func,
+                                  const CutInfo &planted_cut,
+                                  const uint64_t planted_cut_id,
+                                  size_t k) {
+  // Make sources of randomness
+  std::random_device rd;
+  std::mt19937_64 rgen(rd());
+  std::uniform_int_distribution<uint64_t> dis;
+
+  const auto[hgraph, planted_cut_optional] = gen.generate();
+  HypergraphWrapper hypergraph;
+  hypergraph.h = hgraph;
+  hypergraph.name = gen.name();
+  // TODO make this unnecessary
+  // Avoid this variant foolishness for now
+  Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+  assert(hypergraph_ptr != nullptr);
+
+  spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
+  for (int i = 0; i < num_runs(); ++i) {
+    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs());
+
+    // We have to make a copy of the hypergraph since some algorithms write to it
+    Hypergraph temp(*hypergraph_ptr);
+    util::ContractionStats stats{};
+    // TODO probably need to put this in more places
+    temp.remove_singleton_and_empty_hyperedges();
+
+    auto start = std::chrono::high_resolution_clock::now();
+    auto cut = func(&temp, dis(rgen), stats);
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    CutInfo found_cut_info(k, cut);
+
+    CutRunInfo run_info(id(), found_cut_info);
+    run_info.algorithm = func_name;
+    run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+    run_info.machine = hostname();
+    run_info.commit = "n/a";
+
+    doReportCutAndRun<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id, run_info, stats);
+  }
+}
+

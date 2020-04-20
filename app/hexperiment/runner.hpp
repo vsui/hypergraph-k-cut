@@ -174,6 +174,14 @@ private:
                    std::chrono::duration<double> cutoff_time,
                    std::ofstream &output);
 
+  template<bool ReturnsPartitions>
+  void doRunDiscovery(const HypergraphGenerator &gen,
+                      const std::string &func_name,
+                      CutFunc <ReturnsPartitions> func,
+                      const CutInfo &planted_cut,
+                      uint64_t planted_cut_id,
+                      size_t k);
+
   std::vector<double> cutoff_percentages_;
 
   std::filesystem::path output_dir_;
