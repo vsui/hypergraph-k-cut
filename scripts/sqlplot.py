@@ -83,7 +83,7 @@ def make_plot(filename: str, title: str, filter=None):
         if filter is not None and not filter(algo):
             continue
         xs, ys = get_series(algo)
-        plt.plot(xs, ys, label=algo)
+        plt.plot(xs, ys, label=algo, marker='.')
     plt.legend()
     plt.savefig(os.path.join(dest_dir, filename))
     plt.close()
