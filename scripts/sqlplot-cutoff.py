@@ -65,7 +65,7 @@ for filename in hypergraph_files:
     factors_filtered = [factor for cutoff, factor in cutoff_factor]
 
     if len(cutoff_factor) > 1:
-        plt.plot(cutoffs_filtered, factors_filtered, marker='.', label=algo)
+        plt.plot(cutoffs_filtered, factors_filtered, label=algo)
     else:
         plt.plot(cutoffs_filtered, factors_filtered, marker='.', label=algo)
 
