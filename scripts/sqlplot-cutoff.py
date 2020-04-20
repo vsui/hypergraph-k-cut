@@ -11,6 +11,7 @@ Specifically references the 'data.txt' file
 import matplotlib.pyplot as plt
 import os
 import sys
+from itertools import takewhile
 
 src = sys.argv[1]
 dest = sys.argv[2]
@@ -43,12 +44,30 @@ for filename in hypergraph_files:
     factors = [float(factor) for factor in line.split(',')[1:]]
 
     # Cutoff the instances that could not finish in time
+    # Technically this could have actually finished in time but just been a very large cut, but unlikely
     cutoff_factor = [(cutoff, factor) for cutoff, factor in zip(cutoffs, factors) if factor < 1e10]
 
-    factors_filtered = [factor for cutoff, factor in cutoff_factor]
-    cutoffs_filtered = [cutoff for cutoff, factor in cutoff_factor]
+    # Only plot the first cutoff that is 1
+    class Predicate:
+        def __init__(self):
+            self.seen_cut_factor_one = False
 
-    plt.plot(cutoffs_filtered, factors_filtered, label=algo)
+        def __call__(self, tup):
+            cutoff, factor = tup
+            if self.seen_cut_factor_one:
+                return False
+            if factor <= 1.0:
+                self.seen_cut_factor_one = True
+            return True
+    cutoff_factor = list(takewhile(Predicate(), cutoff_factor))
+
+    cutoffs_filtered = [cutoff for cutoff, factor in cutoff_factor]
+    factors_filtered = [factor for cutoff, factor in cutoff_factor]
+
+    if len(cutoff_factor) > 1:
+        plt.plot(cutoffs_filtered, factors_filtered, marker='.', label=algo)
+    else:
+        plt.plot(cutoffs_filtered, factors_filtered, marker='.', label=algo)
 
   plt.legend()
   plt.savefig(os.path.join(dest, f'cutoff_{name}.pdf'))
