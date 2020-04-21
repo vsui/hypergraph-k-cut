@@ -28,22 +28,18 @@ struct Context {
   // So cutoff experiments can introspect the minimum value so far at various cutoff points. Only one thread should
   // write to this
   std::atomic<typename HypergraphType::EdgeWeight> min_val_so_far;
-  std::chrono::time_point<std::chrono::high_resolution_clock> start;
   util::ContractionStats stats;
   const typename HypergraphType::EdgeWeight discovery_value;
   std::optional<size_t> max_num_runs;
-  std::optional<std::chrono::duration<double>> time_limit;
 
   Context(const HypergraphType &hypergraph,
           size_t k,
           const std::mt19937_64 &random_generator,
           typename HypergraphType::EdgeWeight discovery_value,
-          std::optional<std::chrono::duration<double>> time_limit,
-          std::optional<size_t> max_num_runs,
-          std::chrono::time_point<std::chrono::high_resolution_clock> start)
+          std::optional<size_t> max_num_runs)
       : hypergraph(std::move(hypergraph)), k(k), random_generator(random_generator),
         min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), min_val_so_far(min_so_far.value),
-        stats(), discovery_value(discovery_value), time_limit(std::move(time_limit)), start(start),
+        stats(), discovery_value(discovery_value),
         max_num_runs(max_num_runs) {}
 
   // TODO Maybe max_num_runs should be an optional
@@ -61,22 +57,6 @@ auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> 
     auto cut = ContractImpl::template contract<HypergraphType, ReturnPartitions, Verbosity>(ctx);
     auto stop_run = std::chrono::high_resolution_clock::now();
 
-    if (ctx.time_limit.has_value()
-        && stop_run - ctx.start > ctx.time_limit.value()) {
-      // The result of the previous run ran over time, so return the result of the run before that
-      if constexpr (ContractImpl::pass_discovery_value) {
-        // We are using this as an FPZ flag. If FPZ then the previous algorithm probably ran over time
-        // to get the value up to call stack, so be lenient and let it return the most recent call.
-        ctx.min_so_far = std::min(ctx.min_so_far, cut);
-        ctx.min_val_so_far.store(ctx.min_so_far.value);
-      }
-      if constexpr (ReturnPartitions) {
-        return ctx.min_so_far;
-      } else {
-        return ctx.min_so_far.value;
-      }
-    }
-
     ctx.min_so_far = std::min(ctx.min_so_far, cut);
     ctx.min_val_so_far.store(ctx.min_so_far.value);
 
@@ -89,8 +69,6 @@ auto repeat_contraction(typename ContractImpl::template Context<HypergraphType> 
   }
 
   auto stop = std::chrono::high_resolution_clock::now();
-
-  ctx.stats.time_elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(stop - ctx.start).count();
 
   if constexpr (ReturnPartitions) {
     return ctx.min_so_far;
@@ -124,9 +102,7 @@ auto repeat_contraction(const HypergraphType &hypergraph,
                                                               k,
                                                               random_generator,
                                                               discovery_value,
-                                                              time_limit,
-                                                              max_num_runs,
-                                                              std::chrono::high_resolution_clock::now());
+                                                              max_num_runs);
 
   return repeat_contraction<HypergraphType, ContractImpl, ReturnPartitions, Verbosity>(ctx);
 }

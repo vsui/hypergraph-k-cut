@@ -596,16 +596,12 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                                                             k,
                                                             std::mt19937_64(rd()),
                                                             discovery_value,
-                                                            std::nullopt,
-                                                            std::nullopt,
-                                                            std::chrono::high_resolution_clock::now());
+                                                            std::nullopt);
 
     std::atomic_bool contraction_done = false;
     // Start two threads, one to run the contraction algorithm and one to monitor the minimum so far
     auto start = std::chrono::high_resolution_clock::now();
     std::thread contraction_runner([&contraction_done, &time_limits, &ctx]() {
-      ctx.start = std::chrono::high_resolution_clock::now();
-      ctx.time_limit = std::nullopt;
       util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
       contraction_done.store(true);
     });

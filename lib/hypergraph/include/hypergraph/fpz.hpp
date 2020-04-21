@@ -43,20 +43,17 @@ struct fpz : public ContractionAlgo<fpz> {
   struct Context : public util::Context<HypergraphType> {
     std::deque<LocalContext<HypergraphType>> branches;
 
+    // TODO I think we can just inherit this constructor
     Context(const HypergraphType &hypergraph,
             size_t k,
             const std::mt19937_64 &random_generator,
             typename HypergraphType::EdgeWeight discovery_value,
-            std::optional<std::chrono::duration<double>> time_limit,
-            std::optional<size_t> max_num_runs,
-            std::chrono::time_point<std::chrono::high_resolution_clock> start)
+            std::optional<size_t> max_num_runs)
         : util::Context<HypergraphType>(hypergraph,
                                         k,
                                         random_generator,
                                         discovery_value,
-                                        time_limit,
-                                        max_num_runs,
-                                        start),
+                                        max_num_runs),
           branches() {}
   };
 
@@ -83,11 +80,6 @@ struct fpz : public ContractionAlgo<fpz> {
 
       // Call internal function with global context. This will update it.
       contract_<HypergraphType, ReturnPartitions, Verbosity>(ctx, local_ctx);
-
-      if (ctx.time_limit.has_value()
-          && std::chrono::high_resolution_clock::now() - ctx.start > ctx.time_limit.value()) {
-        break;
-      }
 
       if (ctx.min_so_far.value <= ctx.discovery_value) {
         break;
