@@ -20,7 +20,7 @@ struct ContractionStats {
 };
 
 template<typename HypergraphType>
-struct Context {
+struct BaseContext {
   const HypergraphType hypergraph;
   const size_t k;
   std::mt19937_64 random_generator;
@@ -32,11 +32,11 @@ struct Context {
   const typename HypergraphType::EdgeWeight discovery_value;
   std::optional<size_t> max_num_runs;
 
-  Context(const HypergraphType &hypergraph,
-          size_t k,
-          const std::mt19937_64 &random_generator,
-          typename HypergraphType::EdgeWeight discovery_value,
-          std::optional<size_t> max_num_runs)
+  BaseContext(const HypergraphType &hypergraph,
+              size_t k,
+              const std::mt19937_64 &random_generator,
+              typename HypergraphType::EdgeWeight discovery_value,
+              std::optional<size_t> max_num_runs)
       : hypergraph(std::move(hypergraph)), k(k), random_generator(random_generator),
         min_so_far(HypergraphCut<typename HypergraphType::EdgeWeight>::max()), min_val_so_far(min_so_far.value),
         stats(), discovery_value(discovery_value),

@@ -87,7 +87,7 @@ struct cxy : public ContractionAlgo<cxy> {
   static constexpr char name[] = "CXY";
 
   template<typename HypergraphType>
-  using Context = util::Context<HypergraphType>;
+  using Context = util::BaseContext<HypergraphType>;
 
 /**
  * The contraction algorithm from [CXY'18]. This returns the minimum cut with some probability.

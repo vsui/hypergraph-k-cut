@@ -40,21 +40,10 @@ struct fpz : public ContractionAlgo<fpz> {
   };
 
   template<typename HypergraphType>
-  struct Context : public util::Context<HypergraphType> {
+  struct Context : public util::BaseContext<HypergraphType> {
     std::deque<LocalContext<HypergraphType>> branches;
 
-    // TODO I think we can just inherit this constructor
-    Context(const HypergraphType &hypergraph,
-            size_t k,
-            const std::mt19937_64 &random_generator,
-            typename HypergraphType::EdgeWeight discovery_value,
-            std::optional<size_t> max_num_runs)
-        : util::Context<HypergraphType>(hypergraph,
-                                        k,
-                                        random_generator,
-                                        discovery_value,
-                                        max_num_runs),
-          branches() {}
+    using util::BaseContext<HypergraphType>::BaseContext;
   };
 
 /**
