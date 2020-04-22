@@ -15,7 +15,16 @@ struct kk : public ContractionAlgo<kk> {
 
   template<typename HypergraphType>
   struct Context : public util::BaseContext<HypergraphType> {
-    using util::BaseContext<HypergraphType>::BaseContext;
+
+    size_t rank;
+
+    Context(const HypergraphType &hypergraph,
+            size_t k,
+            const std::mt19937_64 &random_generator,
+            typename HypergraphType::EdgeWeight discovery_value,
+            std::optional<size_t> max_num_runs)
+        : util::BaseContext<HypergraphType>(hypergraph, k, random_generator, discovery_value, max_num_runs),
+          rank(hypergraph.rank()) {}
   };
 
 /**
@@ -36,11 +45,8 @@ struct kk : public ContractionAlgo<kk> {
     // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
     double alpha = 1.5;
 
-    // TODO Don't keep on checking this...
-    size_t r = h.rank();
-
     // TODO abstract sampling an edge with some weight function and use with fpz and cxy
-    while (h.num_vertices() > alpha * ctx.k * r) { // TODO what should this be when k > 2?
+    while (h.num_vertices() > alpha * ctx.k * ctx.rank) { // TODO what should this be when k > 2?
       if (h.num_edges() == 0) {
         break;
       }
