@@ -64,62 +64,9 @@ struct kk : public ContractionAlgo<kk> {
       ++ctx.stats.num_contractions;
     }
 
-    static std::uniform_real_distribution<> dis(0.0, 1.0);
+    const auto contracted_partitions = random_k_partition(h, ctx.k, ctx.random_generator);
 
-    // At this point, we return a random k-partition of the contracted vertices
-    std::vector<int> vertices(std::begin(h.vertices()), std::end(h.vertices()));
-    std::shuffle(std::begin(vertices), std::end(vertices), ctx.random_generator);
-
-    // Distribution to sample which partition each vertex lies in
-    std::uniform_int_distribution<size_t> part_dist(0, ctx.k - 1);
-
-    std::vector<std::list<int>> contracted_partitions;
-
-    // TODO we should be able to do this by sampling 1,2,...,n-1 without replacement (stars and bars)
-    // Randomly place each contracted vertex in one of the k partitions
-    // This may end up making a partition empty, so repeat this process if this occurs
-    do {
-      contracted_partitions = std::vector<std::list<int>>(ctx.k);
-      for (const auto v : vertices) {
-        auto cluster = part_dist(ctx.random_generator);
-        auto &partition = contracted_partitions.at(cluster);
-        partition.emplace_back(v);
-      }
-    } while (std::any_of(contracted_partitions.begin(),
-                         contracted_partitions.end(),
-                         [](const auto &a) { return a.empty(); }));
-
-    // TODO this was copied from cut_is_valid. Could be extracted somehow
-    // Given a range of vertices in the edge and a range of vertices in the partition, returns whether
-    // any of the vertices in the edge are not in the partition
-    constexpr auto edge_entirely_inside_partition =
-        [](const auto edge_begin, const auto edge_end, const auto partition_begin, const auto partition_end) {
-          return std::all_of(edge_begin, edge_end, [partition_begin, partition_end](const auto v) {
-            return std::find(partition_begin, partition_end, v) != partition_end;
-          });
-        };
-
-    // Compute the cut value by deciding which remaining hyperedges cross our randomly chosen partition
-    typename HypergraphType::EdgeWeight cut_value = 0;
-    for (const auto &edge : h.edges()) {
-      // Destructured bindings cannot be captured in lambdas
-      const auto &edge_id = edge.first;
-      const auto &vertices = edge.second;
-      const bool none_of_edges_entirely_inside_partition =
-          std::none_of(std::begin(contracted_partitions),
-                       std::end(contracted_partitions),
-                       [edge_entirely_inside_partition, vertices](const auto &partition) {
-                         return edge_entirely_inside_partition(
-                             std::begin(vertices),
-                             std::end(vertices),
-                             std::begin(partition),
-                             std::end(partition)
-                         );
-                       });
-      if (none_of_edges_entirely_inside_partition) {
-        cut_value += edge_weight(h, edge_id);
-      }
-    }
+    const auto cut_value = cut_value_of_partition(h, contracted_partitions.cbegin(), contracted_partitions.cend());
 
     if constexpr (ReturnPartitions) {
       // Collect vertices within
@@ -142,6 +89,78 @@ struct kk : public ContractionAlgo<kk> {
     return std::pow(2, r) * std::pow(n, k) * std::log(n);
   }
 
+  /// Returns a random k-way partition of the contracted vertices of the hypergraph
+  template<typename HypergraphType>
+  static std::vector<std::list<int>> random_k_partition(const HypergraphType &hypergraph,
+                                                        size_t k,
+                                                        std::mt19937_64 &random_generator) {
+    // Input: hypergraph
+    // Output: vector of k partitions, each nonempty
+
+    // At this point, we return a random k-partition of the contracted vertices
+    std::vector<int> vertices(std::begin(hypergraph.vertices()), std::end(hypergraph.vertices()));
+    std::shuffle(std::begin(vertices), std::end(vertices), random_generator);
+
+    // Distribution to sample which partition each vertex lies in
+    std::uniform_int_distribution<size_t> part_dist(0, k - 1);
+
+    std::vector<std::list<int>> contracted_partitions;
+
+    // TODO we should be able to do this by sampling 1,2,...,n-1 without replacement (stars and bars)
+    // Randomly place each contracted vertex in one of the k partitions
+    // This may end up making a partition empty, so repeat this process if this occurs
+    do {
+      contracted_partitions = std::vector<std::list<int>>(k);
+      for (const auto v : vertices) {
+        auto cluster = part_dist(random_generator);
+        auto &partition = contracted_partitions.at(cluster);
+        partition.emplace_back(v);
+      }
+    } while (std::any_of(contracted_partitions.begin(),
+                         contracted_partitions.end(),
+                         [](const auto &a) { return a.empty(); }));
+
+    return contracted_partitions;
+  }
+
+  template<typename HypergraphType, typename InputIt>
+  static typename HypergraphType::EdgeWeight cut_value_of_partition(const HypergraphType &hypergraph,
+                                                                    InputIt begin,
+                                                                    InputIt end) {
+    // TODO Compute cut value of partition
+    // TODO this was copied from cut_is_valid. Could be extracted somehow
+    // Given a range of vertices in the edge and a range of vertices in the partition, returns whether
+    // any of the vertices in the edge are not in the partition
+    constexpr auto edge_entirely_inside_partition =
+        [](const auto edge_begin, const auto edge_end, const auto partition_begin, const auto partition_end) {
+          return std::all_of(edge_begin, edge_end, [partition_begin, partition_end](const auto v) {
+            return std::find(partition_begin, partition_end, v) != partition_end;
+          });
+        };
+
+    typename HypergraphType::EdgeWeight cut_value = 0;
+    for (const auto &edge : hypergraph.edges()) {
+      // Destructured bindings cannot be captured in lambdas
+      const auto &edge_id = edge.first;
+      const auto &vertices = edge.second;
+      const bool none_of_edges_entirely_inside_partition =
+          std::none_of(begin,
+                       end,
+                       [edge_entirely_inside_partition, vertices](const auto &partition) {
+                         return edge_entirely_inside_partition(
+                             std::begin(vertices),
+                             std::end(vertices),
+                             std::begin(partition),
+                             std::end(partition)
+                         );
+                       });
+      if (none_of_edges_entirely_inside_partition) {
+        cut_value += edge_weight(hypergraph, edge_id);
+      }
+    }
+
+    return cut_value;
+  }
 };
 
 } // hypergraphlib
