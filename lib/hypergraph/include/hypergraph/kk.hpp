@@ -94,31 +94,23 @@ struct kk : public ContractionAlgo<kk> {
   static std::vector<std::list<int>> random_k_partition(const HypergraphType &hypergraph,
                                                         size_t k,
                                                         std::mt19937_64 &random_generator) {
-    // Input: hypergraph
-    // Output: vector of k partitions, each nonempty
-
-    // At this point, we return a random k-partition of the contracted vertices
+    // Shuffle the vertices and choose k-1 indices to split them on
     std::vector<int> vertices(std::begin(hypergraph.vertices()), std::end(hypergraph.vertices()));
     std::shuffle(std::begin(vertices), std::end(vertices), random_generator);
 
-    // Distribution to sample which partition each vertex lies in
-    std::uniform_int_distribution<size_t> part_dist(0, k - 1);
+    std::vector<int> indices(vertices.size() - 1);
+    std::iota(indices.begin(), indices.end(), 1);
+
+    std::vector<int> sampled(k + 1);
+    sampled[0] = 0;
+    sampled[k] = vertices.size();
+
+    std::sample(indices.begin(), indices.end(), sampled.begin() + 1, k - 1, random_generator);
 
     std::vector<std::list<int>> contracted_partitions;
-
-    // TODO we should be able to do this by sampling 1,2,...,n-1 without replacement (stars and bars)
-    // Randomly place each contracted vertex in one of the k partitions
-    // This may end up making a partition empty, so repeat this process if this occurs
-    do {
-      contracted_partitions = std::vector<std::list<int>>(k);
-      for (const auto v : vertices) {
-        auto cluster = part_dist(random_generator);
-        auto &partition = contracted_partitions.at(cluster);
-        partition.emplace_back(v);
-      }
-    } while (std::any_of(contracted_partitions.begin(),
-                         contracted_partitions.end(),
-                         [](const auto &a) { return a.empty(); }));
+    for (auto it = sampled.begin() + 1; it != sampled.end(); ++it) {
+      contracted_partitions.emplace_back(vertices.begin() + *(it - 1), vertices.begin() + *it);
+    }
 
     return contracted_partitions;
   }
