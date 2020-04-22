@@ -557,9 +557,10 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
 }
 
 std::chrono::duration<double> CutoffRunner::computeCutoffTime(const HypergraphWrapper &hypergraph) {
+  constexpr int NUM_RUNS = 5;
   auto hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
   auto cutoff_time = std::chrono::duration<double>::zero();
-  for (int i = 0; i < 5; ++i) { // TODO number of runs is hardcoded
+  for (int i = 0; i < NUM_RUNS; ++i) { // TODO number of runs is hardcoded
     Hypergraph temp(*hypergraph_ptr);
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -575,7 +576,7 @@ std::chrono::duration<double> CutoffRunner::computeCutoffTime(const HypergraphWr
 
     cutoff_time += (end - start);
   }
-  cutoff_time /= num_runs();
+  cutoff_time /= NUM_RUNS;
   spdlog::info("Cutoff time is {} milliseconds",
                std::chrono::duration_cast<std::chrono::milliseconds>(cutoff_time).count());
   return cutoff_time;
@@ -701,9 +702,11 @@ void CutoffRunner::doRunDiscovery(const HypergraphGenerator &gen,
   Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
   assert(hypergraph_ptr != nullptr);
 
+  constexpr int NUM_RUNS = 5;
+
   spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
-  for (int i = 0; i < 5; ++i) { // TODO number of runs for deterministic algorithms is hardcoded
-    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs());
+  for (int i = 0; i < NUM_RUNS; ++i) { // TODO number of runs for deterministic algorithms is hardcoded
+    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, NUM_RUNS);
 
     // We have to make a copy of the hypergraph since some algorithms write to it
     Hypergraph temp(*hypergraph_ptr);
