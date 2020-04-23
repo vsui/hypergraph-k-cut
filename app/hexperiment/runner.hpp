@@ -13,6 +13,7 @@
 #include <hypergraph/cxy.hpp>
 #include <hypergraph/fpz.hpp>
 #include <hypergraph/kk.hpp>
+#include "ThreadPool/ThreadPool.h"
 
 #include "common.hpp"
 
@@ -39,7 +40,7 @@ public:
                    std::shared_ptr<CutInfoStore> store,
                    bool planted,
                    size_t num_runs);
-  void run();
+  virtual void run();
 
   virtual ~ExperimentRunner() = default;
 
@@ -60,6 +61,8 @@ protected:
   }
 
 protected:
+  std::mutex mut_here;
+
   // Report cut to database, return cut ID or empty on failure
   template<bool ReturnsPartitions>
   std::optional<uint64_t> doReportCut(const HypergraphWrapper &hypergraph,
@@ -124,10 +127,15 @@ public:
                            const CutInfo &planted_cut,
                            size_t planted_cut_id) override;
 
+  virtual void run() override;
 private:
+  std::vector<std::future<void>> futures_;
 
   // The functions to use. If empty then use all functions
   std::vector<std::string> funcnames_;
+
+  ThreadPool pool;
+  std::mutex mut;
 
   template<bool ReturnsPartitions>
   void doRunDiscovery(const HypergraphGenerator &gen,
@@ -214,6 +222,7 @@ public:
 
 private:
   RunStore cutoff_store;
+  ThreadPool pool;
 
   std::chrono::duration<double> computeCutoffTime(const HypergraphWrapper &hypergraph);
 

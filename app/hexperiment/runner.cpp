@@ -226,6 +226,7 @@ bool ExperimentRunner::doReportCutAndRun(const HypergraphWrapper &hypergraph,
                                          uint64_t planted_cut_id,
                                          const CutRunInfo &run_info,
                                          const util::ContractionStats &stats) {
+  std::lock_guard lock(mut_here);
   auto found_cut_id =
       doReportCut<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id);
   if (!found_cut_id) {
@@ -256,7 +257,16 @@ DiscoveryRunner::DiscoveryRunner(std::string id,
                                                                                          std::move(store),
                                                                                          planted,
                                                                                          num_runs),
-                                                                        funcnames_(std::move(func_names)) {}
+                                                                        funcnames_(std::move(func_names)),
+                                                                        pool(8) {}
+
+void DiscoveryRunner::run() {
+  ExperimentRunner::run();
+
+  for (auto &fut : futures_) {
+    fut.wait();
+  }
+}
 
 template<bool ReturnsPartitions>
 void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
@@ -281,27 +291,40 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
 
   spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
   for (int i = 0; i < num_runs(); ++i) {
-    spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs());
+    auto future = pool.enqueue([this](HypergraphWrapper hypergraph,
+                                      std::string func_name,
+                                      size_t i,
+                                      size_t num_runs,
+                                      auto func,
+                                      size_t k,
+                                      auto dis,
+                                      auto rgen,
+                                      auto planted_cut,
+                                      auto planted_cut_id) -> void {
+      spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs);
 
-    // We have to make a copy of the hypergraph since some algorithms write to it
-    Hypergraph temp(*hypergraph_ptr);
-    util::ContractionStats stats{};
-    // TODO probably need to put this in more places
-    temp.remove_singleton_and_empty_hyperedges();
+      // We have to make a copy of the hypergraph since some algorithms write to it
+      Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+      Hypergraph temp(*hypergraph_ptr);
+      util::ContractionStats stats{};
+      // TODO probably need to put this in more places
+      temp.remove_singleton_and_empty_hyperedges();
 
-    auto start = std::chrono::high_resolution_clock::now();
-    auto cut = func(&temp, dis(rgen), stats);
-    auto stop = std::chrono::high_resolution_clock::now();
+      auto start = std::chrono::high_resolution_clock::now();
+      auto cut = func(&temp, dis(rgen), stats);
+      auto stop = std::chrono::high_resolution_clock::now();
 
-    CutInfo found_cut_info(k, cut);
+      CutInfo found_cut_info(k, cut);
 
-    CutRunInfo run_info(id(), found_cut_info);
-    run_info.algorithm = func_name;
-    run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-    run_info.machine = hostname();
-    run_info.commit = "n/a";
+      CutRunInfo run_info(id(), found_cut_info);
+      run_info.algorithm = func_name;
+      run_info.time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+      run_info.machine = hostname();
+      run_info.commit = "n/a";
 
-    doReportCutAndRun<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id, run_info, stats);
+      doReportCutAndRun<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id, run_info, stats);
+    }, hypergraph, func_name, i, num_runs(), func, k, dis, rgen, planted_cut, planted_cut_id);
+    futures_.emplace_back(std::move(future));
   }
 }
 
@@ -317,6 +340,7 @@ void DiscoveryRunner::doProcessHypergraph(const HypergraphGenerator &gen,
   for (const auto &[func_name, func] : getCutValAlgos(hypergraph, k, cut_value)) {
     doRunDiscovery<false>(gen, func_name, func, planted_cut, planted_cut_id, k);
   }
+
 }
 
 std::vector<std::pair<std::string, HypergraphCutFunc>> DiscoveryRunner::getCutAlgos(const size_t k,
@@ -464,9 +488,10 @@ CutoffRunner::CutoffRunner(std::string id,
                                                                                 std::move(store),
                                                                                 planted,
                                                                                 num_runs),
-    // cutoff_percentages_(std::move(cutoff_percentages)),
+// cutoff_percentages_(std::move(cutoff_percentages)),
                                                                output_dir_(std::move(output_dir)),
-                                                               algos_(std::move(algos)) {
+                                                               algos_(std::move(algos)),
+                                                               pool(6) {
   // Just hardcode cutoff_percentages for now
   cutoff_percentages_ = {};
   for (double i = 0.1; i <= 30; i += 0.1) {
