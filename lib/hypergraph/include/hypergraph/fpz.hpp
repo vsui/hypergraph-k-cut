@@ -166,14 +166,15 @@ struct fpz : public ContractionAlgo<fpz> {
     double redo =
         redo_probability(hypergraph.num_vertices(), sampled_edge.size(), ctx.k);
 
-    HypergraphType contracted = hypergraph.template contract<true, ReturnPartitions>(sampled_edge_id);
-    ++ctx.stats.num_contractions;
-
     if (dis(ctx.random_generator) < redo) {
+      HypergraphType contracted = hypergraph.template contract<true, ReturnPartitions>(sampled_edge_id);
+      ++ctx.stats.num_contractions;
       ctx.branches.push_back(local_ctx);
       ctx.branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
     } else {
-      ctx.branches.push_back({.hypergraph = contracted, .accumulated = accumulated});
+      local_ctx.hypergraph.template contract_in_place<true, ReturnPartitions>(sampled_edge_id);
+      ++ctx.stats.num_contractions;
+      ctx.branches.push_back(local_ctx);
     }
   }
 
