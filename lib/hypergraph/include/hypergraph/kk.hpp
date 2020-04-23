@@ -43,10 +43,10 @@ struct kk : public ContractionAlgo<kk> {
     HypergraphType h(ctx.hypergraph);
 
     // This can be tweaked to make this algorithm approximate. We are interested in exact solutions however.
-    double alpha = 1.5;
+    double alpha = 1;
 
     // TODO abstract sampling an edge with some weight function and use with fpz and cxy
-    while (h.num_vertices() > alpha * ctx.k * ctx.rank) { // TODO what should this be when k > 2?
+    while (h.num_vertices() > ctx.rank * alpha * (ctx.k - 1)) { // TODO what should this be when k > 2?
       if (h.num_edges() == 0) {
         break;
       }
@@ -60,7 +60,7 @@ struct kk : public ContractionAlgo<kk> {
       std::discrete_distribution<size_t> distribution(std::begin(edge_weights), std::end(edge_weights));
       const auto sampled_edge_id = edge_ids.at(distribution(ctx.random_generator));
 
-      h = h.template contract<true, ReturnPartitions>(sampled_edge_id);
+      h.template contract_in_place<true, ReturnPartitions>(sampled_edge_id);
       ++ctx.stats.num_contractions;
     }
 
