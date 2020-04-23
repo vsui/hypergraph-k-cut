@@ -12,9 +12,9 @@ Specifically references the 'data.txt' file
 def extract_vertices_from_name(name: str) -> str:
     """Takes the number of vertices from a string of the form:
 
-    'uniformplanted_{num_vertices}_{k}_{rank}_{m1}_{m2}'
+    '{type}_{num_vertices}_{k}_{rank}_{m1}_{m2}'
     """
-    suffix = name[len('uniformplanted_'):]
+    suffix = name[name.find('_')+1:]
     return suffix[:suffix.find('_')]
 
 

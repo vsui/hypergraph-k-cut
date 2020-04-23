@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python3
 """This is a script for making graphs of constant rank instances with varying rank
 
 Usage:
