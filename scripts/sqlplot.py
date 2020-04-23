@@ -16,12 +16,7 @@ import sys
 from typing import Tuple, List
 
 src_dir = sys.argv[1]
-dest_dir = sys.argv[2]
-
-if not os.path.exists(dest_dir):
-    os.mkdir(dest_dir)
-elif not os.path.isdir(dest_dir):
-    print(f'Error: {dest_dir} already exists but is not a directory')
+dest = sys.argv[2]
 
 db_path = os.path.join(src_dir, 'data.db')
 
@@ -85,15 +80,16 @@ def make_plot(filename: str, title: str, filter=None):
         xs, ys = get_series(algo)
         plt.plot(xs, ys, label=algo, marker='.')
     plt.legend()
-    plt.savefig(os.path.join(dest_dir, filename))
+    plt.savefig(dest)
     plt.close()
 
 
-make_plot('full.pdf', 'Full results')
-make_plot('value.pdf', 'Value results', lambda algo: algo.endswith('val'))
-make_plot('notvalue.pdf', 'Not value results',
-          lambda algo: not algo.endswith('val'))
-make_plot('mwvalue.pdf', 'Value results', lambda algo: algo.endswith(
-    'val') and algo not in ('qval', 'kwval'))
-make_plot('mwnotvalue.pdf', 'Not value results',
-          lambda algo: not algo.endswith('val') and algo not in ('q', 'kw'))
+make_plot(sys.argv[2], 'Discovery time')
+
+# make_plot('value.pdf', 'Value results', lambda algo: algo.endswith('val'))
+# make_plot('notvalue.pdf', 'Not value results',
+#           lambda algo: not algo.endswith('val'))
+# make_plot('mwvalue.pdf', 'Value results', lambda algo: algo.endswith(
+#     'val') and algo not in ('qval', 'kwval'))
+# make_plot('mwnotvalue.pdf', 'Not value results',
+#           lambda algo: not algo.endswith('val') and algo not in ('q', 'kw'))

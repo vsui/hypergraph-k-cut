@@ -8,6 +8,16 @@ Creates the destination directory if necessary.
 Specifically references the 'data.txt' file
 """
 
+
+def extract_vertices_from_name(name: str) -> str:
+    """Takes the number of vertices from a string of the form:
+
+    'uniformplanted_{num_vertices}_{k}_{rank}_{m1}_{m2}'
+    """
+    suffix = name[len('uniformplanted_'):]
+    return suffix[:suffix.find('_')]
+
+
 import matplotlib.pyplot as plt
 import os
 import sys
@@ -38,8 +48,6 @@ for filename in hypergraph_files:
   for line in file:
     line = line.strip()
     algo = line.split(',')[0]
-    if algo == 'KK':
-      continue
 
     factors = [float(factor) for factor in line.split(',')[1:]]
 
@@ -70,5 +78,5 @@ for filename in hypergraph_files:
         plt.plot(cutoffs_filtered, factors_filtered, marker='.', label=algo)
 
   plt.legend()
-  plt.savefig(os.path.join(dest, f'cutoff_{name}.pdf'))
+  plt.savefig(os.path.join(dest, f'{extract_vertices_from_name(name)}'))
   plt.close()
