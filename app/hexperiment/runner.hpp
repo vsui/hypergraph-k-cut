@@ -10,6 +10,9 @@
 #include <string>
 #include <filesystem>
 #include <optional>
+#include <hypergraph/cxy.hpp>
+#include <hypergraph/fpz.hpp>
+#include <hypergraph/kk.hpp>
 
 #include "common.hpp"
 
@@ -164,15 +167,61 @@ public:
                            const CutInfo &planted_cut,
                            size_t planted_cut_id) override;
 
+  // Store for all the runs. We need a special store since cutoff runner does not write to
+  // the sqlite database. This makes it easier to collect all the data in different threads
+  class RunStore {
+  public:
+    std::map<double, std::vector<double>> kk_runs() { return kk_runs_; }
+    std::map<double, std::vector<double>> fpz_runs() { return fpz_runs_; }
+    std::map<double, std::vector<double>> cxy_runs() { return cxy_runs_; }
+
+    void write_to_kk(double percentage, const double factor) {
+      std::lock_guard lock(mut);
+      kk_runs_[percentage].emplace_back(factor);
+    }
+    void write_to_fpz(double percentage, const double factor) {
+      std::lock_guard lock(mut);
+      fpz_runs_[percentage].emplace_back(factor);
+    }
+    void write_to_cxy(double percentage, const double factor) {
+      std::lock_guard lock(mut);
+      cxy_runs_[percentage].emplace_back(factor);
+    }
+
+    template<typename ContractImpl>
+    void write_to(const double percentage, const double factor) {
+      if constexpr (std::is_same_v<ContractImpl, hypergraphlib::cxy>) {
+        write_to_cxy(percentage, factor);
+      } else if constexpr (std::is_same_v<ContractImpl, hypergraphlib::fpz>) {
+        write_to_fpz(percentage, factor);
+      } else if constexpr (std::is_same_v<ContractImpl, hypergraphlib::kk>) {
+        write_to_kk(percentage, factor);
+      } else {
+        std::cerr << "Bad contraction impl" << std::endl;
+        exit(1);
+      }
+    }
+
+  private:
+    // Write mutex
+    std::mutex mut;
+
+    // Each of these maps is a map from the percentage to the cut factors
+    std::map<double, std::vector<double>> kk_runs_;
+    std::map<double, std::vector<double>> fpz_runs_;
+    std::map<double, std::vector<double>> cxy_runs_;
+  };
+
 private:
+  RunStore cutoff_store;
+
   std::chrono::duration<double> computeCutoffTime(const HypergraphWrapper &hypergraph);
 
   template<typename ContractImpl>
   void doRunCutoff(const HypergraphWrapper &hypergraph,
                    size_t k,
                    size_t discovery_value,
-                   std::chrono::duration<double> cutoff_time,
-                   std::ofstream &output);
+                   std::chrono::duration<double> cutoff_time);
 
   template<bool ReturnsPartitions>
   void doRunDiscovery(const HypergraphGenerator &gen,

@@ -482,17 +482,6 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                                        const size_t planted_cut_id) {
   auto cutoff_time = computeCutoffTime(hypergraph);
 
-  auto output_path = output_dir_ / (gen.name() + ".data.txt");
-  std::ofstream output(output_path);
-  if (!output) {
-    spdlog::error("Failed to open output file {}", output_path.string());
-  }
-  output << "cutoff";
-  for (auto c : cutoff_percentages_) {
-    output << "," << c;
-  }
-  output << std::endl;
-
   // TODO just hard code the algorithms for now
   // Run any algorithms that don't need to be cutoff here (but we don't need to run MW)
   doRunDiscovery<false>(gen,
@@ -544,20 +533,47 @@ void CutoffRunner::doProcessHypergraph(const HypergraphGenerator &gen,
                         planted_cut_id,
                         k);
 
+  auto output_path = output_dir_ / (gen.name() + ".data.txt");
+  std::ofstream output(output_path);
+  if (!output) {
+    spdlog::error("Failed to open output file {}", output_path.string());
+  }
+  output << "cutoff";
+  for (auto c : cutoff_percentages_) {
+    output << "," << c;
+  }
+  output << std::endl;
+
+
   // Run cutoffs here
   if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "cxy") != algos_.end()) {
-    doRunCutoff<cxy>(hypergraph, k, cut_value, cutoff_time, output);
+    doRunCutoff<cxy>(hypergraph, k, cut_value, cutoff_time);
+    output << cxy::name;
+    for (const auto &[percentage, cut_factors] : cutoff_store.cxy_runs()) {
+      output << "," << std::accumulate(cut_factors.begin(), cut_factors.end(), 0.0) / cut_factors.size();
+    }
+    output << std::endl;
   }
   if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "fpz") != algos_.end()) {
-    doRunCutoff<fpz>(hypergraph, k, cut_value, cutoff_time, output);
+    doRunCutoff<fpz>(hypergraph, k, cut_value, cutoff_time);
+    output << fpz::name;
+    for (const auto &[percentage, cut_factors] : cutoff_store.fpz_runs()) {
+      output << "," << std::accumulate(cut_factors.begin(), cut_factors.end(), 0.0) / cut_factors.size();
+    }
+    output << std::endl;
   }
   if (algos_.empty() || std::find(algos_.begin(), algos_.end(), "kk") != algos_.end()) {
-    doRunCutoff<kk>(hypergraph, k, cut_value, cutoff_time, output);
+    doRunCutoff<kk>(hypergraph, k, cut_value, cutoff_time);
+    output << kk::name;
+    for (const auto &[percentage, cut_factors] : cutoff_store.kk_runs()) {
+      output << "," << std::accumulate(cut_factors.begin(), cut_factors.end(), 0.0) / cut_factors.size();
+    }
+    output << std::endl;
   }
 }
 
 std::chrono::duration<double> CutoffRunner::computeCutoffTime(const HypergraphWrapper &hypergraph) {
-  constexpr int NUM_RUNS = 5;
+  constexpr int NUM_RUNS = 1;
   auto hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
   auto cutoff_time = std::chrono::duration<double>::zero();
   for (int i = 0; i < NUM_RUNS; ++i) { // TODO number of runs is hardcoded
@@ -586,8 +602,7 @@ template<typename ContractImpl>
 void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                                const size_t k,
                                const size_t discovery_value,
-                               const std::chrono::duration<double> cutoff_time,
-                               std::ofstream &output) {
+                               const std::chrono::duration<double> cutoff_time) {
   // Make sources of randomness
   std::random_device rd;
   std::uniform_int_distribution<uint64_t> dis;
@@ -628,10 +643,11 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
       util::repeat_contraction<Hypergraph, ContractImpl, false, 0>(ctx);
       contraction_done.store(true);
     });
-    std::thread monitor([&contraction_done, &time_limits, &ctx, discovery_value]() {
+    std::thread monitor([this, &contraction_done, &time_limits, &ctx, discovery_value]() {
       for (auto &[percentage, time_limit, cut_factor] : time_limits) {
         if (contraction_done.load()) {
           cut_factor += 1.0; // Cut factor is 1 since the value has been discovered
+          cutoff_store.write_to<ContractImpl>(percentage, 1.0);
           continue;
         }
         auto start = std::chrono::high_resolution_clock::now();
@@ -644,7 +660,10 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
                      min_so_far,
                      std::chrono::duration_cast<std::chrono::milliseconds>(time_limit).count(),
                      std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count());
-        cut_factor += static_cast<double>(min_so_far) / discovery_value;
+        double this_cut_factor = static_cast<double>(min_so_far) / discovery_value;
+        cut_factor += this_cut_factor;
+
+        cutoff_store.write_to<ContractImpl>(percentage, this_cut_factor);
       }
     });
 
@@ -671,12 +690,12 @@ void CutoffRunner::doRunCutoff(const HypergraphWrapper &hypergraph,
     }
   }
 
-  output << ContractImpl::name;
-  for (auto &[percentage, time_limit, cut_factor] : time_limits) {
-    cut_factor /= num_runs();
-    output << "," << cut_factor;
-  }
-  output << std::endl;
+  // output << ContractImpl::name;
+  // for (auto &[percentage, time_limit, cut_factor] : time_limits) {
+  //   cut_factor /= num_runs();
+  //   output << "," << cut_factor;
+  // }
+  // output << std::endl;
 }
 
 // Just copied from discovery runner for now
@@ -702,7 +721,7 @@ void CutoffRunner::doRunDiscovery(const HypergraphGenerator &gen,
   Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
   assert(hypergraph_ptr != nullptr);
 
-  constexpr int NUM_RUNS = 5;
+  constexpr int NUM_RUNS = 1;
 
   spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
   for (int i = 0; i < NUM_RUNS; ++i) { // TODO number of runs for deterministic algorithms is hardcoded
