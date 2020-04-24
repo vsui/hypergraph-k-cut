@@ -32,6 +32,11 @@ std::string hostname() {
   return {hostname.data()};
 }
 
+uint64_t unix_timestamp() {
+  const auto timestamp = std::chrono::system_clock::now().time_since_epoch();
+  return std::chrono::duration_cast<std::chrono::seconds>(timestamp).count();
+}
+
 // TODO putting this in certificate.hpp breaks the build and IDK why
 /**
  * Find minimum cut through certificates, use CXY with discovery to early-exit the guessing stage.
@@ -258,7 +263,8 @@ DiscoveryRunner::DiscoveryRunner(std::string id,
                                                                                          planted,
                                                                                          num_runs),
                                                                         funcnames_(std::move(func_names)),
-                                                                        pool(8) {}
+                                                                        pool(40),
+                                                                        random_(unix_timestamp()) {}
 
 void DiscoveryRunner::run() {
   ExperimentRunner::run();
@@ -275,9 +281,6 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
                                      const CutInfo &planted_cut,
                                      const uint64_t planted_cut_id,
                                      size_t k) {
-  // Make sources of randomness
-  std::random_device rd;
-  std::mt19937_64 rgen(rd());
   std::uniform_int_distribution<uint64_t> dis;
 
   const auto[hgraph, planted_cut_optional] = gen.generate();
@@ -291,27 +294,26 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
 
   spdlog::info("[{} / {}] Starting", hypergraph.name, func_name);
   for (int i = 0; i < num_runs(); ++i) {
-    auto future = pool.enqueue([this](HypergraphWrapper hypergraph,
-                                      std::string func_name,
-                                      size_t i,
-                                      size_t num_runs,
-                                      auto func,
-                                      size_t k,
-                                      auto dis,
-                                      auto rgen,
-                                      auto planted_cut,
-                                      auto planted_cut_id) -> void {
+    auto future = pool.enqueue([this](const HypergraphWrapper hypergraph,
+                                      const std::string func_name,
+                                      const size_t i,
+                                      const size_t num_runs,
+                                      const auto func,
+                                      const size_t k,
+                                      const uint64_t seed,
+                                      const auto planted_cut,
+                                      const auto planted_cut_id) -> void {
       spdlog::info("[{} / {}] Run {}/{}", hypergraph.name, func_name, i + 1, num_runs);
 
       // We have to make a copy of the hypergraph since some algorithms write to it
-      Hypergraph *hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
+      const Hypergraph *const hypergraph_ptr = std::get_if<Hypergraph>(&hypergraph.h);
       Hypergraph temp(*hypergraph_ptr);
       util::ContractionStats stats{};
       // TODO probably need to put this in more places
       temp.remove_singleton_and_empty_hyperedges();
 
       auto start = std::chrono::high_resolution_clock::now();
-      auto cut = func(&temp, dis(rgen), stats);
+      auto cut = func(&temp, seed, stats);
       auto stop = std::chrono::high_resolution_clock::now();
 
       CutInfo found_cut_info(k, cut);
@@ -323,7 +325,7 @@ void DiscoveryRunner::doRunDiscovery(const HypergraphGenerator &gen,
       run_info.commit = "n/a";
 
       doReportCutAndRun<ReturnsPartitions>(hypergraph, found_cut_info, planted_cut, planted_cut_id, run_info, stats);
-    }, hypergraph, func_name, i, num_runs(), func, k, dis, rgen, planted_cut, planted_cut_id);
+    }, hypergraph, func_name, i, num_runs(), func, k, dis(random_), planted_cut, planted_cut_id);
     futures_.emplace_back(std::move(future));
   }
 }

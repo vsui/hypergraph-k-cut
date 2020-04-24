@@ -148,6 +148,8 @@ private:
   template<typename T>
   bool notInFuncNames(T &&f);
 
+  std::mt19937_64 random_;
+
   std::vector<std::pair<std::string, HypergraphCutFunc>> getCutAlgos(size_t k, size_t cut_value);
 
   std::vector<std::pair<std::string, HypergraphCutValFunc>> getCutValAlgos(const HypergraphWrapper &hypergraph,
