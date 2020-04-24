@@ -71,13 +71,25 @@ def get_series(algo: str) -> Tuple[List[int], List[int]]:
 
 
 def make_plot(filename: str, title: str, filter=None):
-    plt.title(title)
     plt.xlabel('Hypergraph size')
     plt.ylabel('Discovery time (ms)')
     for algo in algos:
-        if filter is not None and not filter(algo):
-            continue
         xs, ys = get_series(algo)
+        if algo == 'mw':
+            algo = 'MW'
+        if algo == 'sparseMW':
+            algo = 'CX'
+        if algo == 'approxSparseMW':
+            algo = 'apxSparseCertCX'
+        if algo == 'approxCX':
+            algo = 'apxSparseCertCX'
+        if algo == 'cxy':
+            algo = 'CXY'
+        if algo == 'fpz':
+            algo = 'FPZ'
+        if len(sys.argv) > 3:
+            if algo not in sys.argv[3].split(','):
+                continue
         plt.plot(xs, ys, label=algo, marker='.')
     plt.legend()
     plt.savefig(dest)

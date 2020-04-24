@@ -75,13 +75,13 @@ def unzip(l):
     return xs, ys
 
 
-plt.title(f'Discovery time of CXY on planted instances with different ranks, {os.path.basename(sys.argv[1])}')
+# plt.title(f'Discovery time of CXY on planted instances with different ranks, {os.path.basename(sys.argv[1])}')
 
 folders = [os.path.join(sys.argv[1], folder) for folder in os.listdir(
     sys.argv[1]) if folder.startswith('constant')]
 
-plt.xlabel('size')
-plt.ylabel('discovery time (ms)')
+plt.xlabel('Hypergraph size')
+plt.ylabel('Discovery time (ms)')
 
 min_x, max_x = None, None
 
