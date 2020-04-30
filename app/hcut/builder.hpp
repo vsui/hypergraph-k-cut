@@ -97,10 +97,40 @@ struct ContractionFuncBuilder : CutFuncBuilder<HypergraphType> {
   }
 };
 
+template<typename HypergraphType, ordering_t<HypergraphType> Ordering>
+struct OrderingBasedMinCutFuncBuilder : CutFuncBuilder<HypergraphType> {
+  using CutFuncBuilder<HypergraphType>::CutFuncBuilder;
+
+  void check(const Options &options) override {
+    if (options.k != 2) {
+      throw std::invalid_argument("k must be 2 for ordering based min cut");
+    }
+    if (options.epsilon) {
+      throw std::invalid_argument("epsilon option not valid for ordering based min cut");
+    }
+    if (options.runs) {
+      throw std::invalid_argument("runs option not valid for ordering based min cut");
+    }
+    if (options.discover) {
+      throw std::invalid_argument("discovery option not valid for ordering based min cut");
+    }
+    // TODO random_seed, verbosity
+  }
+
+  CutFunc<HypergraphType> build(const Options &options) override {
+    return [](HypergraphType &hypergraph) {
+      return vertex_ordering_mincut<HypergraphType, Ordering, true>(hypergraph);
+    };
+  }
+};
+
 template<typename HypergraphType>
 const std::vector<typename CutFuncBuilder<HypergraphType>::Ptr> cut_funcs = {
     std::make_shared<ContractionFuncBuilder<HypergraphType, cxy>>("CXY"),
     std::make_shared<ContractionFuncBuilder<HypergraphType, fpz>>("FPZ"),
-    std::make_shared<ContractionFuncBuilder<HypergraphType, kk>>("KK")
+    std::make_shared<ContractionFuncBuilder<HypergraphType, kk>>("KK"),
+    std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, tight_ordering>>("MW"),
+    std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, queyranne_ordering>>("Q"),
+    std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, maximum_adjacency_ordering>>("KW")
 };
 

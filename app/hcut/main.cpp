@@ -135,7 +135,7 @@ int dispatch(Options options) {
 
   // Run function
   const auto start = std::chrono::high_resolution_clock::now();
-  auto cut = func(copy);
+  auto cut = func(hypergraph);
   const auto stop = std::chrono::high_resolution_clock::now();
 
   // Report results
