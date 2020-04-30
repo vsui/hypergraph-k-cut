@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hypergraph.hpp"
+#include "certificate.hpp"
 #include "order.hpp"
 
 namespace hypergraphlib {
@@ -62,6 +63,21 @@ HypergraphCut<typename HypergraphType::EdgeWeight> approximate_minimizer(Hypergr
   }
 
   return std::min(delta, approximate_minimizer(temp, epsilon));
+}
+
+/**
+ * Combines the certificate and approximate algorithm.
+ *
+ * Uses the approximate algorithm to get a bound on the min cut for the certificate, and then runs the
+ * algorithm on the certificate.
+ */
+template<auto MinCutFunc>
+HypergraphCut <size_t> apxCertCX(Hypergraph &hypergraph, const double epsilon) {
+  Hypergraph copy(hypergraph);
+  const auto approx_cut = approximate_minimizer(copy, epsilon);
+  KTrimmedCertificate certifier(hypergraph);
+  auto certificate = certifier.certificate(approx_cut.value);
+  return MinCutFunc(certificate);
 }
 
 }

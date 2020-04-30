@@ -128,8 +128,7 @@ template<typename HypergraphType>
 struct CXMinCutBuilder : CutFuncBuilder<HypergraphType> {
   using CutFuncBuilder<HypergraphType>::CutFuncBuilder;
 
-  void check(const Options &options)
-  override {
+  void check(const Options &options) override {
     if (options.k != 2) {
       throw std::invalid_argument("k must be 2 for ordering based min cut");
     }
@@ -152,6 +151,33 @@ struct CXMinCutBuilder : CutFuncBuilder<HypergraphType> {
   }
 };
 
+template<typename HypergraphType, auto Func>
+struct ApproxMinCutBuilder : CutFuncBuilder<HypergraphType> {
+  using CutFuncBuilder<HypergraphType>::CutFuncBuilder;
+
+  void check(const Options &options) override {
+    if (options.k != 2) {
+      throw std::invalid_argument("k must be 2");
+    }
+    if (!options.epsilon) {
+      throw std::invalid_argument("epsilon required");
+    }
+    if (options.runs) {
+      throw std::invalid_argument("runs option not valid");
+    }
+    if (options.discover) {
+      throw std::invalid_argument("discovery option not valid");
+    }
+  }
+
+  CutFunc<HypergraphType> build(const Options &options) override {
+    const double epsilon = options.epsilon.value();
+    return [epsilon](HypergraphType &hypergraph) {
+      return Func(hypergraph, epsilon);
+    };
+  }
+};
+
 template<typename HypergraphType>
 const std::vector<typename CutFuncBuilder<HypergraphType>::Ptr> cut_funcs = {
     std::make_shared<ContractionFuncBuilder<HypergraphType, cxy>>("CXY"),
@@ -159,7 +185,8 @@ const std::vector<typename CutFuncBuilder<HypergraphType>::Ptr> cut_funcs = {
     std::make_shared<ContractionFuncBuilder<HypergraphType, kk>>("KK"),
     std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, tight_ordering>>("MW"),
     std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, queyranne_ordering>>("Q"),
-    std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, maximum_adjacency_ordering>>("KW")
+    std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, maximum_adjacency_ordering>>("KW"),
+    std::make_shared<ApproxMinCutBuilder<HypergraphType, approximate_minimizer<HypergraphType>>>("apxCX")
 };
 
 // Specialization: certificates are not supported by weighted hypergraphs yet
@@ -172,7 +199,10 @@ const std::vector<typename CutFuncBuilder<Hypergraph>::Ptr> cut_funcs<Hypergraph
     std::make_shared<OrderingBasedMinCutFuncBuilder<Hypergraph, tight_ordering>>("MW"),
     std::make_shared<OrderingBasedMinCutFuncBuilder<Hypergraph, queyranne_ordering>>("Q"),
     std::make_shared<OrderingBasedMinCutFuncBuilder<Hypergraph, maximum_adjacency_ordering>>("KW"),
-    std::make_shared<CXMinCutBuilder<Hypergraph>>("CX")
+    std::make_shared<ApproxMinCutBuilder<Hypergraph, approximate_minimizer<Hypergraph>>>("apxCX"),
+
+    std::make_shared<CXMinCutBuilder<Hypergraph>>("CX"),
+    std::make_shared<ApproxMinCutBuilder<Hypergraph, apxCertCX<MW_min_cut<Hypergraph>>>>("apxCertCX")
 };
 
 
