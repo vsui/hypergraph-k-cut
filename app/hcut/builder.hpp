@@ -1,0 +1,106 @@
+#pragma once
+
+#include <hypergraph/kk.hpp>
+#include <hypergraph/approx.hpp>
+#include <hypergraph/cxy.hpp>
+#include <hypergraph/fpz.hpp>
+
+using namespace hypergraphlib;
+
+struct Options {
+  std::string algorithm;
+  std::string filename;
+  size_t k = 2; // Compute k-cut
+
+  std::optional<double> epsilon; // Epsilon for approximation algorithms
+
+  // These options are for contraction algorithms
+  std::optional<size_t> runs; // Number of runs to repeat contraction algo for
+  std::optional<double> discover; // Discovery value
+  uint32_t random_seed = 0;
+  uint8_t verbosity = 2; // Verbose output
+};
+
+/**
+ * A hypergraph cut function with all of the necessary arguments baked in except for the hypergraph. So this may be a
+ * k-cut function where k > 2, or an approximation algorithm
+ *
+ * It takes in a reference to a hypergraph (so it may modify the hypergraph!) and returns a cut with partitions
+ */
+template<typename HypergraphType>
+using CutFunc = std::function<HypergraphCut<typename HypergraphType::EdgeWeight>(HypergraphType &)>;
+
+template<typename HypergraphType>
+struct CutFuncBuilder {
+  using Ptr = std::shared_ptr<CutFuncBuilder>;
+
+  std::string name() { return name_; }
+
+  /// Throw `std::invalid_argument` if options are not valid
+  virtual void check(const Options &options) = 0;
+
+  virtual CutFunc<HypergraphType> build(const Options &options) = 0;
+
+  virtual ~CutFuncBuilder() = default;
+
+  explicit CutFuncBuilder(std::string name) : name_(std::move(name)) {}
+
+private:
+  std::string name_;
+};
+
+template<typename HypergraphType, typename ContractImpl>
+struct ContractionFuncBuilder : CutFuncBuilder<HypergraphType> {
+  using CutFuncBuilder<HypergraphType>::CutFuncBuilder;
+
+  void check(const Options &options) override {
+    if (options.k < 2) {
+      throw std::invalid_argument("k cannot be less than 2");
+    }
+    if (options.epsilon) {
+      throw std::invalid_argument("epsilon not valid for contraction algos");
+    }
+  }
+
+  CutFunc<HypergraphType> build(const Options &options) override {
+    if (options.verbosity == 0) {
+      return [options](HypergraphType &h) {
+        util::ContractionStats stats;
+        return util::repeat_contraction<HypergraphType, ContractImpl, true, 0>(h,
+                                                                               options.k,
+                                                                               std::mt19937_64(options.random_seed),
+                                                                               stats,
+                                                                               options.runs,
+                                                                               options.discover);
+      };
+    } else if (options.verbosity == 1) {
+      return [options](HypergraphType &h) {
+        util::ContractionStats stats;
+        return util::repeat_contraction<HypergraphType, ContractImpl, true, 1>(h,
+                                                                               options.k,
+                                                                               std::mt19937_64(options.random_seed),
+                                                                               stats,
+                                                                               options.runs,
+                                                                               options.discover);
+      };
+    } else {
+      return [options](HypergraphType &h) {
+        util::ContractionStats stats;
+        return util::repeat_contraction<HypergraphType, ContractImpl, true, 2>(h,
+                                                                               options.k,
+                                                                               std::mt19937_64(options.random_seed),
+                                                                               stats,
+                                                                               options.runs,
+                                                                               options.discover);
+      };
+    }
+  }
+};
+
+template<typename HypergraphType>
+const std::vector<typename CutFuncBuilder<HypergraphType>::Ptr> cut_funcs = {
+    std::make_shared<ContractionFuncBuilder<HypergraphType, cxy>>("CXY"),
+    std::make_shared<ContractionFuncBuilder<HypergraphType, fpz>>("FPZ"),
+    std::make_shared<ContractionFuncBuilder<HypergraphType, kk>>("KK")
+};
+
