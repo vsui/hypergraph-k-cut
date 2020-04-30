@@ -125,6 +125,34 @@ struct OrderingBasedMinCutFuncBuilder : CutFuncBuilder<HypergraphType> {
 };
 
 template<typename HypergraphType>
+struct CXMinCutBuilder : CutFuncBuilder<HypergraphType> {
+  using CutFuncBuilder<HypergraphType>::CutFuncBuilder;
+
+  void check(const Options &options)
+  override {
+    if (options.k != 2) {
+      throw std::invalid_argument("k must be 2 for ordering based min cut");
+    }
+    if (options.epsilon) {
+      throw std::invalid_argument("epsilon option not valid for ordering based min cut");
+    }
+    if (options.runs) {
+      throw std::invalid_argument("runs option not valid for ordering based min cut");
+    }
+    if (options.discover) {
+      throw std::invalid_argument("discovery option not valid for ordering based min cut");
+    }
+// TODO random_seed, verbosity
+  }
+
+  CutFunc<HypergraphType> build(const Options &options) override {
+    return [options](HypergraphType &hypergraph) {
+      return certificate_minimum_cut<HypergraphType, true>(hypergraph, MW_min_cut<HypergraphType>);
+    };
+  }
+};
+
+template<typename HypergraphType>
 const std::vector<typename CutFuncBuilder<HypergraphType>::Ptr> cut_funcs = {
     std::make_shared<ContractionFuncBuilder<HypergraphType, cxy>>("CXY"),
     std::make_shared<ContractionFuncBuilder<HypergraphType, fpz>>("FPZ"),
@@ -133,4 +161,18 @@ const std::vector<typename CutFuncBuilder<HypergraphType>::Ptr> cut_funcs = {
     std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, queyranne_ordering>>("Q"),
     std::make_shared<OrderingBasedMinCutFuncBuilder<HypergraphType, maximum_adjacency_ordering>>("KW")
 };
+
+// Specialization: certificates are not supported by weighted hypergraphs yet
+// TODO there should probably some kind of warning if someone tries to run CX on a weighted hypergraph
+template<>
+const std::vector<typename CutFuncBuilder<Hypergraph>::Ptr> cut_funcs<Hypergraph> = {
+    std::make_shared<ContractionFuncBuilder<Hypergraph, cxy>>("CXY"),
+    std::make_shared<ContractionFuncBuilder<Hypergraph, fpz>>("FPZ"),
+    std::make_shared<ContractionFuncBuilder<Hypergraph, kk>>("KK"),
+    std::make_shared<OrderingBasedMinCutFuncBuilder<Hypergraph, tight_ordering>>("MW"),
+    std::make_shared<OrderingBasedMinCutFuncBuilder<Hypergraph, queyranne_ordering>>("Q"),
+    std::make_shared<OrderingBasedMinCutFuncBuilder<Hypergraph, maximum_adjacency_ordering>>("KW"),
+    std::make_shared<CXMinCutBuilder<Hypergraph>>("CX")
+};
+
 
