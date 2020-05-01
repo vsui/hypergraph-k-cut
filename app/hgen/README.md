@@ -10,7 +10,7 @@ hgen <args> <instance>
 
 The generated hypergraph is written to stdout.
 
-Where `<instance>` is either `planted`, `planted_constant_rank`, or `ring`, corresponding to the generators detailed below.
+Here `<instance>` is either `planted`, `planted_constant_rank`, or `ring`, corresponding to the generators detailed below.
 Each generator requires a different set of parameters. 
 They can be specified using flags with the name of the parameter.
 For example:
@@ -45,7 +45,7 @@ For example, using `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, and 
 three near equal sized clusters, 20 hyperedges lying entirely within each cluster that samples within the
 cluster with probability 0.3, and 10 hyperedges that are sampled from all vertices with probability 0.4.
 
-### Planted constant rank
+### Planted uniform rank
 
 This generator groups the vertices into clusters of near equal size.
 It samples some hyperedges from within each cluster (intercluster) and samples some from all vertices (intracluster).
@@ -57,6 +57,8 @@ It takes the following parameters:
 - `m1`: number of intercluster hyperedges
 - `m2`: number of intracluster hyperedges
 - `r`: rank of each hyperedge
+
+By setting `r` low you can generate low-rank instances.
 
 ### Ring
 
