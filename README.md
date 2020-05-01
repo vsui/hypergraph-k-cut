@@ -29,9 +29,9 @@ To run the tests, run `make test`. The tests will run several cut algorithms on 
 This repository is a collection of various tools for computing cuts in hypergraphs:
 
 - `hcut`: A CLI for computing hypergraph cuts. See the [`hcut` README](app/hcut/README.md) for more details.
-- `hexperiment`: Collects benchmark data on cut algorithms. See the [`hexperiment` README](app/hexperiment/README.md) for more details.
 - `hgen`: A tool for generating hypergraph problem instances. See the [`hgen` README](app/hgen/README.md) for more details.
 - `hsparsify`: A tool for generating sparse trimmed certificates (from CX '18).
+- `hexperiment`: Collects benchmark data on cut algorithms. See the [`hexperiment` README](app/hexperiment/README.md) for more details.
 
 ## Usage
 
