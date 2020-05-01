@@ -22,10 +22,10 @@ They support the following additional flags.
 
 - `-s, --seed`: A random seed.
 - `-v, --verbosity`: Controls how much logging is done. Higher values mean more logs.
-- `-d, --discover`: The discovery value. The contraction algorithm will terminate once a cut with the discovery value is
+- `-d, --discover`: The discovery value. The procedure will terminate once a cut with the discovery value is
 found. The default is 0.
-- `-r, --runs`: The number of runs. The contraction algorithm will repeat its contraction method at most this number of times.
-The default is specific to the algorithm, but is the value specified by the paper to give the algorithm high chance of success.
+- `-r, --runs`: The number of runs. The procedure will repeat the contraction algorithm at most this number of times.
+The default is the value specified by the paper to give the procedure high chance of success.
 
 ### Ordering based min-cut
 
@@ -41,7 +41,7 @@ The first such algorithm is apxCX, which is a (2+epsilon)-approximate hypergraph
 The second such algorithm is apxCertCX, which is an exact algorithm that uses the approximate algorithm to obtain an 
 estimation of the min cut value to sparsify the hypergraph before running MW on it to get the cut.
 
-The only supported additional flag is required
+The only supported additional flag is required.
 
 - `-a, --epsilon`: The approximation factor
 
