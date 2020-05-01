@@ -1,66 +1,88 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+"""
+usage: sqlplot-cutoff.py <source> <destination>
 
-# A lot done here that should probably be done in SQL...
+Reads the artifacts from the source directory and outputs plots to the destination directory.
+Creates the destination directory if necessary.
+
+Specifically references the 'data.txt' file
+"""
+
+
+def extract_vertices_from_name(name: str) -> str:
+    """Takes the number of vertices from a string of the form:
+
+    '{type}_{num_vertices}_{k}_{rank}_{m1}_{m2}'
+    """
+    suffix = name[name.find('_')+1:]
+    return suffix[:suffix.find('_')]
+
 
 import matplotlib.pyplot as plt
 import os
-import sqlite3
 import sys
-from collections import defaultdict
+from itertools import takewhile
 
-os.chdir(sys.argv[1])
+src = sys.argv[1]
+dest = sys.argv[2]
 
-DB_PATH = 'data.db'
+if not os.path.exists(dest):
+    os.mkdir(dest)
+elif not os.path.isdir(dest):
+    print(f'Error: {dest} already exists but is not a directory')
 
-conn = sqlite3.connect(DB_PATH)
+hypergraph_files = (file for file in os.listdir(src) if file.endswith('data.txt'))
 
-# Get algos
-c = conn.cursor()
+for filename in hypergraph_files:
+  name = filename[:-len('.data.txt')]
 
-c.execute('SELECT DISTINCT algo FROM runs')
-algos = [row[0] for row in c.fetchall()]
+  plt.xlabel('Fraction of MW time')
+  plt.ylabel('Suboptimality factor')
 
-c.execute('SELECT id FROM hypergraphs')
-hypergraphs = [row[0] for row in c.fetchall()]
+  file = open(os.path.join(src, filename))
+  cutoffs = [float(cutoff) for cutoff in file.readline().strip().split(',')[1:]]
 
-percentages = set()
+  plt.axhline(y=1, color='gray', linestyle=':')
 
-for algo in algos:
-  i = algo.find('_', len(algo) - 5)
-  percent = int(algo[i + 1:])
-  percentages.add(percent)
+  for line in file:
+      line = line.strip()
+      algo = line.split(',')[0]
+      if len(sys.argv) > 3:
+          if algo not in sys.argv[3].split(','):
+              continue
 
-percentages = list(percentages)
-percentages.sort()
+      factors = [float(factor) for factor in line.split(',')[1:]]
 
-c = conn.cursor()
+      # Cutoff the instances that could not finish in time
+      # Technically this could have actually finished in time but just been a very large cut, but unlikely
+      cutoff_factor = [(cutoff, factor) for cutoff, factor in zip(cutoffs, factors) if factor < 1e10]
 
-# We need to make a graph for each hypergraph
 
-for hypergraph in hypergraphs:
-  cutoffs = defaultdict(list)
-  for p in percentages:
-    algs = [a for a in algos if a.endswith(f'_{str(p)}')]
-    for a in algs:
-      alg_name = a[:-len(str(p)) - 1]
-      c.execute(f'SELECT val FROM cuts2 WHERE hypergraph_id = "{hypergraph}" ORDER BY val LIMIT 1')
-      min_cut_val = c.fetchall()[0][0]
-      query = f'SELECT cuts2.val FROM runs INNER JOIN cuts2 on runs.cut_id = cuts2.id WHERE algo="{a}" AND runs.hypergraph_id = "{hypergraph}"'
-      c.execute(query)
-      cut_vals = [e[0] / min_cut_val for e in c.fetchall()]
-      cut_factor = sum(cut_vals) / len(cut_vals)
-      cutoffs[alg_name].append(cut_factor)
+      # Only plot the first cutoff that is 1
+      class Predicate:
+          def __init__(self):
+            self.seen_cut_factor_one = False
 
-  plt.title(hypergraph)
-  plt.xlabel('Cutoff percentage')
-  plt.ylabel('Cut factor')
-  for alg_name in cutoffs:
-    zipped = zip(percentages, cutoffs[alg_name])
-    zipped = [e for e in zipped if e[1] < 1000]
-    percentages2 = [e[0] for e in zipped]
-    cutoffsss = [e[1] for e in zipped]
+        def __call__(self, tup):
+            cutoff, factor = tup
+            if self.seen_cut_factor_one:
+                return False
+            if factor <= 1.0:
+                self.seen_cut_factor_one = True
+            return True
+    cutoff_factor = list(takewhile(Predicate(), cutoff_factor))
 
-    plt.plot(percentages2, cutoffsss, label=alg_name)
+    cutoffs_filtered = [cutoff for cutoff, factor in cutoff_factor]
+    factors_filtered = [factor for cutoff, factor in cutoff_factor]
+
+      if len(cutoff_factor) > 1:
+          if algo == 'KK':
+              plt.plot(cutoffs_filtered, factors_filtered, label=algo, color='green')
+              continue
+          plt.plot(cutoffs_filtered, factors_filtered, label=algo)
+    else:
+        plt.plot(cutoffs_filtered, factors_filtered, marker='.', label=algo)
+
   plt.legend()
-  plt.savefig(f'cutoff_{hypergraph}.pdf')
+  plt.savefig(os.path.join(dest, f'{extract_vertices_from_name(name)}'))
   plt.close()

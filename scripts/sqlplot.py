@@ -1,4 +1,13 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+"""
+usage: sqlplot.py <source> <destination>
+
+Reads the artifacts from the source directory and outputs plots to the destination directory.
+Creates the destination directory if necessary.
+
+More specifically, will plot the discovery times of the algorithms in the sqlite database at
+'<source>/data.db'.
+"""
 
 import matplotlib.pyplot as plt
 import os
@@ -6,11 +15,12 @@ import sqlite3
 import sys
 from typing import Tuple, List
 
-os.chdir(sys.argv[1])
+src_dir = sys.argv[1]
+dest = sys.argv[2]
 
-DB_PATH = 'data.db'
+db_path = os.path.join(src_dir, 'data.db')
 
-conn = sqlite3.connect(DB_PATH)
+conn = sqlite3.connect(db_path)
 
 # Get algos
 c = conn.cursor()
@@ -61,24 +71,37 @@ def get_series(algo: str) -> Tuple[List[int], List[int]]:
 
 
 def make_plot(filename: str, title: str, filter=None):
-    plt.title(title)
     plt.xlabel('Hypergraph size')
     plt.ylabel('Discovery time (ms)')
     for algo in algos:
-        if filter is not None and not filter(algo):
-            continue
         xs, ys = get_series(algo)
-        plt.plot(xs, ys, label=algo)
+        if algo == 'mw':
+            algo = 'MW'
+        if algo == 'sparseMW':
+            algo = 'CX'
+        if algo == 'approxSparseMW':
+            algo = 'apxSparseCertCX'
+        if algo == 'approxCX':
+            algo = 'apxSparseCertCX'
+        if algo == 'cxy':
+            algo = 'CXY'
+        if algo == 'fpz':
+            algo = 'FPZ'
+        if len(sys.argv) > 3:
+            if algo not in sys.argv[3].split(','):
+                continue
+        plt.plot(xs, ys, label=algo, marker='.')
     plt.legend()
-    plt.savefig(filename)
+    plt.savefig(dest)
     plt.close()
 
 
-make_plot('full.pdf', 'Full results')
-make_plot('value.pdf', 'Value results', lambda algo: algo.endswith('val'))
-make_plot('notvalue.pdf', 'Not value results',
-          lambda algo: not algo.endswith('val'))
-make_plot('mwvalue.pdf', 'Value results', lambda algo: algo.endswith(
-    'val') and algo not in ('qval', 'kwval'))
-make_plot('mwnotvalue.pdf', 'Not value results',
-          lambda algo: not algo.endswith('val') and algo not in ('q', 'kw'))
+make_plot(sys.argv[2], 'Discovery time')
+
+# make_plot('value.pdf', 'Value results', lambda algo: algo.endswith('val'))
+# make_plot('notvalue.pdf', 'Not value results',
+#           lambda algo: not algo.endswith('val'))
+# make_plot('mwvalue.pdf', 'Value results', lambda algo: algo.endswith(
+#     'val') and algo not in ('qval', 'kwval'))
+# make_plot('mwnotvalue.pdf', 'Not value results',
+#           lambda algo: not algo.endswith('val') and algo not in ('q', 'kw'))

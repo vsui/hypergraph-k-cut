@@ -8,5 +8,6 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 include(extern)
 
-add_subdirectory(hypergraph)
+add_subdirectory(lib)
 add_subdirectory(app)
+add_subdirectory(scripts)

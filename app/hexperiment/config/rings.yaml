@@ -1,0 +1,18 @@
+# Number of times to repeat each algorithm
+num_runs: 20
+
+# Used as defaults if missing from hypergraphs list
+edge_mult: 30
+radius: 30.0
+
+name: rings
+type: ring
+
+# Generate these instances.
+hypergraphs:
+  - num_vertices: 100
+    seed: 111
+  - num_vertices: 112
+    seed: 20
+  - num_vertices: 125
+    seed: 777

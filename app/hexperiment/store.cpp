@@ -2,13 +2,13 @@
 // Created by Victor on 2/23/20.
 //
 
-#include "store.hpp"
-#include "generators.hpp"
-#include "sqlutil.hpp"
-
 #include <iostream>
 
 #include <sqlite3.h>
+#include <generators/generators.hpp>
+
+#include "store.hpp"
+#include "sqlutil.hpp"
 
 using std::begin, std::end;
 
@@ -146,6 +146,27 @@ CREATE TABLE IF NOT EXISTS cuts5 (
   REFERENCES hypergraphs (id)
 );
 
+CREATE TABLE IF NOT EXISTS cuts6 (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  hypergraph_id TEXT,
+  val INTEGER NOT NULL,
+  planted INTEGER NOT NULL,
+  size_p1 INTEGER,
+  size_p2 INTEGER,
+  size_p3 INTEGER,
+  size_p4 INTEGER,
+  size_p5 INTEGER,
+  size_p6 INTEGER,
+  blob_p1 BLOB,
+  blob_p2 BLOB,
+  blob_p3 BLOB,
+  blob_p4 BLOB,
+  blob_p5 BLOB,
+  blob_p6 BLOB,
+  FOREIGN KEY (hypergraph_id)
+  REFERENCES hypergraphs (id)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   algo TEXT NOT NULL,
@@ -232,36 +253,18 @@ std::tuple<ReportStatus, uint64_t> SqliteStore::report(const std::string &hyperg
   }
 
   // Cut not in store, need to add it
-  std::stringstream stream;
-
-  std::string table_name = "cuts"s + std::to_string(info.k);
-  std::string columns = "(hypergraph_id, val, planted";
+  sqlutil::InsertStatementBuilder builder("cuts"s + std::to_string(info.k));
+  builder.add("hypergraph_id", hypergraph_id);
+  builder.add("val", info.cut_value);
+  builder.add("planted", planted ? 1 : 0);
   for (int i = 0; i < info.partitions.size(); ++i) {
-    columns += ", size_p"s + std::to_string(i + 1);
+    builder.add("size_p"s + std::to_string(i + 1), info.partitions.at(i).size());
+    builder.add("blob_p"s + std::to_string(i + 1), partition_to_str(info.partitions.at(i)));
   }
-  for (int i = 0; i < info.partitions.size(); ++i) {
-    columns += ", blob_p"s + std::to_string(i + 1);
-  }
-  columns += ")";
-  std::string partition_sizes_string;
-  for (const auto &p : info.partitions) {
-    partition_sizes_string += ", "s + std::to_string(p.size());
-  }
-  std::string partition_blobs_string;
-  for (const auto &p : info.partitions) {
-    partition_blobs_string += ", "s + "\'" + partition_to_str(p) + "\'";
-  }
-  // We still need to make this manually for now...
-  stream << "INSERT INTO " << table_name << " " << columns << " VALUES ("
-         << "'" << hypergraph_id << "'"
-         << ", " << info.cut_value
-         << ", " << (planted ? 1 : 0)
-         << partition_sizes_string
-         << partition_blobs_string
-         << ");";
+  const auto insert_stmt = builder.string();
 
   char *zErrMsg{};
-  int err = sqlite3_exec(db_, stream.str().c_str(), null_callback, nullptr, &zErrMsg);
+  int err = sqlite3_exec(db_, insert_stmt.c_str(), null_callback, nullptr, &zErrMsg);
   if (err != SQLITE_OK) {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);

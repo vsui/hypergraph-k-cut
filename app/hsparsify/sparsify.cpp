@@ -4,6 +4,8 @@
 #include "hypergraph/hypergraph.hpp"
 #include "hypergraph/certificate.hpp"
 
+using namespace hypergraphlib;
+
 bool hmetis_file_is_unweighted(const std::string &filename) {
   std::ifstream input;
   input.open(filename);

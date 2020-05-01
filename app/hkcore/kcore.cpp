@@ -17,6 +17,7 @@
 #include <hypergraph/order.hpp>
 
 using std::begin, std::end;
+using namespace hypergraphlib;
 
 template<typename HypergraphType>
 int run(const HypergraphType &h, const std::string &filename, const std::filesystem::path out_path) {

@@ -8,130 +8,84 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <hypergraph/order.hpp>
+#include <hypergraph/cxy.hpp>
+#include <hypergraph/approx.hpp>
 
-#include "generators.hpp"
 #include "store.hpp"
 #include "runner.hpp"
+#include "experiment.hpp"
 
-using HyGenPtr = std::unique_ptr<HypergraphGenerator>;
-using HyGenPtrs = std::vector<HyGenPtr>;
-using Experiment = std::tuple<std::string, HyGenPtrs, bool /* compare_kk */, bool /* planted */>;
+using namespace hypergraphlib;
+namespace fs = std::filesystem;
 
-namespace {
+int run_experiment(const fs::path &config_path,
+                   const fs::path &output_path = {},
+                   const std::optional<size_t> &num_runs = {});
+int list_sizes(const fs::path &config_path);
+int check_cuts(const fs::path &config_path);
+int check_approx(const fs::path &config_path);
 
-/**
- * Generate an experiment for planted hypergraphs where the size of edges in the crossing and non-crossing hyperedges
- * are equal in expectation.
- *
- * @param name name of experiment
- * @param num_vertices
- * @param k
- * @param m2_mult set m2 to `n / m2_mult`
- * @param m1_mult set m1 to `m2 * m1_mult`
- */
-Experiment planted_experiment(const std::string &name,
-                              const std::vector<size_t> &num_vertices,
-                              size_t k,
-                              size_t m2_mult,
-                              size_t m1_mult) {
-  Experiment planted_experiment;
+// Executes different functions based on the flags
+struct Executor {
+  virtual int operator()(const fs::path &config_path, const fs::path &output_path) const = 0;
 
-  std::get<0>(planted_experiment) = name;
-  std::get<2>(planted_experiment) = false;
-  std::get<3>(planted_experiment) = true;
+  virtual ~Executor() = default;
 
-  for (size_t n : num_vertices) {
-    size_t m2 = n / m2_mult;
-    size_t m1 = m2 * m1_mult;
-    double p2 = 0.1;
-    double p1 = p2 * k;
-    std::get<1>(planted_experiment).emplace_back(new PlantedHypergraph(n, m1, p1, m2, p2, k, 777));
+  static std::unique_ptr<Executor> factory(bool list_sizes,
+                                           bool check_cuts,
+                                           bool check_approx,
+                                           const std::optional<size_t> &num_runs);
+};
+
+struct ExperimentExecutor : public Executor {
+  std::optional<size_t> num_runs;
+
+  int operator()(const fs::path &config_path, const fs::path &output_path) const override {
+    return run_experiment(config_path, output_path, num_runs);
   }
-  return planted_experiment;
-}
+};
 
-Experiment planted_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
-  return planted_experiment(
-      name,
-      node["num_vertices"].as<std::vector<size_t>>(),
-      node["k"].as<size_t>(),
-      node["m2_mult"].as<size_t>(),
-      node["m1_mult"].as<size_t>()
-  );
-}
-
-/**
- * Generate an experiment for uniform planted hypergraphs.
- * @param name
- * @param num_vertices
- * @param k
- * @param rank
- * @param m2_mult set m2 to `n / m2_mult`
- * @param m1_mult set m1 to `m2 * m1_mult`
- * @return
- */
-Experiment planted_uniform_experiment(const std::string &name,
-                                      const std::vector<size_t> &num_vertices,
-                                      size_t k,
-                                      size_t rank,
-                                      size_t m2_mult,
-                                      size_t m1_mult) {
-  Experiment experiment;
-
-  std::get<0>(experiment) = name;
-  std::get<2>(experiment) = true;
-  std::get<3>(experiment) = true;
-
-  for (size_t n : num_vertices) {
-    size_t m2 = n / m2_mult;
-    size_t m1 = m2 * m1_mult;
-    std::get<1>(experiment).emplace_back(new UniformPlantedHypergraph(n, k, rank, m1, m2, 777));
+struct ListSizesExecutor : public Executor {
+  int operator()(const fs::path &config_path, const fs::path &) const override {
+    return list_sizes(config_path);
   }
-  return experiment;
-}
+};
 
-Experiment planted_constant_rank_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
-  return planted_uniform_experiment(
-      name,
-      node["num_vertices"].as<std::vector<size_t>>(),
-      node["k"].as<size_t>(),
-      node["rank"].as<size_t>(),
-      node["m2_mult"].as<size_t>(),
-      node["m1_mult"].as<size_t>()
-  );
-}
+struct CheckCutsExecutor : public Executor {
 
-Experiment ring_experiment(const std::string &name,
-                           const std::vector<size_t> &num_vertices,
-                           size_t edge_mult,
-                           size_t radius) {
-  Experiment experiment;
-
-  std::get<0>(experiment) = name;
-  std::get<2>(experiment) = false;
-  std::get<3>(experiment) = false;
-
-  for (size_t n : num_vertices) {
-    size_t num_edges = n * edge_mult;
-    std::get<1>(experiment).emplace_back(new RandomRingConstantEdgeHypergraph(n, num_edges, radius, 777));
+  int operator()(const fs::path &config_path, const fs::path &) const override {
+    return check_cuts(config_path);
   }
-  return experiment;
+};
+
+struct CheckApproxExecutor : public Executor {
+  int operator()(const fs::path &config_path, const fs::path &) const override {
+    return check_approx(config_path);
+  }
+};
+
+std::unique_ptr<Executor> Executor::factory(const bool list_sizes,
+                                            const bool check_cuts,
+                                            const bool check_approx,
+                                            const std::optional<size_t> &num_runs) {
+  if (list_sizes)
+    return std::make_unique<ListSizesExecutor>();
+  else if (check_cuts)
+    return std::make_unique<CheckCutsExecutor>();
+  else if (check_approx)
+    return std::make_unique<CheckApproxExecutor>();
+  else {
+    auto exec = std::make_unique<ExperimentExecutor>();
+    exec->num_runs = num_runs;
+    return exec;
+  }
 }
 
-Experiment ring_experiment_from_yaml(const std::string &name, const YAML::Node &node) {
-  return ring_experiment(
-      name,
-      node["num_vertices"].as<std::vector<size_t>>(),
-      node["edge_mult"].as<size_t>(),
-      node["radius"].as<size_t>()
-  );
-}
-
-}
+void recursively_execute(const fs::path &config_path,
+                         const fs::path &output_path,
+                         const Executor &execute);
 
 int main(int argc, char **argv) {
-  using namespace std::string_literals;
-
   TCLAP::CmdLine cmd("Hypergraph experiment runner", ' ', "0.1");
 
   TCLAP::UnlabeledValueArg<std::string> configFileArg(
@@ -159,95 +113,107 @@ int main(int argc, char **argv) {
       "check-cuts",
       "Check that cuts are not skewed or trivial");
 
-  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg};
+  TCLAP::SwitchArg checkApproxArg(
+      "a",
+      "check-approx",
+      "Check cut factors of approximation algorithm"
+  );
+
+  TCLAP::ValueArg<size_t>
+      numRunsArg("n", "runs", "Override number of runs for configs", false, 0, "A positive integer", cmd);
+
+  TCLAP::SwitchArg recursiveArg("r", "recursive", "Run hexperiment for all configs in the tree");
+
+  TCLAP::SwitchArg forceArg("f", "force", "Remove any files already in the output path");
+
+  std::vector<TCLAP::Arg *> xor_list = {&destArg, &listSizesArg, &checkCutsArg, &checkApproxArg};
 
   cmd.xorAdd(xor_list);
+  cmd.add(recursiveArg);
+  cmd.add(forceArg);
 
   cmd.parse(argc, argv);
 
-  // Parse config file
-  YAML::Node node = YAML::LoadFile(configFileArg.getValue());
-  std::filesystem::path config_path(configFileArg.getValue());
+  fs::path config_path = configFileArg.getValue();
+  fs::path output_path = destArg.getValue();
 
-  using ExperimentGenerator = std::function<Experiment(const std::string &, const YAML::Node &)>;
-  const std::map<std::string, ExperimentGenerator> gens = {
-      {"planted", planted_experiment_from_yaml},
-      {"planted_constant_rank", planted_constant_rank_experiment_from_yaml},
-      {"ring", ring_experiment_from_yaml}
-  };
+  const auto execute = Executor::factory(listSizesArg.isSet(),
+                                         checkCutsArg.isSet(),
+                                         checkApproxArg.isSet(),
+                                         numRunsArg.isSet() ? std::make_optional(numRunsArg.getValue()) : std::nullopt);
+
+  try {
+    if (recursiveArg.isSet()) {
+      if (fs::exists(output_path)) {
+        if (forceArg.isSet()) {
+          fs::remove_all(output_path);
+        } else {
+          std::cerr << "Error: '" << output_path.string() << "' already exists\n"
+                    << "\nUse '-f' to force removal of '" << output_path.string() << "'" << std::endl;
+          exit(1);
+        }
+      }
+      recursively_execute(config_path, output_path, *execute);
+    } else {
+      (*execute)(config_path, output_path);
+    }
+  } catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+  }
+}
+
+int run_experiment(const fs::path &config_path,
+                   const fs::path &output_path,
+                   const std::optional<size_t> &num_runs) {
+  using namespace std::string_literals;
+
+  if (!fs::is_regular_file(config_path)) {
+    std::cerr << "Error: " << config_path.string() << " is not a file" << std::endl;
+    return 1;
+  }
+
+  YAML::Node node = YAML::LoadFile(config_path);
+  Experiment experiment = experiment_from_config_file(config_path);
 
   bool cutoff = node["cutoff"] && node["cutoff"].as<bool>();
 
-  auto experiment_type = node["type"].as<std::string>();
-  auto it = gens.find(experiment_type);
-  if (it == gens.end()) {
-    std::cerr << "Unknown experiment type '" << experiment_type << "'" << std::endl;
-    return 1;
-  }
-  auto num_runs = node["num_runs"].as<size_t>();
-  auto experiment = it->second(destArg.getValue(), node);
-  auto &[name, generators, compare_kk, planted] = experiment;
-
-  if (listSizesArg.isSet()) {
-    for (const auto &gen : generators) {
-      auto[hgraph, planted] = gen->generate();
-      std::cout << hgraph.num_vertices() << "," << hgraph.size() << std::endl;
-    }
-    return 0;
-  } else if (checkCutsArg.isSet()) {
-    if (node["type"].as<std::string>() != "ring" && node["k"].as<size_t>() > 2) {
-      std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
-      return 1;
-    }
-    for (const auto &gen : generators) {
-      auto[hgraph, planted] = gen->generate();
-      std::cout << "Checking " << gen->name() << std::endl;
-      auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
-      auto cut = MW_min_cut(hgraph);
-      if (cut.value == 0) {
-        std::cout << gen->name() << " is disconnected" << std::endl;
-      }
-      auto skew = static_cast<double>(cut.partitions[0].size()) / num_vertices;
-      if (skew < 0.1 || skew > 0.9) {
-        std::cout << gen->name() << " has a skewed min cut (" << cut.partitions.at(0).size() << ", "
-                  << cut.partitions.at(1).size() << ")" << std::endl;
-      } else {
-        std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
-                  << cut.partitions.at(1).size() << ")" << std::endl;
-      }
-    }
-    return 0;
+  std::vector<std::string> algos = {};
+  if (node["algos"]) {
+    algos = node["algos"].as<std::vector<std::string>>();
   }
 
   // Prepare output directory
-  if (std::filesystem::exists(destArg.getValue())) {
-    std::cout << destArg.getValue() << " already exists. Overwrite? [yN]" << std::endl;
+  if (fs::exists(output_path)) {
+    std::cout << output_path << " already exists. Overwrite? [yN]" << std::endl;
 
     char c;
     while (std::cin.read(&c, 1)) {
-      if (c == 'y') { break; }
-      else if (c == 'N') { return 0; }
-      else { std::cout << "Enter one of [yN]" << std::endl;}
+      if (c == 'y') {
+        break;
+      } else if (c == 'N') {
+        return 0;
+      } else {
+        std::cout << "Enter one of [yN]" << std::endl;
+      }
     }
 
-    std::filesystem::remove_all(destArg.getValue());
+    fs::remove_all(output_path);
   }
-  std::filesystem::path dest_path = std::filesystem::path(destArg.getValue());
-  if (!std::filesystem::create_directory(dest_path)) {
-    std::cerr << "Failed to create output directory '" << dest_path << "'" << std::endl;
+  if (!fs::create_directories(output_path)) {
+    std::cerr << "Failed to create output directory '" << output_path << "'" << std::endl;
     return 1;
   }
-  std::filesystem::path db_path = dest_path / "data.db";
+  fs::path db_path = output_path / "data.db";
 
   // Prepare logger
-  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(dest_path / "log.txt", true);
+  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(output_path / "log.txt", true);
   auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
   std::shared_ptr<spdlog::logger> logger(new spdlog::logger("multi_sink", {file_sink, console_sink}));
 
   spdlog::set_default_logger(logger);
 
-  std::filesystem::copy_file(config_path, dest_path / "config.yaml");
+  fs::copy_file(config_path, output_path / "config.yaml");
 
   // Prepare sqlite database
   auto store = std::make_shared<SqliteStore>();
@@ -256,25 +222,105 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  size_t runs = num_runs.has_value() ? num_runs.value() : node["num_runs"].as<size_t>();
+
+  const auto factory = [&](bool cutoff, Experiment &&experiment) -> std::unique_ptr<ExperimentRunner> {
+    auto &[name, generators, planted] = experiment;
+    if (cutoff) {
+      return std::make_unique<CutoffRunner>(name,
+                                            std::move(generators),
+                                            store,
+                                            planted,
+                                            runs,
+                                            algos,
+                                            node["percentages"].as<std::vector<double>>(),
+                                            output_path);
+    } else {
+      return std::make_unique<DiscoveryRunner>(name,
+                                               std::move(generators),
+                                               store,
+                                               planted,
+                                               runs,
+                                               algos);
+    }
+  };
+
   // Run experiment
-  ExperimentRunner runner(name, std::move(generators), store, compare_kk, planted, cutoff, num_runs);
+  std::unique_ptr<ExperimentRunner> runner = factory(cutoff, std::move(experiment));
+  runner->run();
 
-  if (cutoff) {
-    runner.set_cutoff_percentages(node["percentages"].as<std::vector<size_t>>());
-  }
+  fs::path here = fs::absolute(__FILE__).remove_filename();
 
-  runner.run();
-
-  std::filesystem::path here = std::filesystem::absolute(__FILE__).remove_filename();
-
-  std::stringstream python_cmd;
-  python_cmd << "python3 "s
-             << (here / ".." / ".." / (cutoff ? "scripts/sqlplot-cutoff.py" : "scripts/sqlplot.py")) << " "
-             << destArg.getValue();
-
-  std::cout << "Done, writing artifacts to " << destArg.getValue() << std::endl;
-
-  std::system(python_cmd.str().c_str());
+  std::cout << "Done, writing artifacts to " << output_path << std::endl;
 
   return 0;
+}
+
+int list_sizes(const fs::path &config_path) {
+  Experiment experiment = experiment_from_config_file(config_path);
+  for (const auto &gen : experiment.generators) {
+    auto[hgraph, planted] = gen->generate();
+    std::cout << hgraph.num_vertices() << "," << hgraph.size() << "," << cxy::default_num_runs(hgraph, 2)
+              << std::endl;
+  }
+  return 0;
+}
+
+int check_cuts(const fs::path &config_path) {
+  YAML::Node node = YAML::LoadFile(config_path);
+  Experiment experiment = experiment_from_config_file(config_path);
+
+  if (node["type"].as<std::string>() != "ring" && node["k"].as<size_t>() > 2) {
+    std::cerr << "ERROR: cannot check the cuts if k > 2" << std::endl;
+    return 1;
+  }
+  for (const auto &gen : experiment.generators) {
+    auto[hgraph, planted] = gen->generate();
+    std::cout << "Checking " << gen->name() << std::endl;
+    auto num_vertices = hgraph.num_vertices(); // Since MW_min_cut modifies hgraph
+    auto cut = MW_min_cut(hgraph);
+    if (cut.value == 0) {
+      std::cout << gen->name() << " is disconnected" << std::endl;
+    }
+    auto skew = static_cast<double>(cut.partitions[0].size()) / num_vertices;
+    if (skew < 0.1 || skew > 0.9) {
+      std::cout << gen->name() << " has a skewed min cut (" << cut.partitions.at(0).size() << ", "
+                << cut.partitions.at(1).size() << ")" << std::endl;
+    } else {
+      std::cout << gen->name() << " has a non-skewed min cut (" << cut.partitions.at(0).size() << ", "
+                << cut.partitions.at(1).size() << ")" << std::endl;
+    }
+  }
+  return 0;
+}
+
+int check_approx(const fs::path &config_path) {
+  Experiment experiment = experiment_from_config_file(config_path);
+  for (const auto &gen : experiment.generators) {
+    std::cout << gen->name() << std::endl;
+    const auto[hypergraph, planted] = gen->generate();
+    // TODO these copies should not be necessary but right now these functions are modifying
+    Hypergraph copy{hypergraph};
+    auto min_cut_value = MW_min_cut_value(copy);
+    for (auto epsilon : {0.1, 1., 10.}) {
+      Hypergraph copy{hypergraph};
+      auto approx_cut = approximate_minimizer<Hypergraph>(copy, epsilon);
+      std::cout << epsilon << "," << static_cast<double>(approx_cut.value) / min_cut_value << std::endl;
+    }
+  }
+  return 0;
+}
+
+void recursively_execute(const fs::path &config_path,
+                         const fs::path &output_path,
+                         const Executor &execute) {
+  for (auto &p : fs::directory_iterator(config_path)) {
+    if (p.is_directory()) {
+      recursively_execute(p, output_path / p.path().filename(), execute);
+    } else if (p.path().extension() != ".yaml") {
+      std::cerr << "Skipping " << p.path() << ", extension is not .yaml" << std::endl;
+    } else {
+      execute(p.path(), output_path / p.path().stem());
+    }
+  }
 }
