@@ -68,7 +68,7 @@ For example, using `n = 100`, `m1 = 20`, `p1 = 0.3`, `m2 = 10`, `p2 = 0.4`, and 
 three near equal sized clusters, 20 hyperedges lying entirely within each cluster that samples within the
 cluster with probability 0.3, and 10 hyperedges that are sampled from all vertices with probability 0.4.
 
-### Planted constant rank
+### Planted uniform rank
 
 This generator groups the vertices into clusters of near equal size.
 It samples some hyperedges from within each cluster (intercluster) and samples some from all vertices (intracluster).
@@ -90,20 +90,6 @@ It takes the following paramters:
 - `n`: number of vertices
 - `m`: number of hyperedges
 - `radius`: the angle to sweep when sampling hyperedges
-
-
-
-
-### Type 6
-
-This generator lays out the vertices in a ring, and creates `n - 1` hyperedges containing `r` adjacent vertices. This creates
-hypergraphs with predictable cuts.
-
-It takes the following parameters:
-- `n` : number of vertices
-- `r` : size of each hyperedge
-
-For example, using `n = 100` and `r = 3` will create a hypergraph with 100 vertices and 99 edges, where each edge is of the form `{v_i, v_{i+1}, ..., v_{i+r-1}}` for vertices 1 through 99.
 
 ## Algorithms
 
