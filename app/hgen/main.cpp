@@ -1,128 +1,131 @@
-#include <boost/hana.hpp>
 #include <tclap/CmdLine.h>
 #include <generators/generators.hpp>
 
-namespace hana = boost::hana;
+TCLAP::CmdLine cmd("Hypergraph instance generator", ' ', "0.1");
 
-template<typename T>
 struct Param {
-  using type = T;
+  struct Description {
+    std::string flag; // May be empty string if there is no flag
+    std::string name;
+    std::string description;
+  };
 
-  Param(std::string short_name, std::string name, std::string description)
-      : short_name(std::move(short_name)), name(std::move(name)), description(std::move(description)) {}
+  Description description;
 
-  Param(std::string name, std::string description)
-      : name(std::move(name)), description(std::move(description)) {}
+  template<typename T>
+  static Param make(std::string short_name, std::string name, std::string description) {
+    return make<T>({.flag = std::move(short_name), .name = std::move(name), .description = std::move(description)});
+  }
 
-  std::string short_name;
-  std::string name;
-  std::string description;
+  template<typename T>
+  static Param make(std::string name, std::string description) {
+    return make<T>({.flag = "", .name = std::move(name), .description = std::move(description)});
+  }
 
-  TCLAP::ValueArg<T> *arg;
-};
+  template<typename T>
+  static Param make(const Description &desc) {
+    auto const arg = new TCLAP::ValueArg<T>(desc.flag, desc.name, desc.description, false, {}, "", cmd);
+    return Param(desc, std::move(arg));
+  }
 
-struct Foo {
-  BOOST_HANA_DEFINE_STRUCT(
-      Foo,
-      (size_t, num_vertices),
-      (size_t, num_edges)
-  );
-};
+  // T_name should be a human-readable name for the template parameter `T`
+  template <typename T>
+  T getValue(const std::string &T_name) const {
+    try {
+      return std::get<TCLAP::ValueArg<T> *>(arg)->getValue();
+    } catch (std::exception const &) {
+      std::string msg = "Internal error: Error converting " + description.name + " to " + T_name;
+      throw std::invalid_argument(msg);
+    }
+  }
 
-struct Bar {
-  BOOST_HANA_DEFINE_STRUCT(
-      Bar,
-      (size_t, num_vertices),
-      (size_t, num_edges),
-      (size_t, seed)
-  );
+  operator size_t() const {
+    return getValue<size_t>("size_t");
+  }
+
+  operator double() const {
+    return getValue<double>("double");
+  }
+
+  // Technically we should support this type of param  in our `arg variant since `seed` is a uint64_t. However, TCLAP
+  // seems to not support `uint64_t`s.
+  operator uint64_t() const {
+    return static_cast<size_t>(*this);
+  }
+
+  ~Param() {
+    // TODO Causes a segfault
+    //std::visit([](auto p) { delete p; }, arg);
+  }
+
+private:
+  template<typename T>
+  Param(Description desc, T &&arg)
+      : description(std::move(desc)),
+        arg(std::forward<T>(arg)) {};
+
+  // TCLAP::ValueArg not movable or copyable, so work with pointers.
+  std::variant<
+      TCLAP::ValueArg<size_t> *,
+      TCLAP::ValueArg<double> *
+  > arg;
 };
 
 int main(int argc, char *argv[]) {
-  using namespace hana::literals;
-  Foo foo;
-  Bar bar;
+  using namespace std::string_literals;
 
-  auto params = hana::make_tuple(
-      Param<size_t>("n", "num_vertices", "Number of vertices"),
-      Param<size_t>("m", "num_edges", "Number of edges"),
-      Param<size_t>("r", "rank", "Rank of each edge"),
-      Param<size_t>("s", "seed", "Random seed"),
-      Param<double>("mean", "Mean angle of each sector"),
-      Param<double>("a", "radius", "Radius of the size of each sector"),
-      Param<size_t>("m1", "Number of intercluster edges"),
-      Param<size_t>("m2", "Number of intracluster edges"),
-      Param<double>("p1", "Pick each vertex in the cluster with probability p1 for the intercluster edges"),
-      Param<double>("p2", "Pick each vertex in the cluster with probability p2 for the intracluster edges"),
-      Param<size_t>("k", "num_clusters", "Number of clusters")
-  );
-
-  const auto blah = [&params]() {
-    hana::find_if(params, hana::equal.to(hana::type_c<unsigned>));
-  };
-
-  //const auto get_param = [&params]( std::string name) {
-  //  const auto param = hana::find_if(params, [&name](const auto &param) { return name = params.name.c_str(); });
-  //  if (it == hana::nothing) {
-  //    std::cerr << "Internal error: no such param '" << name << "'";
-  //    throw std::exception("Internal error");
-  //  }
-  //  return param.arg->getValue();
-  //};
+  auto const params = std::map<std::string, Param>(
+      {
+          {"num_vertices", Param::make<size_t>("n", "num_vertices", "Number of vertices")},
+          {"num_edges", Param::make<size_t>("m", "num_edges", "Number of edges")},
+          {"rank", Param::make<size_t>("r", "rank", "Rank of each edge")},
+          {"seed", Param::make<size_t>("s", "seed", "Random seed")},
+          {"mean", Param::make<double>("mean", "Mean angle of each sector")},
+          {"m1", Param::make<size_t>("m1", "Number of intercluster edges")},
+          {"m2", Param::make<size_t>("m2", "Number of intracluster edges")},
+          {"p1", Param::make<double>("p1", "Pick each vertex in the cluster with probability p1 for the intercluster edges")},
+          {"p2",Param::make<double>("p2", "Pick each vertex in the cluster with probability p2 for the intracluster edges")},
+          {"num_clusters", Param::make<size_t>("k", "num_clusters", "Number of clusters")}
+      });
 
   std::vector<std::string> allowed = {"planted", "planted_constant_rank", "ring"};
   TCLAP::ValuesConstraint<std::string> allowedInstances(allowed);
-  TCLAP::CmdLine cmd("Hypergraph instance generator", ' ', "0.1");
   TCLAP::UnlabeledValueArg<std::string>
       instanceArg("instance", "Type of instance to generate", true, "", &allowedInstances, cmd);
-
-  hana::for_each(params, [&cmd](auto param) {
-    param.arg =
-        new TCLAP::ValueArg<typename decltype(param)::type>(param.short_name,
-                                                            param.name,
-                                                            param.description,
-                                                            false,
-                                                            {},
-                                                            "",
-                                                            cmd);
-    std::cout << param.name << (param.arg == nullptr) << std::endl;
-  });
 
   cmd.parse(argc, argv);
 
   const std::string instance = instanceArg.getValue();
+
   if (instance == "planted") {
     PlantedHypergraph generator(
-        hana::at(params, 0_c).arg->getValue(),
-        hana::at(params, 6_c).arg->getValue(),
-        hana::at(params, 8_c).arg->getValue(),
-        hana::at(params, 7_c).arg->getValue(),
-        hana::at(params, 9_c).arg->getValue(),
-        hana::at(params, 10_c).arg->getValue(),
-        777
+        params.at("num_vertices"),
+        params.at("m1"),
+        params.at("p1"),
+        params.at("m2"),
+        params.at("p2"),
+        params.at("k"),
+        params.at("seed")
     );
     auto[hypergraph, _] = generator.generate();
     std::cout << hypergraph;
   } else if (instance == "planted_constant_rank") {
     UniformPlantedHypergraph generator(
-        hana::at(params, 0_c).arg->getValue(),
-        hana::at(params, 10_c).arg->getValue(),
-        hana::at(params, 2_c).arg->getValue(),
-        hana::at(params, 6_c).arg->getValue(),
-        hana::at(params, 7_c).arg->getValue(),
-        777
+        params.at("num_vertices"),
+        params.at("num_clusters"),
+        params.at("rank"),
+        params.at("m1"),
+        params.at("m2"),
+        params.at("seed")
     );
     auto[hypergraph, _] = generator.generate();
     std::cout << hypergraph;
   } else if (instance == "ring") {
-    hana::for_each(params, [&cmd](auto param) {
-      std::cout << "2 " << param.name << " " << (param.arg == nullptr) << std::endl;
-    });
     RandomRingConstantEdgeHypergraph generator(
-        /* hana::at(params, 0_c).arg->getValue() */ 10,
-        /* hana::at(params, 1_c).arg->getValue() */ 10,
-        /* hana::at(params, 4_c).arg->getValue() */ 10,
-                                                    777
+        params.at("num_vertices"),
+        params.at("num_edges"),
+        params.at("mean"),
+        params.at("seed")
     );
     auto[hypergraph, _] = generator.generate();
     std::cout << hypergraph;
