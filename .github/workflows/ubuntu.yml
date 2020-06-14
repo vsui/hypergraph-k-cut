@@ -22,8 +22,8 @@ jobs:
             llvm-version: 10
     env:
       CXX: ${{ matrix.cxx }}
-      LLVM_VERSION: ${{ llvm-version }}
-      LLVM_OS_NAME: ${{ llvm-os-name }}
+      LLVM_VERSION: ${{ matrix.llvm-version }}
+      LLVM_OS_NAME: ${{ matrix.llvm-os-name }}
     steps:
       - name: checkout
         uses: actions/checkout@master
