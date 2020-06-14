@@ -23,10 +23,13 @@ jobs:
         with: { submodules: true }
       - name: toolchain
         run: |
+          set -e
           sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
           sudo -E apt-get -o Acquire::Retries=3 -yq --no-install-suggests --no-install-recommends install ${CXX}
       - name: dependencies
-        run: ./install-deps.sh
+        run: |
+          set -e
+          sudo -E ./install-deps.sh
       - name: configure
         run: cmake -H. -Bbuild
       - name: build
