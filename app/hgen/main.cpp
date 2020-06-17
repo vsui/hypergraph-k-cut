@@ -1,3 +1,5 @@
+#include <variant>
+
 #include <tclap/CmdLine.h>
 #include <generators/generators.hpp>
 
@@ -45,12 +47,6 @@ struct Param {
 
   operator double() const {
     return getValue<double>("double");
-  }
-
-  // Technically we should support this type of param  in our `arg variant since `seed` is a uint64_t. However, TCLAP
-  // seems to not support `uint64_t`s.
-  operator uint64_t() const {
-    return static_cast<size_t>(*this);
   }
 
   ~Param() {
@@ -105,7 +101,7 @@ int main(int argc, char *argv[]) {
         params.at("m2"),
         params.at("p2"),
         params.at("k"),
-        params.at("seed")
+        static_cast<size_t>(params.at("seed"))
     );
     auto[hypergraph, _] = generator.generate();
     std::cout << hypergraph;
@@ -116,7 +112,7 @@ int main(int argc, char *argv[]) {
         params.at("rank"),
         params.at("m1"),
         params.at("m2"),
-        params.at("seed")
+        static_cast<size_t>(params.at("seed"))
     );
     auto[hypergraph, _] = generator.generate();
     std::cout << hypergraph;
@@ -125,7 +121,7 @@ int main(int argc, char *argv[]) {
         params.at("num_vertices"),
         params.at("num_edges"),
         params.at("mean"),
-        params.at("seed")
+        static_cast<size_t>(params.at("seed"))
     );
     auto[hypergraph, _] = generator.generate();
     std::cout << hypergraph;
