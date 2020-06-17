@@ -1,3 +1,4 @@
+# TODO document usage
 # TODO maybe alpine linux instead
 FROM ubuntu:bionic
 
