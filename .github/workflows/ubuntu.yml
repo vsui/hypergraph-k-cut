@@ -46,6 +46,6 @@ jobs:
       - name: configure
         run: cmake -H. -Bbuild
       - name: build
-        run: cmake --build build
+        run: cmake --build build -j
       - name: test
         run: cmake --build build --target test
