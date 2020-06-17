@@ -1,7 +1,7 @@
 # Hypergraph k-cut algorithms
 
-https://img.shields.io/github/workflow/status/vsui/hypergraph-k-cut/Ubuntu?label=ubuntu
-https://img.shields.io/circleci/build/github/vsui/hypergraph-k-cut?label=circleci
+![Github Workflows status](https://img.shields.io/github/workflow/status/vsui/hypergraph-k-cut/Ubuntu?label=ubuntu)
+![CircleCI status](https://img.shields.io/circleci/build/github/vsui/hypergraph-k-cut?label=circleci)
 
 This repository contains implementations of hypergraph min-cut and hypergraph k-cut algorithms as well as tools to
 assess their performance.
