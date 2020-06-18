@@ -13,21 +13,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        cpp: [clang-10, clang-9]
+        cpp: [clang++-10, clang++-9, clang++-8]
         os: [ubuntu-18.04]
         include:
-          - cpp: clang-10
+          - cxx: clang++-10
             os: ubuntu-18.04
-            CXX: clang++-10
             llvm-os-name: bionic
             llvm-version: 10
-          - cpp: clang-9
+          - cxx: clang++-9
             os: ubuntu-18.04
-            CXX: clang++-9
             llvm-os-name: bionic
-            llvm-version: 10
+            llvm-version: 9
+          - cxx: clang++-8
+            os: ubuntu-18.04
+            llvm-os-name: bionic
+            llvm-version: 8
     env:
-      CXX: ${{ matrix.CXX }}
+      CXX: ${{ matrix.cxx }}
       LLVM_VERSION: ${{ matrix.llvm-version }}
       LLVM_OS_NAME: ${{ matrix.llvm-os-name }}
     steps:
