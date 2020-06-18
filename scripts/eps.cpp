@@ -150,8 +150,8 @@ int main() {
                 .num_vertices = num_vertices,
                 .num_edges = num_edges,
                 .radius = radius,
-                .epsilon = epsilon,
-                .seed = dis(rd)
+                .seed = dis(rd),
+                .epsilon = epsilon
             };
             infos.emplace_back(std::move(info));
           }

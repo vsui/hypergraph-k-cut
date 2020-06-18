@@ -8,21 +8,18 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  ubuntu:
-    name: ${{ matrix.os }}-${{ matrix.cxx }}
+  clang:
+    name: ${{ matrix.os }}-clang++-${{ matrix.llvm-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        cpp: [clang-10]
+        llvm-version: [7, 8, 9, 10]
         os: [ubuntu-18.04]
         include:
-          - cpp: clang-10
-            os: ubuntu-18.04
-            CXX: clang++-10
+          - os: ubuntu-18.04
             llvm-os-name: bionic
-            llvm-version: 10
     env:
-      CXX: ${{ matrix.CXX }}
+      CXX: clang++-${{ matrix.llvm-version }}
       LLVM_VERSION: ${{ matrix.llvm-version }}
       LLVM_OS_NAME: ${{ matrix.llvm-os-name }}
     steps:
@@ -32,12 +29,8 @@ jobs:
       - name: toolchain
         run: |
           set -e
-          if test -n "${LLVM_OS_NAME}" ; then
-            wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-            sudo -E apt-add-repository "deb http://apt.llvm.org/${LLVM_OS_NAME}/ llvm-toolchain-${LLVM_OS_NAME}-${LLVM_VERSION} main"
-          else
-            sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
-          fi
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo -E apt-add-repository "deb http://apt.llvm.org/${LLVM_OS_NAME}/ llvm-toolchain-${LLVM_OS_NAME}-${LLVM_VERSION} main"
           sudo -E apt-get -o Acquire::Retries=3 -yq --no-install-suggests --no-install-recommends install ${CXX}
       - name: dependencies
         run: |
@@ -49,3 +42,35 @@ jobs:
         run: cmake --build build -j
       - name: test
         run: cmake --build build --target test
+  gcc:
+    name: ${{ matrix.os }}-${{ matrix.cxx }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        cxx: [g++-9, g++-10]
+        os: [ubuntu-18.04]
+        include:
+          - os: ubuntu-18.04
+            llvm-os-name: bionic
+    env:
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@master
+        with: { submodules: true }
+      - name: toolchain
+        run: |
+          set -e
+          sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
+          sudo -E apt-get -o Acquire::Retries=3 -yq --no-install-suggests --no-install-recommends install ${CXX}
+      - name: dependencies
+        run: |
+          set -e
+          sudo -E ./install-deps.sh
+      - name: configure
+        run: cmake -H. -Bbuild
+      - name: build
+        run: cmake --build build -j
+      - name: test
+        run: cmake --build build --target test
+

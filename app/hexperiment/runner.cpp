@@ -99,7 +99,7 @@ void ExperimentRunner::run() {
 
 std::optional<ExperimentRunner::InitializeRet> ExperimentRunner::doInitialize(const HypergraphGenerator &gen) {
   const auto[hgraph, planted_cut_optional] = gen.generate();
-  HypergraphWrapper hypergraph = {.h = hgraph, .name = gen.name()};
+  HypergraphWrapper hypergraph = {.name = gen.name(), .h = hgraph};
 
   ReportStatus status = store_->report(hypergraph);
   if (status == ReportStatus::ERROR) {
