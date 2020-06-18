@@ -53,9 +53,7 @@ jobs:
           - os: ubuntu-18.04
             llvm-os-name: bionic
     env:
-      CXX: clang++-${{ matrix.llvm-version }}
-      LLVM_VERSION: ${{ matrix.llvm-version }}
-      LLVM_OS_NAME: ${{ matrix.llvm-os-name }}
+      CXX: ${{ matrix.cxx }}
     steps:
       - name: checkout
         uses: actions/checkout@master
