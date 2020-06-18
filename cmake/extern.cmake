@@ -10,7 +10,7 @@ FetchContent_Declare(yaml
 set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Enable testing" FORCE)
 set(YAML_CPP_INSTALL OFF CACHE BOOL "Build yaml-cpp shared library" FORCE)
 FetchContent_MakeAvailable(yaml)
-set(target_compile_options yaml-cpp PRIVATE -Wno-everything)
+target_compile_options(yaml-cpp PRIVATE -Wno-everything)
 
 FetchContent_Declare(spdloglib
         GIT_REPOSITORY "https://github.com/gabime/spdlog.git"
