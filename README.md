@@ -9,6 +9,7 @@ assess their performance.
 ## Building
 
 You will need cmake, boost, and a c++17 compiler.
+This software is specifically tested on Ubuntu 18.04 on g++ (versions 8 through 10) and clang++ (versions 7 through 10).
 
 If you don't have boost, you can install it by running `./install-deps.sh`.
 
