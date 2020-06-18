@@ -37,7 +37,6 @@ COPY CMakeLists.txt /hypergraph
 COPY cmake/ /hypergraph/cmake
 COPY app/ /hypergraph/app
 COPY lib/ /hypergraph/lib
-COPY ext/ /hypergraph/ext
 COPY scripts/ /hypergraph/scripts
 
 WORKDIR /hypergraph
